@@ -108,47 +108,58 @@ data Doc : ∀ {A} → G A → A → Set₁ where
 line : ∀ {A} {x : A} → Doc (x ⟨$ whitespace) x
 line = ε ·line
 
--- A document renderer. (TODO: Replace with a better one, perhaps
--- based on Swierstra and Chitil's implementation.)
-
-ugly-render : ∀ {A} {g : G A} {x} → Doc g x → List Char
-ugly-render ε              = []
-ugly-render (text {s = s}) = s
-ugly-render (d₁ · d₂)      = ugly-render d₁ ++ ugly-render d₂
-ugly-render (∣ˡ d)         = ugly-render d
-ugly-render (∣ʳ d)         = ugly-render d
-ugly-render []             = []
-ugly-render (d ∷ ds)       = ugly-render d ++ ugly-render ds
-ugly-render (d ·line)      = ugly-render d ++ [ '\n' ]
-ugly-render (group d)      = ugly-render d
-ugly-render (nest x d)     = ugly-render d
-
--- A document's underlying parse tree (with respect to ugly-render).
-
-parse-tree : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ ugly-render d
-parse-tree ε          = ε
-parse-tree text       = symbol-lemma _
-parse-tree (d₁ · d₂)  = parse-tree d₁ · parse-tree d₂
-parse-tree (∣ˡ d)     = ∣ˡ (parse-tree d)
-parse-tree (∣ʳ d)     = ∣ʳ (parse-tree d)
-parse-tree []         = ∣ˡ ε ⋆
-parse-tree (d ∷ ds)   = ∣ʳ (ε · parse-tree d · parse-tree ds) ⋆
-parse-tree (d ·line)  = ε · parse-tree d · ∣ʳ (ε · ∣ʳ tok · ∣ˡ ε ⋆) ⋆
-parse-tree (nest k d) = parse-tree d
-parse-tree (group d)  = parse-tree d
-
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
 
 Pretty-printer : {A : Set} → G A → Set₁
 Pretty-printer g = ∀ x → Doc g x
 
--- Pretty-printers are correct by definition (with respect to
--- ugly-render), assuming that the underlying grammar is unambiguous.
+-- Document renderers.
 
-consistent : ∀ {A} {g : G A} (pretty : Pretty-printer g) →
-             ∀ x → x ∈ g ∙ ugly-render (pretty x)
-consistent pretty x = parse-tree (pretty x)
+record Renderer : Set₁ where
+  field
+    -- The function that renders.
+    renderer : ∀ {A} {g : G A} {x} → Doc g x → List Char
+
+    -- The renderer must produce parsable results. This means that
+    -- pretty-printers are correct by definition, assuming that the
+    -- underlying grammar is unambiguous.
+    parsable : ∀ {A} {g : G A} (pretty : Pretty-printer g) →
+               ∀ x → x ∈ g ∙ renderer (pretty x)
+
+-- An example renderer.
+
+ugly-renderer : Renderer
+ugly-renderer = record
+  { renderer = renderer
+  ; parsable = λ pretty x → parse-tree (pretty x)
+  }
+  where
+  renderer : ∀ {A} {g : G A} {x} → Doc g x → List Char
+  renderer ε              = []
+  renderer (text {s = s}) = s
+  renderer (d₁ · d₂)      = renderer d₁ ++ renderer d₂
+  renderer (∣ˡ d)         = renderer d
+  renderer (∣ʳ d)         = renderer d
+  renderer []             = []
+  renderer (d ∷ ds)       = renderer d ++ renderer ds
+  renderer (d ·line)      = renderer d ++ [ '\n' ]
+  renderer (group d)      = renderer d
+  renderer (nest x d)     = renderer d
+
+  -- A document's underlying parse tree (with respect to renderer).
+
+  parse-tree : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ renderer d
+  parse-tree ε          = ε
+  parse-tree text       = symbol-lemma _
+  parse-tree (d₁ · d₂)  = parse-tree d₁ · parse-tree d₂
+  parse-tree (∣ˡ d)     = ∣ˡ (parse-tree d)
+  parse-tree (∣ʳ d)     = ∣ʳ (parse-tree d)
+  parse-tree []         = ∣ˡ ε ⋆
+  parse-tree (d ∷ ds)   = ∣ʳ (ε · parse-tree d · parse-tree ds) ⋆
+  parse-tree (d ·line)  = ε · parse-tree d · ∣ʳ (ε · ∣ʳ tok · ∣ˡ ε ⋆) ⋆
+  parse-tree (nest k d) = parse-tree d
+  parse-tree (group d)  = parse-tree d
 
 ------------------------------------------------------------------------
 -- Example
