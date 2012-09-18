@@ -14,10 +14,13 @@ module Pretty where
 open import Data.Char
 open import Data.List
 open import Data.Nat
+import Data.String as String
 open import Function
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 infix  30 _⋆ _+
-infixl 20 _·_ _⟨$⟩_ _⟨$_ _⟨·_ _·⟩_
+infixl 20 _·_ _<$>_ _<$_ _<·_ _·>_ _<·-d_ _·>-d_
+infix  20 <$>-d_ <$-d_
 infix  20 _·line
 infixr 20 _∷_
 infixl 10 _∣_
@@ -57,31 +60,34 @@ data _∈_∙_ : ∀ {A} → A → G A → List Char → Set₁ where
 
 -- Some derived grammar combinators.
 
-_⟨$⟩_ : ∀ {A B} → (A → B) → G A → G B
-f ⟨$⟩ g = ε f · g
+_<$>_ : ∀ {A B} → (A → B) → G A → G B
+f <$> g = ε f · g
 
-_⟨·_ : ∀ {A B} → G A → G B → G A
-g₁ ⟨· g₂ = const ⟨$⟩ g₁ · g₂
+_<·_ : ∀ {A B} → G A → G B → G A
+g₁ <· g₂ = const <$> g₁ · g₂
 
-_·⟩_ : ∀ {A B} → G A → G B → G B
-g₁ ·⟩ g₂ = flip const ⟨$⟩ g₁ · g₂
+_·>_ : ∀ {A B} → G A → G B → G B
+g₁ ·> g₂ = flip const <$> g₁ · g₂
 
-_⟨$_ : ∀ {A B} → A → G B → G A
-x ⟨$ g = ε x ⟨· g
+_<$_ : ∀ {A B} → A → G B → G A
+x <$ g = ε x <· g
 
 _+ : ∀ {A} → G A → G (List A)
-g + = _∷_ ⟨$⟩ g · g ⋆
+g + = _∷_ <$> g · g ⋆
 
 whitespace : G (List Char)
 whitespace = (tok ' ' ∣ tok '\n') ⋆
 
 symbol : List Char → G (List Char)
 symbol []      = ε []
-symbol (t ∷ s) = _∷_ ⟨$⟩ tok t · symbol s
+symbol (t ∷ s) = _∷_ <$> tok t · symbol s
 
 symbol-lemma : ∀ s → s ∈ symbol s ∙ s
 symbol-lemma []      = ε
 symbol-lemma (t ∷ s) = ε · tok · symbol-lemma s
+
+symbol-w : List Char → G (List Char)
+symbol-w s = symbol s <· whitespace
 
 ------------------------------------------------------------------------
 -- Pretty-printers
@@ -99,20 +105,44 @@ data Doc : ∀ {A} → G A → A → Set₁ where
   []     : ∀ {A} {g : G A} → Doc (g ⋆) []
   _∷_    : ∀ {A} {g : G A} {x xs} →
            Doc g x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
-  _·line : ∀ {A} {g : G A} {x} → Doc g x → Doc (g ⟨· whitespace) x
+  _·line : ∀ {A} {g : G A} {x} → Doc g x → Doc (g <· whitespace) x
   group  : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
   nest   : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
-
--- A derived document combinator.
-
-line : ∀ {A} {x : A} → Doc (x ⟨$ whitespace) x
-line = ε ·line
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
 
 Pretty-printer : {A : Set} → G A → Set₁
 Pretty-printer g = ∀ x → Doc g x
+
+-- Derived document combinators.
+
+line : ∀ {A} {x : A} → Doc (x <$ whitespace) x
+line = ε ·line
+
+<$>-d_ : ∀ {A B : Set} {f : A → B} {x g} →
+         Doc g x → Doc (f <$> g) (f x)
+<$>-d d = ε · d
+
+_<·-d_ : ∀ {A B : Set} {x : A} {y : B} {g₁ g₂} →
+         Doc g₁ x → Doc g₂ y → Doc (g₁ <· g₂) x
+d₁ <·-d d₂ = <$>-d d₁ · d₂
+
+_·>-d_ : ∀ {A B : Set} {x : A} {y : B} {g₁ g₂} →
+         Doc g₁ x → Doc g₂ y → Doc (g₁ ·> g₂) y
+d₁ ·>-d d₂ = <$>-d d₁ · d₂
+
+<$-d_ : ∀ {A B : Set} {x : A} {y : B} {g} →
+        Doc g y → Doc (x <$ g) x
+<$-d d = ε <·-d d
+
+symbol-w-d : ∀ {s} → Doc (symbol-w s) s
+symbol-w-d = ε · text · []
+
+map-d : {A : Set} {g : G A} →
+        Pretty-printer g → (xs : List A) → Doc (g ⋆) xs
+map-d p []       = []
+map-d p (x ∷ xs) = p x ∷ map-d p xs
 
 -- Document renderers.
 
@@ -143,7 +173,7 @@ ugly-renderer = record
   renderer (∣ʳ d)         = renderer d
   renderer []             = []
   renderer (d ∷ ds)       = renderer d ++ renderer ds
-  renderer (d ·line)      = renderer d ++ [ '\n' ]
+  renderer (d ·line)      = renderer d ++ [ ' ' ]
   renderer (group d)      = renderer d
   renderer (nest x d)     = renderer d
 
@@ -157,7 +187,7 @@ ugly-renderer = record
   parse-tree (∣ʳ d)     = ∣ʳ (parse-tree d)
   parse-tree []         = ∣ˡ ε ⋆
   parse-tree (d ∷ ds)   = ∣ʳ (ε · parse-tree d · parse-tree ds) ⋆
-  parse-tree (d ·line)  = ε · parse-tree d · ∣ʳ (ε · ∣ʳ tok · ∣ˡ ε ⋆) ⋆
+  parse-tree (d ·line)  = ε · parse-tree d · ∣ʳ (ε · ∣ˡ tok · ∣ˡ ε ⋆) ⋆
   parse-tree (nest k d) = parse-tree d
   parse-tree (group d)  = parse-tree d
 
@@ -172,19 +202,36 @@ private
     [0] [1] : Bit
 
   bit : G Bit
-  bit = [0] ⟨$ symbol [ '0' ]
-      ∣ [1] ⟨$ symbol [ '1' ]
+  bit = [0] <$ symbol-w [ '0' ]
+      ∣ [1] <$ symbol-w [ '1' ]
 
   bit-printer : Pretty-printer bit
-  bit-printer [0] = ∣ˡ (ε · ε · text)
-  bit-printer [1] = ∣ʳ (ε · ε · text)
+  bit-printer [0] = ∣ˡ (ε · ε · (ε · text · []))
+  bit-printer [1] = ∣ʳ (<$-d symbol-w-d)
 
-  -- Bit strings with whitespace after every bit.
+  -- Lists of bits. This example is based on one in Swierstra and
+  -- Chitil's "Linear, Bounded, Functional Pretty-Printing".
 
-  bit-string : G (List Bit)
-  bit-string = (bit ⟨· whitespace) ⋆
+  bit-list-body : G (List Bit)
+  bit-list-body = ε []
+                ∣ _∷_ <$> bit · (symbol-w [ ',' ] ·> bit) ⋆
 
-  bit-string-printer : Pretty-printer bit-string
-  bit-string-printer []       = []
-  bit-string-printer (b ∷ bs) =
-    (bit-printer b ·line) ∷ bit-string-printer bs
+  bit-list : G (List Bit)
+  bit-list = symbol-w [ '[' ] ·> bit-list-body <· symbol-w [ ']' ]
+
+  bit-list-printer : Pretty-printer bit-list
+  bit-list-printer bs = symbol-w-d ·>-d body bs <·-d symbol-w-d
+    where
+    body : Pretty-printer bit-list-body
+    body []       = ∣ˡ ε
+    body (b ∷ bs) = ∣ʳ (<$>-d bit-printer b ·
+                        map-d (λ b → group (text ·line) ·>-d bit-printer b) bs)
+
+  ex : List Bit
+  ex = [0] ∷ [1] ∷ [0] ∷ []
+
+  ex′ : List Char
+  ex′ = Renderer.renderer ugly-renderer (bit-list-printer ex)
+
+  ex″ : String.fromList ex′ ≡ "[0, 1, 0]"
+  ex″ = refl
