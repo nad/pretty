@@ -212,7 +212,7 @@ private
   bit-printer [1] = ∣ʳ (<$-d symbol-w-d)
 
   -- Lists of bits. This example is based on one in Swierstra and
-  -- Chitil's "Linear, Bounded, Functional Pretty-Printing".
+  -- Chitil's "Linear, bounded, functional pretty-printing".
 
   bit-list-body : G (List Bit)
   bit-list-body = ε []
