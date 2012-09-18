@@ -109,6 +109,8 @@ data Doc : ∀ {A} → G A → A → Set₁ where
   group  : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
   nest   : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
 
+  -- It is perhaps useful to add some kind of cast combinator.
+
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
 
