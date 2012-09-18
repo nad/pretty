@@ -151,37 +151,37 @@ map-d p (x ∷ xs) = p x ∷ map-d p xs
 record Renderer : Set₁ where
   field
     -- The function that renders.
-    renderer : ∀ {A} {g : G A} {x} → Doc g x → List Char
+    render : ∀ {A} {g : G A} {x} → Doc g x → List Char
 
     -- The renderer must produce parsable results. This means that
     -- pretty-printers are correct by definition, assuming that the
     -- underlying grammar is unambiguous.
     parsable : ∀ {A} {g : G A} (pretty : Pretty-printer g) →
-               ∀ x → x ∈ g ∙ renderer (pretty x)
+               ∀ x → x ∈ g ∙ render (pretty x)
 
 -- An example renderer.
 
 ugly-renderer : Renderer
 ugly-renderer = record
-  { renderer = renderer
+  { render   = render
   ; parsable = λ pretty x → parse-tree (pretty x)
   }
   where
-  renderer : ∀ {A} {g : G A} {x} → Doc g x → List Char
-  renderer ε              = []
-  renderer (text {s = s}) = s
-  renderer (d₁ · d₂)      = renderer d₁ ++ renderer d₂
-  renderer (∣ˡ d)         = renderer d
-  renderer (∣ʳ d)         = renderer d
-  renderer []             = []
-  renderer (d ∷ ds)       = renderer d ++ renderer ds
-  renderer (d ·line)      = renderer d ++ [ ' ' ]
-  renderer (group d)      = renderer d
-  renderer (nest x d)     = renderer d
+  render : ∀ {A} {g : G A} {x} → Doc g x → List Char
+  render ε              = []
+  render (text {s = s}) = s
+  render (d₁ · d₂)      = render d₁ ++ render d₂
+  render (∣ˡ d)         = render d
+  render (∣ʳ d)         = render d
+  render []             = []
+  render (d ∷ ds)       = render d ++ render ds
+  render (d ·line)      = render d ++ [ ' ' ]
+  render (group d)      = render d
+  render (nest x d)     = render d
 
-  -- A document's underlying parse tree (with respect to renderer).
+  -- A document's underlying parse tree (with respect to render).
 
-  parse-tree : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ renderer d
+  parse-tree : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
   parse-tree ε          = ε
   parse-tree text       = symbol-lemma _
   parse-tree (d₁ · d₂)  = parse-tree d₁ · parse-tree d₂
@@ -233,7 +233,7 @@ private
   ex = [0] ∷ [1] ∷ [0] ∷ []
 
   ex′ : List Char
-  ex′ = Renderer.renderer ugly-renderer (bit-list-printer ex)
+  ex′ = Renderer.render ugly-renderer (bit-list-printer ex)
 
   ex″ : String.fromList ex′ ≡ "[0, 1, 0]"
   ex″ = refl
