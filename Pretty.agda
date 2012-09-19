@@ -33,12 +33,12 @@ infixl 10 _∣_
 -- simple regular expressions in this sketch.
 
 data G : Set → Set₁ where
-  ∅       : ∀ {A} → G A
-  ε       : ∀ {A} → A → G A
-  tok     : Char → G Char
-  _·_     : ∀ {A B} → G (A → B) → G A → G B
-  _∣_     : ∀ {A} → G A → G A → G A
-  _⋆      : ∀ {A} → G A → G (List A)
+  ∅   : ∀ {A} → G A
+  ε   : ∀ {A} → A → G A
+  tok : Char → G Char
+  _·_ : ∀ {A B} → G (A → B) → G A → G B
+  _∣_ : ∀ {A} → G A → G A → G A
+  _⋆  : ∀ {A} → G A → G (List A)
 
 -- Semantics of grammars (parse trees). Here x ∈ g ∙ s means that x is
 -- one of the possible results of parsing the string s using the
@@ -142,7 +142,7 @@ symbol-w-d : ∀ {s} → Doc (symbol-w s) s
 symbol-w-d = ε · text · []
 
 map-d : {A : Set} {g : G A} →
-        Pretty-printer g → (xs : List A) → Doc (g ⋆) xs
+        Pretty-printer g → Pretty-printer (g ⋆)
 map-d p []       = []
 map-d p (x ∷ xs) = p x ∷ map-d p xs
 
