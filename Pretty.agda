@@ -75,8 +75,8 @@ x <$ g = ε x <· g
 _+ : ∀ {A} → G A → G (List A)
 g + = _∷_ <$> g · g ⋆
 
-whitespace : G (List Char)
-whitespace = (tok ' ' ∣ tok '\n') ⋆
+whitespace : G Char
+whitespace = tok ' ' ∣ tok '\n'
 
 symbol : List Char → G (List Char)
 symbol []      = ε []
@@ -87,7 +87,7 @@ symbol-lemma []      = ε
 symbol-lemma (t ∷ s) = ε · tok · symbol-lemma s
 
 symbol-w : List Char → G (List Char)
-symbol-w s = symbol s <· whitespace
+symbol-w s = symbol s <· whitespace ⋆
 
 ------------------------------------------------------------------------
 -- Pretty-printers
@@ -105,11 +105,11 @@ data Doc : ∀ {A} → G A → A → Set₁ where
   []     : ∀ {A} {g : G A} → Doc (g ⋆) []
   _∷_    : ∀ {A} {g : G A} {x xs} →
            Doc g x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
-  _·line : ∀ {A} {g : G A} {x} → Doc g x → Doc (g <· whitespace) x
+  _·line : ∀ {A} {g : G A} {x} → Doc g x → Doc (g <· whitespace +) x
   group  : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
   nest   : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
-
-  -- It is perhaps useful to add some kind of cast combinator.
+  cast   : ∀ {A} {g₁ g₂ : G A} {x} →
+           (∀ {s} → x ∈ g₁ ∙ s → x ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ x
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
@@ -119,7 +119,7 @@ Pretty-printer g = ∀ x → Doc g x
 
 -- Derived document combinators.
 
-line : ∀ {A} {x : A} → Doc (x <$ whitespace) x
+line : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
 line = ε ·line
 
 <$>-d_ : ∀ {A B : Set} {f : A → B} {x g} →
@@ -140,6 +140,14 @@ d₁ ·>-d d₂ = <$>-d d₁ · d₂
 
 symbol-w-d : ∀ {s} → Doc (symbol-w s) s
 symbol-w-d = ε · text · []
+
+text·line : ∀ {s} → Doc (symbol-w s) s
+text·line = cast lemma (text ·line)
+  where
+  lemma : ∀ {x ts s} →
+          x ∈ symbol ts <· whitespace + ∙ s →
+          x ∈ symbol ts <· whitespace ⋆ ∙ s
+  lemma (f∈ · x∈) = f∈ · ∣ʳ x∈ ⋆
 
 map-d : {A : Set} {g : G A} →
         Pretty-printer g → Pretty-printer (g ⋆)
@@ -178,6 +186,7 @@ ugly-renderer = record
   render (d ·line)      = render d ++ [ ' ' ]
   render (group d)      = render d
   render (nest x d)     = render d
+  render (cast _ d)     = render d
 
   -- A document's underlying parse tree (with respect to render).
 
@@ -189,9 +198,10 @@ ugly-renderer = record
   parse-tree (∣ʳ d)     = ∣ʳ (parse-tree d)
   parse-tree []         = ∣ˡ ε ⋆
   parse-tree (d ∷ ds)   = ∣ʳ (ε · parse-tree d · parse-tree ds) ⋆
-  parse-tree (d ·line)  = ε · parse-tree d · ∣ʳ (ε · ∣ˡ tok · ∣ˡ ε ⋆) ⋆
+  parse-tree (d ·line)  = ε · parse-tree d · (ε · ∣ˡ tok · ∣ˡ ε ⋆)
   parse-tree (nest k d) = parse-tree d
   parse-tree (group d)  = parse-tree d
+  parse-tree (cast f d) = f (parse-tree d)
 
 ------------------------------------------------------------------------
 -- Example
@@ -226,8 +236,9 @@ private
     where
     body : Pretty-printer bit-list-body
     body []       = ∣ˡ ε
-    body (b ∷ bs) = ∣ʳ (<$>-d bit-printer b ·
-                        map-d (λ b → group (text ·line) ·>-d bit-printer b) bs)
+    body (b ∷ bs) =
+      ∣ʳ (<$>-d bit-printer b ·
+          map-d (λ b → group text·line ·>-d bit-printer b) bs)
 
   ex : List Bit
   ex = [0] ∷ [1] ∷ [0] ∷ []
