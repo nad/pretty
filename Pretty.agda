@@ -185,7 +185,7 @@ ugly-renderer = record
   render (d₁ · d₂)      = render d₁ ++ render d₂
   render line           = [ ' ' ]
   render (group d)      = render d
-  render (nest x d)     = render d
+  render (nest _ d)     = render d
   render (cast _ d)     = render d
 
   -- A document's underlying parse tree (with respect to render).
@@ -195,8 +195,8 @@ ugly-renderer = record
   parse-tree text       = text
   parse-tree (d₁ · d₂)  = parse-tree d₁ · parse-tree d₂
   parse-tree line       = ε · ε · (ε · ∣ˡ (ε · ε · text) · ∣ˡ ε ⋆)
-  parse-tree (nest k d) = parse-tree d
   parse-tree (group d)  = parse-tree d
+  parse-tree (nest _ d) = parse-tree d
   parse-tree (cast f d) = f (parse-tree d)
 
 ------------------------------------------------------------------------
