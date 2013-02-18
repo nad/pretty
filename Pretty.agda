@@ -163,20 +163,27 @@ map-d p (x ∷ xs) = p x ∷-d map-d p xs
 record Renderer : Set₁ where
   field
     -- The function that renders.
+
     render : ∀ {A} {g : G A} {x} → Doc g x → List Char
 
-    -- The renderer must produce parsable results. This means that
-    -- pretty-printers are correct by definition, assuming that the
-    -- underlying grammar is unambiguous.
-    parsable : ∀ {A} {g : G A} (pretty : Pretty-printer g) →
-               ∀ x → x ∈ g ∙ render (pretty x)
+    -- The rendered string must be parsable.
+
+    parsable : ∀ {A} {g : G A} {x} (d : Doc g x) → x ∈ g ∙ render d
+
+  -- Pretty-printers are correct by definition, for any renderer,
+  -- assuming that the underlying grammar is unambiguous.
+
+  pretty-printer-correct :
+    ∀ {A} {g : G A} (pretty : Pretty-printer g) →
+    ∀ x → x ∈ g ∙ render (pretty x)
+  pretty-printer-correct pretty x = parsable (pretty x)
 
 -- An example renderer.
 
 ugly-renderer : Renderer
 ugly-renderer = record
   { render   = render
-  ; parsable = λ pretty x → parse-tree (pretty x)
+  ; parsable = parsable
   }
   where
   render : ∀ {A} {g : G A} {x} → Doc g x → List Char
@@ -188,16 +195,14 @@ ugly-renderer = record
   render (nest _ d)     = render d
   render (cast _ d)     = render d
 
-  -- A document's underlying parse tree (with respect to render).
-
-  parse-tree : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
-  parse-tree ε          = ε
-  parse-tree text       = text
-  parse-tree (d₁ · d₂)  = parse-tree d₁ · parse-tree d₂
-  parse-tree line       = ε · ε · (ε · ∣ˡ (ε · ε · text) · ∣ˡ ε ⋆)
-  parse-tree (group d)  = parse-tree d
-  parse-tree (nest _ d) = parse-tree d
-  parse-tree (cast f d) = f (parse-tree d)
+  parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
+  parsable ε          = ε
+  parsable text       = text
+  parsable (d₁ · d₂)  = parsable d₁ · parsable d₂
+  parsable line       = ε · ε · (ε · ∣ˡ (ε · ε · text) · ∣ˡ ε ⋆)
+  parsable (group d)  = parsable d
+  parsable (nest _ d) = parsable d
+  parsable (cast f d) = f (parsable d)
 
 ------------------------------------------------------------------------
 -- Example
