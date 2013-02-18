@@ -30,15 +30,19 @@ infixl 10 _∣_
 
 -- I could probably have based the development on my parser
 -- combinators (presented in ICFP 2010), but decided to stick to
--- simple regular expressions in this sketch.
+-- regular expressions with semantics actions in this sketch.
+--
+-- Note that instead of including a primitive combinator for single
+-- tokens I include a primitive combinator "text" for sequences of
+-- tokens.
 
 data G : Set → Set₁ where
-  ∅   : ∀ {A} → G A
-  ε   : ∀ {A} → A → G A
-  tok : Char → G Char
-  _·_ : ∀ {A B} → G (A → B) → G A → G B
-  _∣_ : ∀ {A} → G A → G A → G A
-  _⋆  : ∀ {A} → G A → G (List A)
+  ∅    : ∀ {A} → G A
+  ε    : ∀ {A} → A → G A
+  text : List Char → G (List Char)
+  _·_  : ∀ {A B} → G (A → B) → G A → G B
+  _∣_  : ∀ {A} → G A → G A → G A
+  _⋆   : ∀ {A} → G A → G (List A)
 
 -- Semantics of grammars (parse trees). Here x ∈ g ∙ s means that x is
 -- one of the possible results of parsing the string s using the
@@ -47,16 +51,16 @@ data G : Set → Set₁ where
 infix 4 _∈_∙_
 
 data _∈_∙_ : ∀ {A} → A → G A → List Char → Set₁ where
-  ε   : ∀ {A} {x : A} → x ∈ ε x ∙ []
-  tok : ∀ {t} → t ∈ tok t ∙ [ t ]
-  _·_ : ∀ {A B} {g₁ : G (A → B)} {g₂ : G A} {f x s₁ s₂} →
-        f ∈ g₁ ∙ s₁ → x ∈ g₂ ∙ s₂ → f x ∈ g₁ · g₂ ∙ s₁ ++ s₂
-  ∣ˡ  : ∀ {A} {g₁ g₂ : G A} {x s} →
-        x ∈ g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
-  ∣ʳ  : ∀ {A} {g₁ g₂ : G A} {x s} →
-        x ∈ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
-  _⋆  : ∀ {A} {g : G A} {x s} →
-        x ∈ ε [] ∣ ε _∷_ · g · g ⋆ ∙ s → x ∈ g ⋆ ∙ s
+  ε    : ∀ {A} {x : A} → x ∈ ε x ∙ []
+  text : ∀ {s} → s ∈ text s ∙ s
+  _·_  : ∀ {A B} {g₁ : G (A → B)} {g₂ : G A} {f x s₁ s₂} →
+         f ∈ g₁ ∙ s₁ → x ∈ g₂ ∙ s₂ → f x ∈ g₁ · g₂ ∙ s₁ ++ s₂
+  ∣ˡ   : ∀ {A} {g₁ g₂ : G A} {x s} →
+         x ∈ g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  ∣ʳ   : ∀ {A} {g₁ g₂ : G A} {x s} →
+         x ∈ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  _⋆   : ∀ {A} {g : G A} {x s} →
+         x ∈ ε [] ∣ ε _∷_ · g · g ⋆ ∙ s → x ∈ g ⋆ ∙ s
 
 -- Some derived grammar combinators.
 
@@ -75,19 +79,14 @@ x <$ g = ε x <· g
 _+ : ∀ {A} → G A → G (List A)
 g + = _∷_ <$> g · g ⋆
 
+tok : Char → G Char
+tok t = t <$ text [ t ]
+
 whitespace : G Char
 whitespace = tok ' ' ∣ tok '\n'
 
-symbol : List Char → G (List Char)
-symbol []      = ε []
-symbol (t ∷ s) = _∷_ <$> tok t · symbol s
-
-symbol-lemma : ∀ s → s ∈ symbol s ∙ s
-symbol-lemma []      = ε
-symbol-lemma (t ∷ s) = ε · tok · symbol-lemma s
-
-symbol-w : List Char → G (List Char)
-symbol-w s = symbol s <· whitespace ⋆
+text-w : List Char → G (List Char)
+text-w s = text s <· whitespace ⋆
 
 ------------------------------------------------------------------------
 -- Pretty-printers
@@ -97,7 +96,7 @@ symbol-w s = symbol s <· whitespace ⋆
 
 data Doc : ∀ {A} → G A → A → Set₁ where
   ε     : ∀ {A} {x : A} → Doc (ε x) x
-  text  : ∀ {s} → Doc (symbol s) s
+  text  : ∀ {s} → Doc (text s) s
   _·_   : ∀ {A B} {g₁ : G (A → B)} {g₂ : G A} {f x} →
           Doc g₁ f → Doc g₂ x → Doc (g₁ · g₂) (f x)
   line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
@@ -143,15 +142,15 @@ d₁ ·>-d d₂ = <$>-d d₁ · d₂
         Doc g y → Doc (x <$ g) x
 <$-d d = ε <·-d d
 
-symbol-w-d : ∀ {s} → Doc (symbol-w s) s
-symbol-w-d = ε · text · []-d
+text-w-d : ∀ {s} → Doc (text-w s) s
+text-w-d = ε · text · []-d
 
-text·line : ∀ {s} → Doc (symbol-w s) s
+text·line : ∀ {s} → Doc (text-w s) s
 text·line = cast lemma (text <·-d line)
   where
   lemma : ∀ {x ts s} →
-          x ∈ symbol ts <· (tt <$ whitespace +) ∙ s →
-          x ∈ symbol ts <· whitespace ⋆ ∙ s
+          x ∈ text ts <· (tt <$ whitespace +) ∙ s →
+          x ∈ text ts <· whitespace ⋆ ∙ s
   lemma (ε · x∈ · (ε · ε · w+)) = ε · x∈ · ∣ʳ w+ ⋆
 
 map-d : {A : Set} {g : G A} →
@@ -193,9 +192,9 @@ ugly-renderer = record
 
   parse-tree : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
   parse-tree ε          = ε
-  parse-tree text       = symbol-lemma _
+  parse-tree text       = text
   parse-tree (d₁ · d₂)  = parse-tree d₁ · parse-tree d₂
-  parse-tree line       = ε · ε · (ε · ∣ˡ tok · ∣ˡ ε ⋆)
+  parse-tree line       = ε · ε · (ε · ∣ˡ (ε · ε · text) · ∣ˡ ε ⋆)
   parse-tree (nest k d) = parse-tree d
   parse-tree (group d)  = parse-tree d
   parse-tree (cast f d) = f (parse-tree d)
@@ -211,25 +210,25 @@ private
     [0] [1] : Bit
 
   bit : G Bit
-  bit = [0] <$ symbol-w [ '0' ]
-      ∣ [1] <$ symbol-w [ '1' ]
+  bit = [0] <$ text-w [ '0' ]
+      ∣ [1] <$ text-w [ '1' ]
 
   bit-printer : Pretty-printer bit
   bit-printer [0] = ∣ˡ-d (ε · ε · (ε · text · []-d))
-  bit-printer [1] = ∣ʳ-d (<$-d symbol-w-d)
+  bit-printer [1] = ∣ʳ-d (<$-d text-w-d)
 
   -- Lists of bits. This example is based on one in Swierstra and
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
   bit-list-body : G (List Bit)
   bit-list-body = ε []
-                ∣ _∷_ <$> bit · (symbol-w [ ',' ] ·> bit) ⋆
+                ∣ _∷_ <$> bit · (text-w [ ',' ] ·> bit) ⋆
 
   bit-list : G (List Bit)
-  bit-list = symbol-w [ '[' ] ·> bit-list-body <· symbol-w [ ']' ]
+  bit-list = text-w [ '[' ] ·> bit-list-body <· text-w [ ']' ]
 
   bit-list-printer : Pretty-printer bit-list
-  bit-list-printer bs = symbol-w-d ·>-d body bs <·-d symbol-w-d
+  bit-list-printer bs = text-w-d ·>-d body bs <·-d text-w-d
     where
     body : Pretty-printer bit-list-body
     body []       = ∣ˡ-d ε
