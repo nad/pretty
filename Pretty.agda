@@ -15,14 +15,14 @@ open import Data.Char
 open import Data.List
 open import Data.Nat
 import Data.String as String
+open import Data.Unit
 open import Function
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 infix  30 _⋆ _+
 infixl 20 _·_ _<$>_ _<$_ _<·_ _·>_ _<·-d_ _·>-d_
 infix  20 <$>-d_ <$-d_
-infix  20 _·line
-infixr 20 _∷_
+infixr 20 _∷-d_
 infixl 10 _∣_
 
 ------------------------------------------------------------------------
@@ -96,20 +96,15 @@ symbol-w s = symbol s <· whitespace ⋆
 -- parse tree (with respect to the grammar g) for the value x.
 
 data Doc : ∀ {A} → G A → A → Set₁ where
-  ε      : ∀ {A} {x : A} → Doc (ε x) x
-  text   : ∀ {s} → Doc (symbol s) s
-  _·_    : ∀ {A B} {g₁ : G (A → B)} {g₂ : G A} {f x} →
-           Doc g₁ f → Doc g₂ x → Doc (g₁ · g₂) (f x)
-  ∣ˡ     : ∀ {A} {g₁ g₂ : G A} {x} → Doc g₁ x → Doc (g₁ ∣ g₂) x
-  ∣ʳ     : ∀ {A} {g₁ g₂ : G A} {x} → Doc g₂ x → Doc (g₁ ∣ g₂) x
-  []     : ∀ {A} {g : G A} → Doc (g ⋆) []
-  _∷_    : ∀ {A} {g : G A} {x xs} →
-           Doc g x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
-  _·line : ∀ {A} {g : G A} {x} → Doc g x → Doc (g <· whitespace +) x
-  group  : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
-  nest   : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
-  cast   : ∀ {A} {g₁ g₂ : G A} {x} →
-           (∀ {s} → x ∈ g₁ ∙ s → x ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ x
+  ε     : ∀ {A} {x : A} → Doc (ε x) x
+  text  : ∀ {s} → Doc (symbol s) s
+  _·_   : ∀ {A B} {g₁ : G (A → B)} {g₂ : G A} {f x} →
+          Doc g₁ f → Doc g₂ x → Doc (g₁ · g₂) (f x)
+  line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
+  group : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
+  nest  : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
+  cast  : ∀ {A} {g₁ g₂ : G A} {x} →
+          (∀ {s} → x ∈ g₁ ∙ s → x ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ x
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
@@ -119,8 +114,18 @@ Pretty-printer g = ∀ x → Doc g x
 
 -- Derived document combinators.
 
-line : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
-line = ε ·line
+∣ˡ-d : ∀ {A} {g₁ g₂ : G A} {x} → Doc g₁ x → Doc (g₁ ∣ g₂) x
+∣ˡ-d d = cast ∣ˡ d
+
+∣ʳ-d : ∀ {A} {g₁ g₂ : G A} {x} → Doc g₂ x → Doc (g₁ ∣ g₂) x
+∣ʳ-d d = cast ∣ʳ d
+
+[]-d : ∀ {A} {g : G A} → Doc (g ⋆) []
+[]-d = cast _⋆ (∣ˡ-d ε)
+
+_∷-d_ : ∀ {A} {g : G A} {x xs} →
+       Doc g x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
+d₁ ∷-d d₂ = cast _⋆ (∣ʳ-d (ε · d₁ · d₂))
 
 <$>-d_ : ∀ {A B : Set} {f : A → B} {x g} →
          Doc g x → Doc (f <$> g) (f x)
@@ -139,20 +144,20 @@ d₁ ·>-d d₂ = <$>-d d₁ · d₂
 <$-d d = ε <·-d d
 
 symbol-w-d : ∀ {s} → Doc (symbol-w s) s
-symbol-w-d = ε · text · []
+symbol-w-d = ε · text · []-d
 
 text·line : ∀ {s} → Doc (symbol-w s) s
-text·line = cast lemma (text ·line)
+text·line = cast lemma (text <·-d line)
   where
   lemma : ∀ {x ts s} →
-          x ∈ symbol ts <· whitespace + ∙ s →
+          x ∈ symbol ts <· (tt <$ whitespace +) ∙ s →
           x ∈ symbol ts <· whitespace ⋆ ∙ s
-  lemma (f∈ · x∈) = f∈ · ∣ʳ x∈ ⋆
+  lemma (ε · x∈ · (ε · ε · w+)) = ε · x∈ · ∣ʳ w+ ⋆
 
 map-d : {A : Set} {g : G A} →
         Pretty-printer g → Pretty-printer (g ⋆)
-map-d p []       = []
-map-d p (x ∷ xs) = p x ∷ map-d p xs
+map-d p []       = []-d
+map-d p (x ∷ xs) = p x ∷-d map-d p xs
 
 -- Document renderers.
 
@@ -179,11 +184,7 @@ ugly-renderer = record
   render ε              = []
   render (text {s = s}) = s
   render (d₁ · d₂)      = render d₁ ++ render d₂
-  render (∣ˡ d)         = render d
-  render (∣ʳ d)         = render d
-  render []             = []
-  render (d ∷ ds)       = render d ++ render ds
-  render (d ·line)      = render d ++ [ ' ' ]
+  render line           = [ ' ' ]
   render (group d)      = render d
   render (nest x d)     = render d
   render (cast _ d)     = render d
@@ -194,11 +195,7 @@ ugly-renderer = record
   parse-tree ε          = ε
   parse-tree text       = symbol-lemma _
   parse-tree (d₁ · d₂)  = parse-tree d₁ · parse-tree d₂
-  parse-tree (∣ˡ d)     = ∣ˡ (parse-tree d)
-  parse-tree (∣ʳ d)     = ∣ʳ (parse-tree d)
-  parse-tree []         = ∣ˡ ε ⋆
-  parse-tree (d ∷ ds)   = ∣ʳ (ε · parse-tree d · parse-tree ds) ⋆
-  parse-tree (d ·line)  = ε · parse-tree d · (ε · ∣ˡ tok · ∣ˡ ε ⋆)
+  parse-tree line       = ε · ε · (ε · ∣ˡ tok · ∣ˡ ε ⋆)
   parse-tree (nest k d) = parse-tree d
   parse-tree (group d)  = parse-tree d
   parse-tree (cast f d) = f (parse-tree d)
@@ -218,8 +215,8 @@ private
       ∣ [1] <$ symbol-w [ '1' ]
 
   bit-printer : Pretty-printer bit
-  bit-printer [0] = ∣ˡ (ε · ε · (ε · text · []))
-  bit-printer [1] = ∣ʳ (<$-d symbol-w-d)
+  bit-printer [0] = ∣ˡ-d (ε · ε · (ε · text · []-d))
+  bit-printer [1] = ∣ʳ-d (<$-d symbol-w-d)
 
   -- Lists of bits. This example is based on one in Swierstra and
   -- Chitil's "Linear, bounded, functional pretty-printing".
@@ -235,10 +232,10 @@ private
   bit-list-printer bs = symbol-w-d ·>-d body bs <·-d symbol-w-d
     where
     body : Pretty-printer bit-list-body
-    body []       = ∣ˡ ε
+    body []       = ∣ˡ-d ε
     body (b ∷ bs) =
-      ∣ʳ (<$>-d bit-printer b ·
-          map-d (λ b → group text·line ·>-d bit-printer b) bs)
+      ∣ʳ-d (<$>-d bit-printer b ·
+            map-d (λ b → group text·line ·>-d bit-printer b) bs)
 
   ex : List Bit
   ex = [0] ∷ [1] ∷ [0] ∷ []
