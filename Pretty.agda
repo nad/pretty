@@ -220,7 +220,7 @@ ugly-renderer = record
 
 wadler's-renderer : ℕ → Renderer
 wadler's-renderer w = record
-  { render   = λ d → layout (best d w 0)
+  { render   = λ d → layout (best d)
   ; parsable = {!!}
   }
   where
@@ -278,22 +278,22 @@ wadler's-renderer w = record
     fits′ : ℕ → ℕ → Layout → Bool
     fits′ w k x = not ⌊ w <? k ⌋ ∧ fits (w ∸ k) x
 
-  better : Layout → Layout → (ℕ → ℕ → Layout)
-  better x y w k = if fits′ w k x then x else y
+  better : Layout → Layout → (ℕ → Layout)
+  better x y k = if fits′ w k x then x else y
 
   be : ∀ {A} {g : G A} {x} →
-       ℕ → DocU g x → (ℕ → ℕ → Layout) → (ℕ → ℕ → Layout)
+       ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
   be i ε              = id
-  be i (text {s = s}) = λ c w k → inj₁ s ∷ c w (length s + k)
+  be i (text {s = s}) = λ c k → inj₁ s ∷ c (length s + k)
   be i (d₁ · d₂)      = be i d₁ ∘ be i d₂
-  be i line           = λ c w _ → inj₂ i ∷ c w i
-  be i (union d₁ d₂)  = λ c w k → better (be i d₁ c w k) (be i d₂ c w k) w k
+  be i line           = λ c _ → inj₂ i ∷ c i
+  be i (union d₁ d₂)  = λ c k → better (be i d₁ c k) (be i d₂ c k) k
   be i (nest j d)     = be (j + i) d
   be i (cast f d)     = be i d
 
   best : ∀ {A} {g : G A} {x} →
-         Doc g x → ℕ → ℕ → Layout
-  best d = be 0 (expand-groups d) (λ _ _ → [])
+         Doc g x → Layout
+  best d = be 0 (expand-groups d) (λ _ → []) 0
 
 ------------------------------------------------------------------------
 -- Example
