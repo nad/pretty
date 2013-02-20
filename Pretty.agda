@@ -220,7 +220,7 @@ ugly-renderer = record
 
 wadler's-renderer : ℕ → Renderer
 wadler's-renderer w = record
-  { render   = λ d → layout (best w 0 d)
+  { render   = λ d → layout (best d w 0)
   ; parsable = {!!}
   }
   where
@@ -232,19 +232,41 @@ wadler's-renderer w = record
   layout (inj₁ s ∷ x) = s ++ layout x
   layout (inj₂ i ∷ x) = '\n' ∷ replicate i ' ' ++ layout x
 
-  flatten : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
+  infixl 20 _·_
+
+  data DocU : ∀ {A} → G A → A → Set₁ where
+    ε     : ∀ {A} {x : A} → DocU (ε x) x
+    text  : ∀ {s} → DocU (text s) s
+    _·_   : ∀ {A B} {g₁ : G (A → B)} {g₂ : G A} {f x} →
+            DocU g₁ f → DocU g₂ x → DocU (g₁ · g₂) (f x)
+    line  : ∀ {A} {x : A} → DocU (x <$ whitespace +) x
+    union : ∀ {A} {g : G A} {x} → DocU g x → DocU g x → DocU g x
+    nest  : ∀ {A} {g : G A} {x} → ℕ → DocU g x → DocU g x
+    cast  : ∀ {A} {g₁ g₂ : G A} {x} →
+            (∀ {s} → x ∈ g₁ ∙ s → x ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ x
+
+  flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
   flatten ε          = ε
   flatten text       = text
   flatten (d₁ · d₂)  = flatten d₁ · flatten d₂
   flatten (group d)  = flatten d
   flatten (nest i d) = nest i (flatten d)
   flatten (cast f d) = cast f (flatten d)
-  flatten line       = <$-d cast lemma (text {s = [ ' ' ]})
+  flatten line       = ε · ε · cast lemma (text {s = [ ' ' ]})
     where
     lemma : ∀ {x s} →
             x ∈ text [ ' ' ] ∙ s →
             x ∈ whitespace + ∙ s
     lemma text = ε · ∣ˡ (ε · ε · text) · ∣ˡ ε ⋆
+
+  expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+  expand-groups ε          = ε
+  expand-groups text       = text
+  expand-groups (d₁ · d₂)  = expand-groups d₁ · expand-groups d₂
+  expand-groups line       = line
+  expand-groups (group d)  = union (flatten d) (expand-groups d)
+  expand-groups (nest i d) = nest i (expand-groups d)
+  expand-groups (cast f d) = cast f (expand-groups d)
 
   mutual
 
@@ -256,25 +278,22 @@ wadler's-renderer w = record
     fits′ : ℕ → ℕ → Layout → Bool
     fits′ w k x = not ⌊ w <? k ⌋ ∧ fits (w ∸ k) x
 
-  better : ℕ → ℕ → Layout → Layout → Layout
-  better w k x y = if fits′ w k x then x else y
+  better : Layout → Layout → (ℕ → ℕ → Layout)
+  better x y w k = if fits′ w k x then x else y
 
-  -- Note that be is not structurally recursive.
-
-  be : ℕ → ℕ → List (ℕ × ∃ λ A → ∃₂ (Doc {A = A})) → Layout
-  be w k []                                       = []
-  be w k ((i , _  , ._ , _  , ε)            ∷ ds) = be w k ds
-  be w k ((i , ._ , ._ , ._ , text {s = s}) ∷ ds) = inj₁ s ∷ be w (k + length s) ds
-  be w k ((i , _  , ._ , ._ , d₁ · d₂)      ∷ ds) = be w k ((i , (, , , d₁)) ∷ (i , (, , , d₂)) ∷ ds)
-  be w k ((i , _  , ._ , _  , line)         ∷ ds) = inj₂ i ∷ be w i ds
-  be w k ((i , _  , _  , _  , group d)      ∷ ds) = better w k (be w k ((i , (, , , flatten d)) ∷ ds))
-                                                               (be w k ((i , (, , ,         d)) ∷ ds))
-  be w k ((i , _  , _  , _  , nest j d)     ∷ ds) = be w k ((i + j , (, , , d)) ∷ ds)
-  be w k ((i , _  , _  , _  , cast f d)     ∷ ds) = be w k ((i , (, , , d)) ∷ ds)
+  be : ∀ {A} {g : G A} {x} →
+       ℕ → DocU g x → (ℕ → ℕ → Layout) → (ℕ → ℕ → Layout)
+  be i ε              = id
+  be i (text {s = s}) = λ c w k → inj₁ s ∷ c w (length s + k)
+  be i (d₁ · d₂)      = be i d₁ ∘ be i d₂
+  be i line           = λ c w _ → inj₂ i ∷ c w i
+  be i (union d₁ d₂)  = λ c w k → better (be i d₁ c w k) (be i d₂ c w k) w k
+  be i (nest j d)     = be (j + i) d
+  be i (cast f d)     = be i d
 
   best : ∀ {A} {g : G A} {x} →
-         ℕ → ℕ → Doc g x → Layout
-  best w k d = be w k [ (0 , (, , , d)) ]
+         Doc g x → ℕ → ℕ → Layout
+  best d = be 0 (expand-groups d) (λ _ _ → [])
 
 ------------------------------------------------------------------------
 -- Example
