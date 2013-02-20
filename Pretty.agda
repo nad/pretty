@@ -11,13 +11,22 @@
 
 module Pretty where
 
+open import Data.Bool
 open import Data.Char
 open import Data.List
-open import Data.Nat
-import Data.String as String
+open import Data.Nat as Nat
+open import Data.Product
+open import Data.String as String using (String)
+open import Data.Sum
 open import Data.Unit
 open import Function
+open import Relation.Binary
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+import Relation.Binary.Props.DecTotalOrder as DTO
+open import Relation.Nullary.Decidable
+
+open StrictTotalOrder (DTO.strictTotalOrder Nat.decTotalOrder)
+  using (_<?_)
 
 infix  30 _⋆ _+
 infixl 20 _·_ _<$>_ _<$_ _<·_ _·>_ _<·-d_ _·>-d_
@@ -204,6 +213,69 @@ ugly-renderer = record
   parsable (nest _ d) = parsable d
   parsable (cast f d) = f (parsable d)
 
+-- An example renderer, closely based on the one in Wadler's "A
+-- prettier printer".
+--
+-- The natural number is the line width.
+
+wadler's-renderer : ℕ → Renderer
+wadler's-renderer w = record
+  { render   = λ d → layout (best w 0 d)
+  ; parsable = {!!}
+  }
+  where
+  Layout : Set
+  Layout = List (List Char ⊎ ℕ)
+
+  layout : Layout → List Char
+  layout []           = []
+  layout (inj₁ s ∷ x) = s ++ layout x
+  layout (inj₂ i ∷ x) = '\n' ∷ replicate i ' ' ++ layout x
+
+  flatten : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
+  flatten ε          = ε
+  flatten text       = text
+  flatten (d₁ · d₂)  = flatten d₁ · flatten d₂
+  flatten (group d)  = flatten d
+  flatten (nest i d) = nest i (flatten d)
+  flatten (cast f d) = cast f (flatten d)
+  flatten line       = <$-d cast lemma (text {s = [ ' ' ]})
+    where
+    lemma : ∀ {x s} →
+            x ∈ text [ ' ' ] ∙ s →
+            x ∈ whitespace + ∙ s
+    lemma text = ε · ∣ˡ (ε · ε · text) · ∣ˡ ε ⋆
+
+  mutual
+
+    fits : ℕ → Layout → Bool
+    fits w []           = true
+    fits w (inj₁ s ∷ x) = fits′ w (length s) x
+    fits w (inj₂ i ∷ x) = true
+
+    fits′ : ℕ → ℕ → Layout → Bool
+    fits′ w k x = not ⌊ w <? k ⌋ ∧ fits (w ∸ k) x
+
+  better : ℕ → ℕ → Layout → Layout → Layout
+  better w k x y = if fits′ w k x then x else y
+
+  -- Note that be is not structurally recursive.
+
+  be : ℕ → ℕ → List (ℕ × ∃ λ A → ∃₂ (Doc {A = A})) → Layout
+  be w k []                                       = []
+  be w k ((i , _  , ._ , _  , ε)            ∷ ds) = be w k ds
+  be w k ((i , ._ , ._ , ._ , text {s = s}) ∷ ds) = inj₁ s ∷ be w (k + length s) ds
+  be w k ((i , _  , ._ , ._ , d₁ · d₂)      ∷ ds) = be w k ((i , (, , , d₁)) ∷ (i , (, , , d₂)) ∷ ds)
+  be w k ((i , _  , ._ , _  , line)         ∷ ds) = inj₂ i ∷ be w i ds
+  be w k ((i , _  , _  , _  , group d)      ∷ ds) = better w k (be w k ((i , (, , , flatten d)) ∷ ds))
+                                                               (be w k ((i , (, , ,         d)) ∷ ds))
+  be w k ((i , _  , _  , _  , nest j d)     ∷ ds) = be w k ((i + j , (, , , d)) ∷ ds)
+  be w k ((i , _  , _  , _  , cast f d)     ∷ ds) = be w k ((i , (, , , d)) ∷ ds)
+
+  best : ∀ {A} {g : G A} {x} →
+         ℕ → ℕ → Doc g x → Layout
+  best w k d = be w k [ (0 , (, , , d)) ]
+
 ------------------------------------------------------------------------
 -- Example
 
@@ -244,8 +316,16 @@ private
   ex : List Bit
   ex = [0] ∷ [1] ∷ [0] ∷ []
 
-  ex′ : List Char
-  ex′ = Renderer.render ugly-renderer (bit-list-printer ex)
+  ex′ : ℕ → String
+  ex′ w =
+    String.fromList $
+      Renderer.render (wadler's-renderer w) (bit-list-printer ex)
 
-  ex″ : String.fromList ex′ ≡ "[0, 1, 0]"
+  ex″ : ex′ 9 ≡ "[0, 1, 0]"
   ex″ = refl
+
+  ex‴ : ex′ 6 ≡ "[0, 1,\n0]"
+  ex‴ = refl
+
+  ex⁗ : ex′ 3 ≡ "[0,\n1,\n0]"
+  ex⁗ = refl
