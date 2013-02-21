@@ -223,17 +223,12 @@ ugly-renderer = record
 
 wadler's-renderer : ℕ → Renderer
 wadler's-renderer w = record
-  { render   = λ d → layout (best d)
+  { render   = render
   ; parsable = parsable
   }
   where
-  Layout : Set
-  Layout = List (List Char ⊎ ℕ)
 
-  layout : Layout → List Char
-  layout []           = []
-  layout (inj₁ s ∷ x) = s ++ layout x
-  layout (inj₂ i ∷ x) = '\n' ∷ replicate i ' ' ++ layout x
+  -- Documents with unions instead of groups.
 
   infixl 20 _·_
 
@@ -247,6 +242,8 @@ wadler's-renderer w = record
     nest  : ∀ {A} {g : G A} {x} → ℕ → DocU g x → DocU g x
     cast  : ∀ {A} {g₁ g₂ : G A} {x} →
             (∀ {s} → x ∈ g₁ ∙ s → x ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ x
+
+  -- Replaces line constructors with single spaces, removes groups.
 
   flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
   flatten ε          = ε
@@ -262,6 +259,8 @@ wadler's-renderer w = record
             x ∈ whitespace + ∙ s
     lemma text = ε · ∣ˡ (ε · ε · text) · ∣ˡ ε ⋆
 
+  -- Conversion of Docs to DocUs.
+
   expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
   expand-groups ε          = ε
   expand-groups text       = text
@@ -271,32 +270,67 @@ wadler's-renderer w = record
   expand-groups (nest i d) = nest i (expand-groups d)
   expand-groups (cast f d) = cast f (expand-groups d)
 
+  -- Layouts (representations of certain strings).
+
+  data Layout-element : Set where
+    text      : List Char → Layout-element
+    nest-line : ℕ         → Layout-element
+
+  Layout : Set
+  Layout = List Layout-element
+
+  -- Conversion of layouts into strings.
+
+  showE : Layout-element → List Char
+  showE (text s)      = s
+  showE (nest-line i) = '\n' ∷ replicate i ' '
+
+  show : Layout → List Char
+  show = concat ∘ List.map showE
+
   mutual
 
+    -- Does the first line of the layout fit inside a row with the
+    -- given number of characters?
+
     fits : ℕ → Layout → Bool
-    fits w []           = true
-    fits w (inj₁ s ∷ x) = fits′ w (length s) x
-    fits w (inj₂ i ∷ x) = true
+    fits w []                = true
+    fits w (text s      ∷ x) = fits′ w (length s) x
+    fits w (nest-line i ∷ x) = true
 
     fits′ : ℕ → ℕ → Layout → Bool
-    fits′ w k x = not ⌊ w <? k ⌋ ∧ fits (w ∸ k) x
+    fits′ w c x = not ⌊ w <? c ⌋ ∧ fits (w ∸ c) x
 
-  better : Layout → Layout → (ℕ → Layout)
-  better x y k = if fits′ w k x then x else y
+  -- Chooses the first layout if it fits, otherwise the second (which
+  -- is assumed to have a first line that is at most as long as the
+  -- first line of the first layout). The natural number is the
+  -- current column number.
 
-  be : ∀ {A} {g : G A} {x} →
-       ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
-  be i ε              = id
-  be i (text {s = s}) = λ c k → inj₁ s ∷ c (length s + k)
-  be i (d₁ · d₂)      = be i d₁ ∘ be i d₂
-  be i line           = λ c _ → inj₂ i ∷ c i
-  be i (union d₁ d₂)  = λ c k → better (be i d₁ c k) (be i d₂ c k) k
-  be i (nest j d)     = be (j + i) d
-  be i (cast f d)     = be i d
+  better : ℕ → Layout → Layout → Layout
+  better c x y = if fits′ w c x then x else y
+
+  -- If, for any starting column c, κ c is the layout for some text,
+  -- then best i d κ c is the layout for the document d followed by
+  -- this text, given the current indentation i and the current column
+  -- number c.
 
   best : ∀ {A} {g : G A} {x} →
-         Doc g x → Layout
-  best d = be 0 (expand-groups d) (λ _ → []) 0
+         ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
+  best i ε              = id
+  best i (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
+  best i (d₁ · d₂)      = best i d₁ ∘ best i d₂
+  best i line           = λ κ _ → nest-line i ∷ κ i
+  best i (union d₁ d₂)  = λ κ c → better c (best i d₁ κ c)
+                                           (best i d₂ κ c)
+  best i (nest j d)     = best (j + i) d
+  best i (cast f d)     = best i d
+
+  -- Renders a document.
+
+  render : ∀ {A} {g : G A} {x} → Doc g x → List Char
+  render d = show (best 0 (expand-groups d) (λ _ → []) 0)
+
+  -- Some simple lemmas.
 
   replicate-lemma :
     ∀ i → replicate i ' ' ∈ whitespace ⋆ ∙ replicate i ' '
@@ -304,15 +338,17 @@ wadler's-renderer w = record
   replicate-lemma (suc i) =
     ∣ʳ (ε · ∣ˡ (ε · ε · text) · replicate-lemma i) ⋆
 
-  line-lemma : ∀ {A} {x : A} i →
-               x ∈ x <$ whitespace + ∙ '\n' ∷ replicate i ' '
-  line-lemma i = ε · ε · (ε · ∣ʳ (ε · ε · text) · replicate-lemma i)
+  nest-line-lemma :
+    ∀ {A} {x : A} i →
+    x ∈ x <$ whitespace + ∙ showE (nest-line i)
+  nest-line-lemma i =
+    ε · ε · (ε · ∣ʳ (ε · ε · text) · replicate-lemma i)
 
   if-lemma :
     ∀ {A} {g : G A} {x l₁ l₂} s b →
-    x ∈ g ∙ s ++ layout l₁ →
-    x ∈ g ∙ s ++ layout l₂ →
-    x ∈ g ∙ s ++ layout (if b then l₁ else l₂)
+    x ∈ g ∙ s ++ show l₁ →
+    x ∈ g ∙ s ++ show l₂ →
+    x ∈ g ∙ s ++ show (if b then l₁ else l₂)
   if-lemma _ true  ∈l₁ ∈l₂ = ∈l₁
   if-lemma _ false ∈l₁ ∈l₂ = ∈l₂
 
@@ -324,28 +360,32 @@ wadler's-renderer w = record
     (a ++ b) ++ c ++ d  ∎
     where open P.≡-Reasoning
 
-  be-lemma :
-    ∀ {i A B} {g : G A} {x k c} s {g′ : G B} {y} (d : DocU g x) →
-    (∀ {s′ k′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ layout (c k′)) →
-    y ∈ g′ ∙ s ++ layout (be i d c k)
-  be-lemma s ε                  hyp = hyp ε
-  be-lemma s text               hyp = hyp text
-  be-lemma {i} s line           hyp = hyp (line-lemma i)
-  be-lemma s (union d₁ d₂)      hyp = if-lemma s
-                                        (fits′ w _ (be _ d₁ _ _))
-                                        (be-lemma s d₁ hyp)
-                                        (be-lemma s d₂ hyp)
-  be-lemma s (nest j d)         hyp = be-lemma s d hyp
-  be-lemma s (cast f d)         hyp = be-lemma s d (hyp ∘ f)
-  be-lemma s {g′} {y} (d₁ · d₂) hyp =
-    be-lemma s d₁ λ {s′} f∈ →
+  -- The main correctness property for best.
+
+  best-lemma :
+    ∀ {i A B} {g : G A} {x c κ} s {g′ : G B} {y} (d : DocU g x) →
+    (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
+    y ∈ g′ ∙ s ++ show (best i d κ c)
+  best-lemma s ε                  hyp = hyp ε
+  best-lemma s text               hyp = hyp text
+  best-lemma {i} s line           hyp = hyp (nest-line-lemma i)
+  best-lemma s (union d₁ d₂)      hyp = if-lemma s
+                                          (fits′ w _ (best _ d₁ _ _))
+                                          (best-lemma s d₁ hyp)
+                                          (best-lemma s d₂ hyp)
+  best-lemma s (nest j d)         hyp = best-lemma s d hyp
+  best-lemma s (cast f d)         hyp = best-lemma s d (hyp ∘ f)
+  best-lemma s {g′} {y} (d₁ · d₂) hyp =
+    best-lemma s d₁ λ {s′} f∈ →
       P.subst (λ s → y ∈ g′ ∙ s) (LM.assoc s _ _)
-        (be-lemma (s ++ s′) d₂ λ x∈ →
+        (best-lemma (s ++ s′) d₂ λ x∈ →
            P.subst (λ s → y ∈ g′ ∙ s) (++-lemma s _ _ _)
              (hyp (f∈ · x∈)))
 
+  -- The renderer is correct.
+
   parsable : ∀ {A} {g : G A} {x} (d : Doc g x) → x ∈ g ∙ render d
-  parsable {g = g} {x} d = be-lemma [] (expand-groups d) hyp
+  parsable {g = g} {x} d = best-lemma [] (expand-groups d) hyp
     where
     hyp : ∀ {s} → x ∈ g ∙ s → x ∈ g ∙ s ++ []
     hyp = P.subst (λ s → x ∈ g ∙ s) (P.sym $ proj₂ LM.identity _)
