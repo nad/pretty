@@ -309,8 +309,11 @@ private
   bit = [0] <$ text-w [ '0' ]
       ∣ [1] <$ text-w [ '1' ]
 
+  -- The first case below is defined using primitive combinators, the
+  -- second one using derived ones.
+
   bit-printer : Pretty-printer bit
-  bit-printer [0] = ∣ˡ-d (ε · ε · (ε · text · []-d))
+  bit-printer [0] = cast ∣ˡ (ε · ε · (ε · text · cast _⋆ (cast ∣ˡ ε)))
   bit-printer [1] = ∣ʳ-d (<$-d text-w-d)
 
   -- Lists of bits. This example is based on one in Swierstra and
