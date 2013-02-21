@@ -108,7 +108,7 @@ text-w s = text s <· whitespace ⋆
 
 data Doc : ∀ {A} → G A → A → Set₁ where
   ε     : ∀ {A} {x : A} → Doc (ε x) x
-  text  : ∀ {s} → Doc (text s) s
+  text  : ∀ s → Doc (text s) s
   _·_   : ∀ {A B} {g₁ : G (A → B)} {g₂ : G A} {f x} →
           Doc g₁ f → Doc g₂ x → Doc (g₁ · g₂) (f x)
   line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
@@ -155,10 +155,10 @@ d₁ ·>-d d₂ = <$>-d d₁ · d₂
 <$-d d = ε <·-d d
 
 text-w-d : ∀ {s} → Doc (text-w s) s
-text-w-d = ε · text · []-d
+text-w-d = ε · text _ · []-d
 
 text·line : ∀ {s} → Doc (text-w s) s
-text·line = cast lemma (text <·-d line)
+text·line = cast lemma (text _ <·-d line)
   where
   lemma : ∀ {x ts s} →
           x ∈ text ts <· (tt <$ whitespace +) ∙ s →
@@ -199,17 +199,17 @@ ugly-renderer = record
   }
   where
   render : ∀ {A} {g : G A} {x} → Doc g x → List Char
-  render ε              = []
-  render (text {s = s}) = s
-  render (d₁ · d₂)      = render d₁ ++ render d₂
-  render line           = [ ' ' ]
-  render (group d)      = render d
-  render (nest _ d)     = render d
-  render (cast _ d)     = render d
+  render ε          = []
+  render (text s)   = s
+  render (d₁ · d₂)  = render d₁ ++ render d₂
+  render line       = [ ' ' ]
+  render (group d)  = render d
+  render (nest _ d) = render d
+  render (cast _ d) = render d
 
   parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
   parsable ε          = ε
-  parsable text       = text
+  parsable (text _)   = text
   parsable (d₁ · d₂)  = parsable d₁ · parsable d₂
   parsable line       = ε · ε · (ε · ∣ˡ (ε · ε · text) · ∣ˡ ε ⋆)
   parsable (group d)  = parsable d
@@ -234,7 +234,7 @@ wadler's-renderer w = record
 
   data DocU : ∀ {A} → G A → A → Set₁ where
     ε     : ∀ {A} {x : A} → DocU (ε x) x
-    text  : ∀ {s} → DocU (text s) s
+    text  : ∀ s → DocU (text s) s
     _·_   : ∀ {A B} {g₁ : G (A → B)} {g₂ : G A} {f x} →
             DocU g₁ f → DocU g₂ x → DocU (g₁ · g₂) (f x)
     line  : ∀ {A} {x : A} → DocU (x <$ whitespace +) x
@@ -247,12 +247,12 @@ wadler's-renderer w = record
 
   flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
   flatten ε          = ε
-  flatten text       = text
+  flatten (text s)   = text s
   flatten (d₁ · d₂)  = flatten d₁ · flatten d₂
   flatten (group d)  = flatten d
   flatten (nest i d) = nest i (flatten d)
   flatten (cast f d) = cast f (flatten d)
-  flatten line       = ε · ε · cast lemma (text {s = [ ' ' ]})
+  flatten line       = ε · ε · cast lemma (text [ ' ' ])
     where
     lemma : ∀ {x s} →
             x ∈ text [ ' ' ] ∙ s →
@@ -263,7 +263,7 @@ wadler's-renderer w = record
 
   expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
   expand-groups ε          = ε
-  expand-groups text       = text
+  expand-groups (text s)   = text s
   expand-groups (d₁ · d₂)  = expand-groups d₁ · expand-groups d₂
   expand-groups line       = line
   expand-groups (group d)  = union (flatten d) (expand-groups d)
@@ -316,14 +316,14 @@ wadler's-renderer w = record
 
   best : ∀ {A} {g : G A} {x} →
          ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
-  best i ε              = id
-  best i (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
-  best i (d₁ · d₂)      = best i d₁ ∘ best i d₂
-  best i line           = λ κ _ → nest-line i ∷ κ i
-  best i (union d₁ d₂)  = λ κ c → better c (best i d₁ κ c)
-                                           (best i d₂ κ c)
-  best i (nest j d)     = best (j + i) d
-  best i (cast f d)     = best i d
+  best i ε             = id
+  best i (text s)      = λ κ c → text s ∷ κ (length s + c)
+  best i (d₁ · d₂)     = best i d₁ ∘ best i d₂
+  best i line          = λ κ _ → nest-line i ∷ κ i
+  best i (union d₁ d₂) = λ κ c → better c (best i d₁ κ c)
+                                          (best i d₂ κ c)
+  best i (nest j d)    = best (j + i) d
+  best i (cast f d)    = best i d
 
   -- Renders a document.
 
@@ -367,7 +367,7 @@ wadler's-renderer w = record
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
   best-lemma s ε                  hyp = hyp ε
-  best-lemma s text               hyp = hyp text
+  best-lemma s (text s′)          hyp = hyp text
   best-lemma {i} s line           hyp = hyp (nest-line-lemma i)
   best-lemma s (union d₁ d₂)      hyp = if-lemma s
                                           (fits′ w _ (best _ d₁ _ _))
@@ -408,7 +408,8 @@ private
   -- second one using derived ones.
 
   bit-printer : Pretty-printer bit
-  bit-printer [0] = cast ∣ˡ (ε · ε · (ε · text · cast _⋆ (cast ∣ˡ ε)))
+  bit-printer [0] = cast ∣ˡ (ε · ε · (ε · text [ '0' ] ·
+                                          cast _⋆ (cast ∣ˡ ε)))
   bit-printer [1] = ∣ʳ-d (<$-d text-w-d)
 
   -- Lists of bits. This example is based on one in Swierstra and
