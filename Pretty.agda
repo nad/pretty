@@ -11,9 +11,10 @@
 
 module Pretty where
 
+open import Algebra
 open import Data.Bool
 open import Data.Char
-open import Data.List
+open import Data.List as List
 open import Data.Nat as Nat
 open import Data.Product
 open import Data.String as String using (String)
@@ -21,12 +22,14 @@ open import Data.Sum
 open import Data.Unit
 open import Function
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 import Relation.Binary.Props.DecTotalOrder as DTO
 open import Relation.Nullary.Decidable
 
 open StrictTotalOrder (DTO.strictTotalOrder Nat.decTotalOrder)
   using (_<?_)
+private
+  module LM {A : Set} = Monoid (List.monoid A)
 
 infix  30 _⋆ _+
 infixl 20 _·_ _<$>_ _<$_ _<·_ _·>_ _<·-d_ _·>-d_
@@ -221,7 +224,7 @@ ugly-renderer = record
 wadler's-renderer : ℕ → Renderer
 wadler's-renderer w = record
   { render   = λ d → layout (best d)
-  ; parsable = {!!}
+  ; parsable = parsable
   }
   where
   Layout : Set
@@ -294,6 +297,58 @@ wadler's-renderer w = record
   best : ∀ {A} {g : G A} {x} →
          Doc g x → Layout
   best d = be 0 (expand-groups d) (λ _ → []) 0
+
+  replicate-lemma :
+    ∀ i → replicate i ' ' ∈ whitespace ⋆ ∙ replicate i ' '
+  replicate-lemma zero    = ∣ˡ ε ⋆
+  replicate-lemma (suc i) =
+    ∣ʳ (ε · ∣ˡ (ε · ε · text) · replicate-lemma i) ⋆
+
+  line-lemma : ∀ {A} {x : A} i →
+               x ∈ x <$ whitespace + ∙ '\n' ∷ replicate i ' '
+  line-lemma i = ε · ε · (ε · ∣ʳ (ε · ε · text) · replicate-lemma i)
+
+  if-lemma :
+    ∀ {A} {g : G A} {x l₁ l₂} s b →
+    x ∈ g ∙ s ++ layout l₁ →
+    x ∈ g ∙ s ++ layout l₂ →
+    x ∈ g ∙ s ++ layout (if b then l₁ else l₂)
+  if-lemma _ true  ∈l₁ ∈l₂ = ∈l₁
+  if-lemma _ false ∈l₁ ∈l₂ = ∈l₂
+
+  ++-lemma : {A : Set} (a b c d : List A) →
+             a ++ (b ++ c) ++ d ≡ (a ++ b) ++ c ++ d
+  ++-lemma a b c d = begin
+    a ++ (b ++ c) ++ d  ≡⟨ P.cong (_++_ a) $ LM.assoc b c d ⟩
+    a ++ b ++ c ++ d    ≡⟨ P.sym $ LM.assoc a b (c ++ d) ⟩
+    (a ++ b) ++ c ++ d  ∎
+    where open P.≡-Reasoning
+
+  be-lemma :
+    ∀ {i A B} {g : G A} {x k c} s {g′ : G B} {y} (d : DocU g x) →
+    (∀ {s′ k′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ layout (c k′)) →
+    y ∈ g′ ∙ s ++ layout (be i d c k)
+  be-lemma s ε                  hyp = hyp ε
+  be-lemma s text               hyp = hyp text
+  be-lemma {i} s line           hyp = hyp (line-lemma i)
+  be-lemma s (union d₁ d₂)      hyp = if-lemma s
+                                        (fits′ w _ (be _ d₁ _ _))
+                                        (be-lemma s d₁ hyp)
+                                        (be-lemma s d₂ hyp)
+  be-lemma s (nest j d)         hyp = be-lemma s d hyp
+  be-lemma s (cast f d)         hyp = be-lemma s d (hyp ∘ f)
+  be-lemma s {g′} {y} (d₁ · d₂) hyp =
+    be-lemma s d₁ λ {s′} f∈ →
+      P.subst (λ s → y ∈ g′ ∙ s) (LM.assoc s _ _)
+        (be-lemma (s ++ s′) d₂ λ x∈ →
+           P.subst (λ s → y ∈ g′ ∙ s) (++-lemma s _ _ _)
+             (hyp (f∈ · x∈)))
+
+  parsable : ∀ {A} {g : G A} {x} (d : Doc g x) → x ∈ g ∙ render d
+  parsable {g = g} {x} d = be-lemma [] (expand-groups d) hyp
+    where
+    hyp : ∀ {s} → x ∈ g ∙ s → x ∈ g ∙ s ++ []
+    hyp = P.subst (λ s → x ∈ g ∙ s) (P.sym $ proj₂ LM.identity _)
 
 ------------------------------------------------------------------------
 -- Example
