@@ -333,18 +333,18 @@ private
             map-d (λ b → group text·line ·>-d bit-printer b) bs)
 
   ex : List Bit
-  ex = [0] ∷ [1] ∷ [0] ∷ []
+  ex = [0] ∷ [1] ∷ [0] ∷ [0] ∷ [1] ∷ []
 
   ex′ : ℕ → String
   ex′ w =
     String.fromList $
       Renderer.render (wadler's-renderer w) (bit-list-printer ex)
 
-  ex″ : ex′ 9 ≡ "[0, 1, 0]"
+  ex″ : ex′ 9 ≡ "[0, 1, 0,\n0, 1]"
   ex″ = refl
 
-  ex‴ : ex′ 6 ≡ "[0, 1,\n0]"
+  ex‴ : ex′ 6 ≡ "[0, 1,\n0, 0,\n1]"
   ex‴ = refl
 
-  ex⁗ : ex′ 3 ≡ "[0,\n1,\n0]"
+  ex⁗ : ex′ 3 ≡ "[0,\n1,\n0,\n0,\n1]"
   ex⁗ = refl
