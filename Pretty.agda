@@ -422,7 +422,7 @@ wadler's-renderer w = record
   best i (union d₁ d₂) = λ κ c → better c (best i d₁ κ c)
                                           (best i d₂ κ c)
   best i (nest j d)    = best (j + i) d
-  best i (embed f d)   = best i d
+  best i (embed _ d)   = best i d
 
   -- Renders a document.
 
@@ -619,13 +619,16 @@ module Name-list where
   names : List Name
   names = as ∷ bs ∷ cs ∷ ds ∷ es ∷ []
 
-  test₁ : render 80 (name-list-printer names) ≡ "[aaa, bbbbb, ccc, dd, eee]"
+  test₁ : render 80 (name-list-printer names) ≡
+          "[aaa, bbbbb, ccc, dd, eee]"
   test₁ = refl
 
-  test₂ : render 11 (name-list-printer names) ≡ "[aaa,\nbbbbb, ccc,\ndd, eee]"
+  test₂ : render 11 (name-list-printer names) ≡
+          "[aaa,\nbbbbb, ccc,\ndd, eee]"
   test₂ = refl
 
-  test₃ : render 8 (name-list-printer names) ≡ "[aaa,\nbbbbb,\nccc, dd,\neee]"
+  test₃ : render 8 (name-list-printer names) ≡
+          "[aaa,\nbbbbb,\nccc, dd,\neee]"
   test₃ = refl
 
 
