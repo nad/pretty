@@ -33,9 +33,8 @@ private
   module LM {A : Set} = Monoid (List.monoid A)
 
 infix  30 _⋆ _+
-infixl 20 _·_ _<$>_ _<$_ _<·_ _·>_ _<·-d_ _·>-d_
-infix  20 <$>-d_ <$-d_
-infixr 20 _∷-d_
+infixr 20 _·_ _<$_ _∷-doc_
+infixl 15 _>>=_
 infixl 10 _∣_
 
 ------------------------------------------------------------------------
@@ -43,17 +42,21 @@ infixl 10 _∣_
 
 -- Simple, potentially infinite grammars.
 --
--- Parsing is not intended to be decidable for these grammars; this
--- work focuses on pretty-printing, not parsing. I could probably have
--- based the development on my total parser combinators (presented in
--- ICFP 2010), but decided to stick to simple grammars in this sketch.
+-- These grammars are very general. Every language that can be
+-- recursively enumerated (using an Agda function s : ℕ → List Char)
+-- can be expressed using one of these grammars:
+-- ♯ s 0 ∣ ♯ (♯ s 1 ∣ …).
+--
+-- In practice one may want to restrict attention to, say, recursive
+-- languages. I use general grammars to illustrate that this approach
+-- to pretty-printing is not restricted to a small class of languages.
 
 data G : Set → Set₁ where
-  ∅    : ∀ {A} → G A
-  ε    : ∀ {A} → A → G A
-  text : List Char → G (List Char)
-  _·_  : ∀ {A B} → ∞ (G (A → B)) → ∞ (G A) → G B
-  _∣_  : ∀ {A} → G A → G A → G A
+  fail   : ∀ {A} → G A
+  return : ∀ {A} → A → G A
+  text   : List Char → G (List Char)
+  _>>=_  : ∀ {A B} → ∞ (G A) → (A → ∞ (G B)) → G B
+  _∣_    : ∀ {A} → ∞ (G A) → ∞ (G A) → G A
 
 -- Semantics of grammars (parse trees). Here x ∈ g ∙ s means that x is
 -- one of the possible results of parsing the string s using the
@@ -62,45 +65,66 @@ data G : Set → Set₁ where
 infix 4 _∈_∙_
 
 data _∈_∙_ : ∀ {A} → A → G A → List Char → Set₁ where
-  ε    : ∀ {A} {x : A} → x ∈ ε x ∙ []
-  text : ∀ {s} → s ∈ text s ∙ s
-  _·_  : ∀ {A B} {g₁ : ∞ (G (A → B))} {g₂ : ∞ (G A)} {f x s₁ s₂} →
-         f ∈ ♭ g₁ ∙ s₁ → x ∈ ♭ g₂ ∙ s₂ → f x ∈ g₁ · g₂ ∙ s₁ ++ s₂
-  ∣ˡ   : ∀ {A} {g₁ g₂ : G A} {x s} →
-         x ∈ g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
-  ∣ʳ   : ∀ {A} {g₁ g₂ : G A} {x s} →
-         x ∈ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  return  : ∀ {A} {x : A} → x ∈ return x ∙ []
+  text    : ∀ {s} → s ∈ text s ∙ s
+  _>>=_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y s₁ s₂} →
+            x ∈ ♭ g₁ ∙ s₁ → y ∈ ♭ (g₂ x) ∙ s₂ → y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
+  ∣-left  : ∀ {A} {g₁ g₂ : ∞ (G A)} {x s} →
+            x ∈ ♭ g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  ∣-right : ∀ {A} {g₁ g₂ : ∞ (G A)} {x s} →
+            x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
 
 -- Some derived grammar combinators.
 
-_<$>_ : ∀ {A B} → (A → B) → G A → G B
-f <$> g = ♯ ε f · ♯ g
-
-_<·_ : ∀ {A B} → G A → G B → G A
-g₁ <· g₂ = ♯ (const <$> g₁) · ♯ g₂
-
-_·>_ : ∀ {A B} → G A → G B → G B
-g₁ ·> g₂ = ♯ (flip const <$> g₁) · ♯ g₂
-
 _<$_ : ∀ {A B} → A → G B → G A
-x <$ g = ε x <· g
+x <$ g = ♯ g       >>= λ _ → ♯
+         return x
+
+<$-sem : ∀ {A B} {x : A} {y : B} {g s} →
+         y ∈ g ∙ s → x ∈ x <$ g ∙ s
+<$-sem {x = x} {g = g} y∈ =
+  P.subst (λ s → x ∈ x <$ g ∙ s) (proj₂ LM.identity _)
+          (y∈ >>= return)
 
 mutual
 
   _⋆ : ∀ {A} → G A → G (List A)
-  g ⋆ = ε [] ∣ g +
+  g ⋆ = ♯ return [] ∣ ♯ (g +)
 
   _+ : ∀ {A} → G A → G (List A)
-  g + = ♯ (_∷_ <$> g) · ♯ (g ⋆)
+  g + = ♯ g              >>= λ x  → ♯ (
+        ♯ (g ⋆)          >>= λ xs → ♯
+        return (x ∷ xs)  )
+
+[]-sem : ∀ {A} {g : G A} → [] ∈ g ⋆ ∙ []
+[]-sem = ∣-left return
+
+∷-sem+ : ∀ {A} {g : G A} {x xs s₁ s₂} →
+         x ∈ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g + ∙ s₁ ++ s₂
+∷-sem+ {g = g} {x} {xs} {s₁} x∈ xs∈ =
+  P.subst (λ s → x ∷ xs ∈ g + ∙ s)
+          (P.cong (_++_ s₁) (proj₂ LM.identity _))
+          (x∈ >>= (xs∈ >>= return))
+
+∷-sem⋆ : ∀ {A} {g : G A} {x xs s₁ s₂} →
+         x ∈ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g ⋆ ∙ s₁ ++ s₂
+∷-sem⋆ x∈ xs∈ = ∣-right (∷-sem+ x∈ xs∈)
 
 tok : Char → G Char
 tok t = t <$ text [ t ]
 
-whitespace : G Char
-whitespace = tok ' ' ∣ tok '\n'
+tok-sem : ∀ {t} → t ∈ tok t ∙ [ t ]
+tok-sem = <$-sem text
 
-text-w : List Char → G (List Char)
-text-w s = text s <· whitespace ⋆
+whitespace : G Char
+whitespace = ♯ tok ' ' ∣ ♯ tok '\n'
+
+-- A grammar for the given string, possibly followed by some
+-- whitespace.
+
+symbol : List Char → G (List Char)
+symbol s = ♯ text s           >>= λ s → ♯ (
+           s <$ whitespace ⋆  )
 
 ------------------------------------------------------------------------
 -- Pretty-printers
@@ -109,10 +133,10 @@ text-w s = text s <· whitespace ⋆
 -- parse tree (with respect to the grammar g) for the value x.
 
 data Doc : ∀ {A} → G A → A → Set₁ where
-  ε     : ∀ {A} {x : A} → Doc (ε x) x
+  nil   : ∀ {A} {x : A} → Doc (return x) x
   text  : ∀ s → Doc (text s) s
-  _·_   : ∀ {A B} {g₁ : ∞ (G (A → B))} {g₂ : ∞ (G A)} {f x} →
-          Doc (♭ g₁) f → Doc (♭ g₂) x → Doc (g₁ · g₂) (f x)
+  _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
+          Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
   line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
   group : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
   nest  : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
@@ -127,50 +151,44 @@ Pretty-printer g = ∀ x → Doc g x
 
 -- Derived document combinators.
 
-∣ˡ-d : ∀ {A} {g₁ g₂ : G A} {x} → Doc g₁ x → Doc (g₁ ∣ g₂) x
-∣ˡ-d d = cast ∣ˡ d
+∣-left-doc : ∀ {A} {g₁ g₂ : ∞ (G A)} {x} →
+             Doc (♭ g₁) x → Doc (g₁ ∣ g₂) x
+∣-left-doc d = cast ∣-left d
 
-∣ʳ-d : ∀ {A} {g₁ g₂ : G A} {x} → Doc g₂ x → Doc (g₁ ∣ g₂) x
-∣ʳ-d d = cast ∣ʳ d
+∣-right-doc : ∀ {A} {g₁ g₂ : ∞ (G A)} {x} →
+              Doc (♭ g₂) x → Doc (g₁ ∣ g₂) x
+∣-right-doc d = cast ∣-right d
 
-<$>-d_ : ∀ {A B : Set} {f : A → B} {x g} →
-         Doc g x → Doc (f <$> g) (f x)
-<$>-d d = ε · d
+<$-doc : ∀ {A B : Set} {x : A} {y : B} {g} →
+         Doc g y → Doc (x <$ g) x
+<$-doc d = d · nil
 
-_<·-d_ : ∀ {A B : Set} {x : A} {y : B} {g₁ g₂} →
-         Doc g₁ x → Doc g₂ y → Doc (g₁ <· g₂) x
-d₁ <·-d d₂ = <$>-d d₁ · d₂
+[]-doc : ∀ {A} {g : G A} → Doc (g ⋆) []
+[]-doc = ∣-left-doc nil
 
-_·>-d_ : ∀ {A B : Set} {x : A} {y : B} {g₁ g₂} →
-         Doc g₁ x → Doc g₂ y → Doc (g₁ ·> g₂) y
-d₁ ·>-d d₂ = <$>-d d₁ · d₂
+_∷-doc_ : ∀ {A} {g : G A} {x xs} →
+          Doc g x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
+d₁ ∷-doc d₂ = ∣-right-doc (d₁ · d₂ · nil)
 
-<$-d_ : ∀ {A B : Set} {x : A} {y : B} {g} →
-        Doc g y → Doc (x <$ g) x
-<$-d d = ε <·-d d
+-- A document for the given symbol (and no following whitespace).
 
-[]-d : ∀ {A} {g : G A} → Doc (g ⋆) []
-[]-d = ∣ˡ-d ε
+symbol-doc : ∀ {s} → Doc (symbol s) s
+symbol-doc = text _ · <$-doc []-doc
 
-_∷-d_ : ∀ {A} {g : G A} {x xs} →
-       Doc g x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
-d₁ ∷-d d₂ = ∣ʳ-d (ε · d₁ · d₂)
+-- A document for the given symbol plus a "line".
 
-text-w-d : ∀ {s} → Doc (text-w s) s
-text-w-d = ε · text _ · []-d
-
-text·line : ∀ {s} → Doc (text-w s) s
-text·line = cast lemma (text _ <·-d line)
+symbol-line-doc : ∀ {s} → Doc (symbol s) s
+symbol-line-doc = text _ · cast lemma line
   where
-  lemma : ∀ {x ts s} →
-          x ∈ text ts <· (tt <$ whitespace +) ∙ s →
-          x ∈ text ts <· whitespace ⋆ ∙ s
-  lemma (ε · x∈ · (ε · ε · w+)) = ε · x∈ · ∣ʳ w+
+  lemma : ∀ {s s′ : List Char} →
+          tt ∈ tt <$ whitespace + ∙ s′ →
+          s  ∈ s  <$ whitespace ⋆  ∙ s′
+  lemma (w+ >>= return) = ∣-right w+ >>= return
 
-map-d : {A : Set} {g : G A} →
-        Pretty-printer g → Pretty-printer (g ⋆)
-map-d p []       = []-d
-map-d p (x ∷ xs) = p x ∷-d map-d p xs
+map-doc : {A : Set} {g : G A} →
+          Pretty-printer g → Pretty-printer (g ⋆)
+map-doc p []       = []-doc
+map-doc p (x ∷ xs) = p x ∷-doc map-doc p xs
 
 -- Document renderers.
 
@@ -201,7 +219,7 @@ ugly-renderer = record
   }
   where
   render : ∀ {A} {g : G A} {x} → Doc g x → List Char
-  render ε          = []
+  render nil        = []
   render (text s)   = s
   render (d₁ · d₂)  = render d₁ ++ render d₂
   render line       = [ ' ' ]
@@ -210,10 +228,10 @@ ugly-renderer = record
   render (cast _ d) = render d
 
   parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
-  parsable ε          = ε
+  parsable nil        = return
   parsable (text _)   = text
-  parsable (d₁ · d₂)  = parsable d₁ · parsable d₂
-  parsable line       = ε · ε · (ε · ∣ˡ (ε · ε · text) · ∣ˡ ε)
+  parsable (d₁ · d₂)  = parsable d₁ >>= parsable d₂
+  parsable line       = <$-sem (∷-sem+ (∣-left tok-sem) []-sem)
   parsable (group d)  = parsable d
   parsable (nest _ d) = parsable d
   parsable (cast f d) = f (parsable d)
@@ -235,10 +253,10 @@ wadler's-renderer w = record
   infixl 20 _·_
 
   data DocU : ∀ {A} → G A → A → Set₁ where
-    ε     : ∀ {A} {x : A} → DocU (ε x) x
+    nil   : ∀ {A} {x : A} → DocU (return x) x
     text  : ∀ s → DocU (text s) s
-    _·_   : ∀ {A B} {g₁ : ∞ (G (A → B))} {g₂ : ∞ (G A)} {f x} →
-            DocU (♭ g₁) f → DocU (♭ g₂) x → DocU (g₁ · g₂) (f x)
+    _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
+            DocU (♭ g₁) x → DocU (♭ (g₂ x)) y → DocU (g₁ >>= g₂) y
     line  : ∀ {A} {x : A} → DocU (x <$ whitespace +) x
     union : ∀ {A} {g : G A} {x} → DocU g x → DocU g x → DocU g x
     nest  : ∀ {A} {g : G A} {x} → ℕ → DocU g x → DocU g x
@@ -248,23 +266,23 @@ wadler's-renderer w = record
   -- Replaces line constructors with single spaces, removes groups.
 
   flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
-  flatten ε          = ε
+  flatten nil        = nil
   flatten (text s)   = text s
   flatten (d₁ · d₂)  = flatten d₁ · flatten d₂
   flatten (group d)  = flatten d
   flatten (nest i d) = nest i (flatten d)
   flatten (cast f d) = cast f (flatten d)
-  flatten line       = ε · ε · cast lemma (text [ ' ' ])
+  flatten line       = cast lemma (text [ ' ' ]) · nil
     where
     lemma : ∀ {x s} →
             x ∈ text [ ' ' ] ∙ s →
             x ∈ whitespace + ∙ s
-    lemma text = ε · ∣ˡ (ε · ε · text) · ∣ˡ ε
+    lemma text = ∷-sem+ (∣-left tok-sem) []-sem
 
   -- Conversion of Docs to DocUs.
 
   expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
-  expand-groups ε          = ε
+  expand-groups nil        = nil
   expand-groups (text s)   = text s
   expand-groups (d₁ · d₂)  = expand-groups d₁ · expand-groups d₂
   expand-groups line       = line
@@ -318,7 +336,7 @@ wadler's-renderer w = record
 
   best : ∀ {A} {g : G A} {x} →
          ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
-  best i ε             = id
+  best i nil           = id
   best i (text s)      = λ κ c → text s ∷ κ (length s + c)
   best i (d₁ · d₂)     = best i d₁ ∘ best i d₂
   best i line          = λ κ _ → nest-line i ∷ κ i
@@ -336,15 +354,14 @@ wadler's-renderer w = record
 
   replicate-lemma :
     ∀ i → replicate i ' ' ∈ whitespace ⋆ ∙ replicate i ' '
-  replicate-lemma zero    = ∣ˡ ε
-  replicate-lemma (suc i) =
-    ∣ʳ (ε · ∣ˡ (ε · ε · text) · replicate-lemma i)
+  replicate-lemma zero    = []-sem
+  replicate-lemma (suc i) = ∷-sem⋆ (∣-left tok-sem) (replicate-lemma i)
 
   nest-line-lemma :
     ∀ {A} {x : A} i →
     x ∈ x <$ whitespace + ∙ showE (nest-line i)
   nest-line-lemma i =
-    ε · ε · (ε · ∣ʳ (ε · ε · text) · replicate-lemma i)
+    <$-sem (∷-sem+ (∣-right tok-sem) (replicate-lemma i))
 
   if-lemma :
     ∀ {A} {g : G A} {x l₁ l₂} s b →
@@ -368,7 +385,7 @@ wadler's-renderer w = record
     ∀ {i A B} {g : G A} {x c κ} s {g′ : G B} {y} (d : DocU g x) →
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
-  best-lemma s ε                  hyp = hyp ε
+  best-lemma s nil                hyp = hyp return
   best-lemma s (text s′)          hyp = hyp text
   best-lemma {i} s line           hyp = hyp (nest-line-lemma i)
   best-lemma s (union d₁ d₂)      hyp = if-lemma s
@@ -382,7 +399,7 @@ wadler's-renderer w = record
       P.subst (λ s → y ∈ g′ ∙ s) (LM.assoc s _ _)
         (best-lemma (s ++ s′) d₂ λ x∈ →
            P.subst (λ s → y ∈ g′ ∙ s) (++-lemma s _ _ _)
-             (hyp (f∈ · x∈)))
+             (hyp (f∈ >>= x∈)))
 
   -- The renderer is correct.
 
@@ -403,34 +420,47 @@ private
     [0] [1] : Bit
 
   bit : G Bit
-  bit = [0] <$ text-w [ '0' ]
-      ∣ [1] <$ text-w [ '1' ]
+  bit = ♯ ([0] <$ symbol [ '0' ])
+      ∣ ♯ ([1] <$ symbol [ '1' ])
 
   -- The first case below is defined using primitive combinators, the
   -- second one using derived ones.
 
   bit-printer : Pretty-printer bit
-  bit-printer [0] = cast ∣ˡ (ε · ε · (ε · text [ '0' ] · cast ∣ˡ ε))
-  bit-printer [1] = ∣ʳ-d (<$-d text-w-d)
+  bit-printer [0] = cast ∣-left ((text [ '0' ] ·
+                                  (cast ∣-left nil · nil)) ·
+                                 nil)
+  bit-printer [1] = ∣-right-doc (<$-doc symbol-doc)
 
   -- Lists of bits. This example is based on one in Swierstra and
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
+  comma-and-bit : G Bit
+  comma-and-bit = ♯ symbol [ ',' ]  >>= λ _ → ♯
+                  bit
+
   bit-list-body : G (List Bit)
-  bit-list-body = ε []
-                ∣ ♯ (_∷_ <$> bit) · ♯ ((text-w [ ',' ] ·> bit) ⋆)
+  bit-list-body = ♯ return []
+                ∣ ♯ (♯ bit                >>= λ b  → ♯ (
+                     ♯ (comma-and-bit ⋆)  >>= λ bs → ♯
+                     return (b ∷ bs)      ))
 
   bit-list : G (List Bit)
-  bit-list = text-w [ '[' ] ·> bit-list-body <· text-w [ ']' ]
+  bit-list = ♯ symbol [ '[' ]  >>= λ _  → ♯ (
+             ♯ bit-list-body   >>= λ bs → ♯ (
+             ♯ symbol [ ']' ]  >>= λ _  → ♯
+             return bs         ))
+
+  comma-and-bit-printer : Pretty-printer comma-and-bit
+  comma-and-bit-printer b = group symbol-line-doc · bit-printer b
 
   bit-list-printer : Pretty-printer bit-list
-  bit-list-printer bs = text-w-d ·>-d body bs <·-d text-w-d
+  bit-list-printer bs = symbol-doc · body bs · symbol-doc · nil
     where
     body : Pretty-printer bit-list-body
-    body []       = ∣ˡ-d ε
-    body (b ∷ bs) =
-      ∣ʳ-d (<$>-d bit-printer b ·
-            map-d (λ b → group text·line ·>-d bit-printer b) bs)
+    body []       = ∣-left-doc nil
+    body (b ∷ bs) = ∣-right-doc
+      (bit-printer b · map-doc comma-and-bit-printer bs · nil)
 
   ex : List Bit
   ex = [0] ∷ [1] ∷ [0] ∷ [0] ∷ [1] ∷ []
