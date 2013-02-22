@@ -14,7 +14,8 @@ module Pretty where
 open import Algebra
 open import Coinduction
 open import Data.Bool
-open import Data.Char
+open import Data.Char as Char
+open import Data.Empty
 open import Data.List as List
 open import Data.Nat as Nat
 open import Data.Product
@@ -25,6 +26,7 @@ open import Function
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 import Relation.Binary.Props.DecTotalOrder as DTO
+open import Relation.Nullary
 open import Relation.Nullary.Decidable
 
 open StrictTotalOrder (DTO.strictTotalOrder Nat.decTotalOrder)
@@ -54,7 +56,7 @@ infixl 10 _∣_
 data G : Set → Set₁ where
   fail   : ∀ {A} → G A
   return : ∀ {A} → A → G A
-  text   : List Char → G (List Char)
+  token  : G Char
   _>>=_  : ∀ {A B} → ∞ (G A) → (A → ∞ (G B)) → G B
   _∣_    : ∀ {A} → ∞ (G A) → ∞ (G A) → G A
 
@@ -66,7 +68,7 @@ infix 4 _∈_∙_
 
 data _∈_∙_ : ∀ {A} → A → G A → List Char → Set₁ where
   return  : ∀ {A} {x : A} → x ∈ return x ∙ []
-  text    : ∀ {s} → s ∈ text s ∙ s
+  token   : ∀ {t} → t ∈ token ∙ [ t ]
   _>>=_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y s₁ s₂} →
             x ∈ ♭ g₁ ∙ s₁ → y ∈ ♭ (g₂ x) ∙ s₂ → y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
   ∣-left  : ∀ {A} {g₁ g₂ : ∞ (G A)} {x s} →
@@ -110,20 +112,48 @@ mutual
          x ∈ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g ⋆ ∙ s₁ ++ s₂
 ∷-sem⋆ x∈ xs∈ = ∣-right (∷-sem+ x∈ xs∈)
 
+sat : (Char → Bool) → G Char
+sat p = ♯ token >>= λ t → ♯ (if p t then return t else fail)
+
+sat-sem : ∀ {p t} → p t ≡ true → t ∈ sat p ∙ [ t ]
+sat-sem {p} {t} pt≡true =
+  token >>= P.subst (λ b → t ∈ if b then return t else fail ∙ [])
+                    (P.sym pt≡true)
+                    return
+
 tok : Char → G Char
-tok t = t <$ text [ t ]
+tok t = sat (λ t′ → ⌊ t Char.≟ t′ ⌋)
 
 tok-sem : ∀ {t} → t ∈ tok t ∙ [ t ]
-tok-sem = <$-sem text
+tok-sem {t} = sat-sem (lemma _)
+  where
+  lemma : (d : Dec (t ≡ t)) → ⌊ d ⌋ ≡ true
+  lemma (yes _)  = refl
+  lemma (no t≢t) = ⊥-elim (t≢t refl)
 
 whitespace : G Char
 whitespace = ♯ tok ' ' ∣ ♯ tok '\n'
+
+-- A grammar for the given string.
+
+string : List Char → G (List Char)
+string []      = return []
+string (t ∷ s) = ♯ tok t         >>= λ t → ♯ (
+                 ♯ string s      >>= λ s → ♯
+                 return (t ∷ s)  )
+
+string-sem : ∀ s → s ∈ string s ∙ s
+string-sem []      = return
+string-sem (t ∷ s) =
+  P.subst (λ s′ → t ∷ s ∈ string (t ∷ s) ∙ s′)
+          (P.cong (_∷_ t) $ proj₂ LM.identity s)
+          (tok-sem >>= (string-sem s >>= return))
 
 -- A grammar for the given string, possibly followed by some
 -- whitespace.
 
 symbol : List Char → G (List Char)
-symbol s = ♯ text s           >>= λ s → ♯ (
+symbol s = ♯ string s         >>= λ s → ♯ (
            s <$ whitespace ⋆  )
 
 ------------------------------------------------------------------------
@@ -134,7 +164,7 @@ symbol s = ♯ text s           >>= λ s → ♯ (
 
 data Doc : ∀ {A} → G A → A → Set₁ where
   nil   : ∀ {A} {x : A} → Doc (return x) x
-  text  : ∀ s → Doc (text s) s
+  text  : ∀ s → Doc (string s) s
   _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
           Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
   line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
@@ -229,7 +259,7 @@ ugly-renderer = record
 
   parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
   parsable nil        = return
-  parsable (text _)   = text
+  parsable (text s)   = string-sem s
   parsable (d₁ · d₂)  = parsable d₁ >>= parsable d₂
   parsable line       = <$-sem (∷-sem+ (∣-left tok-sem) []-sem)
   parsable (group d)  = parsable d
@@ -254,7 +284,7 @@ wadler's-renderer w = record
 
   data DocU : ∀ {A} → G A → A → Set₁ where
     nil   : ∀ {A} {x : A} → DocU (return x) x
-    text  : ∀ s → DocU (text s) s
+    text  : ∀ s → DocU (string s) s
     _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
             DocU (♭ g₁) x → DocU (♭ (g₂ x)) y → DocU (g₁ >>= g₂) y
     line  : ∀ {A} {x : A} → DocU (x <$ whitespace +) x
@@ -275,9 +305,10 @@ wadler's-renderer w = record
   flatten line       = cast lemma (text [ ' ' ]) · nil
     where
     lemma : ∀ {x s} →
-            x ∈ text [ ' ' ] ∙ s →
+            x ∈ string [ ' ' ] ∙ s →
             x ∈ whitespace + ∙ s
-    lemma text = ∷-sem+ (∣-left tok-sem) []-sem
+    lemma (space >>= (return >>= return)) =
+      ∷-sem+ (∣-left space) []-sem
 
   -- Conversion of Docs to DocUs.
 
@@ -386,7 +417,7 @@ wadler's-renderer w = record
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
   best-lemma s nil                hyp = hyp return
-  best-lemma s (text s′)          hyp = hyp text
+  best-lemma s (text s′)          hyp = hyp (string-sem s′)
   best-lemma {i} s line           hyp = hyp (nest-line-lemma i)
   best-lemma s (union d₁ d₂)      hyp = if-lemma s
                                           (fits′ w _ (best _ d₁ _ _))
