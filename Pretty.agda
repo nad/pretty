@@ -194,7 +194,7 @@ data Doc : ∀ {A} → G A → A → Set₁ where
   line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
   group : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
   nest  : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
-  cast  : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
+  embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
           (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
 
 -- Pretty-printers. A pretty-printer is a function that for every
@@ -207,11 +207,11 @@ Pretty-printer g = ∀ x → Doc g x
 
 ∣-left-doc : ∀ {A} {g₁ g₂ : ∞ (G A)} {x} →
              Doc (♭ g₁) x → Doc (g₁ ∣ g₂) x
-∣-left-doc d = cast ∣-left d
+∣-left-doc d = embed ∣-left d
 
 ∣-right-doc : ∀ {A} {g₁ g₂ : ∞ (G A)} {x} →
               Doc (♭ g₂) x → Doc (g₁ ∣ g₂) x
-∣-right-doc d = cast ∣-right d
+∣-right-doc d = embed ∣-right d
 
 <$-doc : ∀ {A B : Set} {x : A} {y : B} {g} →
          Doc g y → Doc (x <$ g) x
@@ -227,7 +227,7 @@ d₁ ∷-doc d₂ = ∣-right-doc (d₁ · d₂ · nil)
 -- A document for the given character.
 
 token-doc : ∀ {t} → Doc token t
-token-doc {t} = cast lemma (text [ t ])
+token-doc {t} = embed lemma (text [ t ])
   where
   lemma : ∀ {s} → [ t ] ∈ string [ t ] ∙ s → t ∈ token ∙ s
   lemma (t∈tok >>= (return >>= return))
@@ -254,7 +254,7 @@ symbol-doc = text _ · <$-doc []-doc
 -- A document for the given symbol plus a "line".
 
 symbol-line-doc : ∀ {s} → Doc (symbol s) s
-symbol-line-doc = text _ · cast lemma line
+symbol-line-doc = text _ · embed lemma line
   where
   lemma : ∀ {s s′ : List Char} →
           tt ∈ tt <$ whitespace + ∙ s′ →
@@ -295,22 +295,22 @@ ugly-renderer = record
   }
   where
   render : ∀ {A} {g : G A} {x} → Doc g x → List Char
-  render nil        = []
-  render (text s)   = s
-  render (d₁ · d₂)  = render d₁ ++ render d₂
-  render line       = [ ' ' ]
-  render (group d)  = render d
-  render (nest _ d) = render d
-  render (cast _ d) = render d
+  render nil         = []
+  render (text s)    = s
+  render (d₁ · d₂)   = render d₁ ++ render d₂
+  render line        = [ ' ' ]
+  render (group d)   = render d
+  render (nest _ d)  = render d
+  render (embed _ d) = render d
 
   parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
-  parsable nil        = return
-  parsable (text s)   = string-sem s
-  parsable (d₁ · d₂)  = parsable d₁ >>= parsable d₂
-  parsable line       = <$-sem (∷-sem+ (∣-left tok-sem) []-sem)
-  parsable (group d)  = parsable d
-  parsable (nest _ d) = parsable d
-  parsable (cast f d) = f (parsable d)
+  parsable nil         = return
+  parsable (text s)    = string-sem s
+  parsable (d₁ · d₂)   = parsable d₁ >>= parsable d₂
+  parsable line        = <$-sem (∷-sem+ (∣-left tok-sem) []-sem)
+  parsable (group d)   = parsable d
+  parsable (nest _ d)  = parsable d
+  parsable (embed f d) = f (parsable d)
 
 -- An example renderer, closely based on the one in Wadler's "A
 -- prettier printer".
@@ -336,19 +336,19 @@ wadler's-renderer w = record
     line  : ∀ {A} {x : A} → DocU (x <$ whitespace +) x
     union : ∀ {A} {g : G A} {x} → DocU g x → DocU g x → DocU g x
     nest  : ∀ {A} {g : G A} {x} → ℕ → DocU g x → DocU g x
-    cast  : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
+    embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
             (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
 
   -- Replaces line constructors with single spaces, removes groups.
 
   flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
-  flatten nil        = nil
-  flatten (text s)   = text s
-  flatten (d₁ · d₂)  = flatten d₁ · flatten d₂
-  flatten (group d)  = flatten d
-  flatten (nest i d) = nest i (flatten d)
-  flatten (cast f d) = cast f (flatten d)
-  flatten line       = cast lemma (text [ ' ' ]) · nil
+  flatten nil         = nil
+  flatten (text s)    = text s
+  flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
+  flatten (group d)   = flatten d
+  flatten (nest i d)  = nest i (flatten d)
+  flatten (embed f d) = embed f (flatten d)
+  flatten line        = embed lemma (text [ ' ' ]) · nil
     where
     lemma : ∀ {x s} →
             x ∈ string [ ' ' ] ∙ s →
@@ -359,13 +359,13 @@ wadler's-renderer w = record
   -- Conversion of Docs to DocUs.
 
   expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
-  expand-groups nil        = nil
-  expand-groups (text s)   = text s
-  expand-groups (d₁ · d₂)  = expand-groups d₁ · expand-groups d₂
-  expand-groups line       = line
-  expand-groups (group d)  = union (flatten d) (expand-groups d)
-  expand-groups (nest i d) = nest i (expand-groups d)
-  expand-groups (cast f d) = cast f (expand-groups d)
+  expand-groups nil         = nil
+  expand-groups (text s)    = text s
+  expand-groups (d₁ · d₂)   = expand-groups d₁ · expand-groups d₂
+  expand-groups line        = line
+  expand-groups (group d)   = union (flatten d) (expand-groups d)
+  expand-groups (nest i d)  = nest i (expand-groups d)
+  expand-groups (embed f d) = embed f (expand-groups d)
 
   -- Layouts (representations of certain strings).
 
@@ -420,7 +420,7 @@ wadler's-renderer w = record
   best i (union d₁ d₂) = λ κ c → better c (best i d₁ κ c)
                                           (best i d₂ κ c)
   best i (nest j d)    = best (j + i) d
-  best i (cast f d)    = best i d
+  best i (embed f d)   = best i d
 
   -- Renders a document.
 
@@ -470,7 +470,7 @@ wadler's-renderer w = record
                                           (best-lemma s d₁ hyp)
                                           (best-lemma s d₂ hyp)
   best-lemma s (nest j d)         hyp = best-lemma s d hyp
-  best-lemma s (cast f d)         hyp = best-lemma s d (hyp ∘ f)
+  best-lemma s (embed f d)        hyp = best-lemma s d (hyp ∘ f)
   best-lemma s {g′} {y} (d₁ · d₂) hyp =
     best-lemma s d₁ λ {s′} f∈ →
       P.subst (λ s → y ∈ g′ ∙ s) (LM.assoc s _ _)
@@ -510,9 +510,9 @@ module Bit where
   -- second one using derived ones.
 
   bit-printer : Pretty-printer bit
-  bit-printer [0] = cast ∣-left ((text [ '0' ] ·
-                                  (cast ∣-left nil · nil)) ·
-                                 nil)
+  bit-printer [0] = embed ∣-left ((text [ '0' ] ·
+                                   (embed ∣-left nil · nil)) ·
+                                  nil)
   bit-printer [1] = ∣-right-doc (<$-doc symbol-doc)
 
   test₁ : render 4 (bit-printer [0]) ≡ "0"
