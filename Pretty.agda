@@ -80,6 +80,12 @@ data _∈_∙_ : ∀ {A} → A → G A → List Char → Set₁ where
   ∣-right : ∀ {A} {g₁ g₂ : ∞ (G A)} {x s} →
             x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
 
+-- Cast lemma.
+
+cast : ∀ {A} {g : G A} {x s₁ s₂} →
+       s₁ ≡ s₂ → x ∈ g ∙ s₁ → x ∈ g ∙ s₂
+cast refl = id
+
 -- Some derived grammar combinators.
 
 _<$_ : ∀ {A B} → A → G B → G A
@@ -88,9 +94,7 @@ x <$ g = ♯ g         >>= λ _ →
 
 <$-sem : ∀ {A B} {x : A} {y : B} {g s} →
          y ∈ g ∙ s → x ∈ x <$ g ∙ s
-<$-sem {x = x} {g = g} y∈ =
-  P.subst (λ s → x ∈ x <$ g ∙ s) (proj₂ LM.identity _)
-          (y∈ >>= return)
+<$-sem y∈ = cast (proj₂ LM.identity _) (y∈ >>= return)
 
 mutual
 
@@ -107,10 +111,9 @@ mutual
 
 ∷-sem+ : ∀ {A} {g : G A} {x xs s₁ s₂} →
          x ∈ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g + ∙ s₁ ++ s₂
-∷-sem+ {g = g} {x} {xs} {s₁} x∈ xs∈ =
-  P.subst (λ s → x ∷ xs ∈ g + ∙ s)
-          (P.cong (_++_ s₁) (proj₂ LM.identity _))
-          (x∈ >>= (xs∈ >>= return))
+∷-sem+ {s₁ = s₁} x∈ xs∈ =
+  cast (P.cong (_++_ s₁) (proj₂ LM.identity _))
+       (x∈ >>= (xs∈ >>= return))
 
 ∷-sem⋆ : ∀ {A} {g : G A} {x xs s₁ s₂} →
          x ∈ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g ⋆ ∙ s₁ ++ s₂
@@ -169,9 +172,8 @@ string (t ∷ s) = ♯ tok t           >>= λ t → ♯ (
 string-sem : ∀ s → s ∈ string s ∙ s
 string-sem []      = return
 string-sem (t ∷ s) =
-  P.subst (λ s′ → t ∷ s ∈ string (t ∷ s) ∙ s′)
-          (P.cong (_∷_ t) $ proj₂ LM.identity s)
-          (tok-sem >>= (string-sem s >>= return))
+  cast (P.cong (_∷_ t) $ proj₂ LM.identity s)
+       (tok-sem >>= (string-sem s >>= return))
 
 -- A grammar for the given string, possibly followed by some
 -- whitespace.
@@ -459,32 +461,30 @@ wadler's-renderer w = record
   -- The main correctness property for best.
 
   best-lemma :
-    ∀ {i A B} {g : G A} {x c κ} s {g′ : G B} {y} (d : DocU g x) →
+    ∀ {A B} {g : G A} {g′ : G B} {x y c κ} s (d : DocU g x) {i} →
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
-  best-lemma s nil                hyp = hyp return
-  best-lemma s (text s′)          hyp = hyp (string-sem s′)
-  best-lemma {i} s line           hyp = hyp (nest-line-lemma i)
-  best-lemma s (union d₁ d₂)      hyp = if-lemma s
-                                          (fits′ w _ (best _ d₁ _ _))
-                                          (best-lemma s d₁ hyp)
-                                          (best-lemma s d₂ hyp)
-  best-lemma s (nest j d)         hyp = best-lemma s d hyp
-  best-lemma s (embed f d)        hyp = best-lemma s d (hyp ∘ f)
-  best-lemma s {g′} {y} (d₁ · d₂) hyp =
+  best-lemma s nil           hyp = hyp return
+  best-lemma s (text s′)     hyp = hyp (string-sem s′)
+  best-lemma s line {i}      hyp = hyp (nest-line-lemma i)
+  best-lemma s (union d₁ d₂) hyp = if-lemma s
+                                     (fits′ w _ (best _ d₁ _ _))
+                                     (best-lemma s d₁ hyp)
+                                     (best-lemma s d₂ hyp)
+  best-lemma s (nest j d)    hyp = best-lemma s d hyp
+  best-lemma s (embed f d)   hyp = best-lemma s d (hyp ∘ f)
+  best-lemma s (d₁ · d₂)     hyp =
     best-lemma s d₁ λ {s′} f∈ →
-      P.subst (λ s → y ∈ g′ ∙ s) (LM.assoc s _ _)
+      cast (LM.assoc s _ _)
         (best-lemma (s ++ s′) d₂ λ x∈ →
-           P.subst (λ s → y ∈ g′ ∙ s) (++-lemma s _ _ _)
+           cast (++-lemma s _ _ _)
              (hyp (f∈ >>= x∈)))
 
   -- The renderer is correct.
 
   parsable : ∀ {A} {g : G A} {x} (d : Doc g x) → x ∈ g ∙ render d
-  parsable {g = g} {x} d = best-lemma [] (expand-groups d) hyp
-    where
-    hyp : ∀ {s} → x ∈ g ∙ s → x ∈ g ∙ s ++ []
-    hyp = P.subst (λ s → x ∈ g ∙ s) (P.sym $ proj₂ LM.identity _)
+  parsable d = best-lemma [] (expand-groups d)
+                          (cast (P.sym $ proj₂ LM.identity _))
 
 ------------------------------------------------------------------------
 -- Examples
