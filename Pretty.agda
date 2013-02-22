@@ -26,11 +26,15 @@ open import Function
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 import Relation.Binary.Props.DecTotalOrder as DTO
+import Relation.Binary.Props.StrictTotalOrder as STO
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
+open import Relation.Nullary.Product
 
 open StrictTotalOrder (DTO.strictTotalOrder Nat.decTotalOrder)
   using (_<?_)
+open DecTotalOrder (STO.decTotalOrder Char.strictTotalOrder)
+  using () renaming (_≤_ to _≤C_; _≤?_ to _≤?C_)
 private
   module LM {A : Set} = Monoid (List.monoid A)
 
@@ -483,9 +487,15 @@ wadler's-renderer w = record
     hyp = P.subst (λ s → x ∈ g ∙ s) (P.sym $ proj₂ LM.identity _)
 
 ------------------------------------------------------------------------
--- Example
+-- Examples
 
-private
+-- Uses wadler's-renderer to render a document using the given line
+-- width.
+
+render : ∀ {A} {g : G A} {x} → ℕ → Doc g x → String
+render w d = String.fromList (Renderer.render (wadler's-renderer w) d)
+
+module Bit where
 
   -- Bits.
 
@@ -505,49 +515,120 @@ private
                                  nil)
   bit-printer [1] = ∣-right-doc (<$-doc symbol-doc)
 
-  -- Lists of bits. This example is based on one in Swierstra and
+  test₁ : render 4 (bit-printer [0]) ≡ "0"
+  test₁ = refl
+
+  test₂ : render 0 (bit-printer [1]) ≡ "1"
+  test₂ = refl
+
+module Name where
+
+  -- Lower-case characters.
+
+  Lower-case-char : Set
+  Lower-case-char =
+    ∃ λ (t : Char) → True (('a' ≤?C t) ×-dec (t ≤?C 'z'))
+
+  lower-case-char : G Lower-case-char
+  lower-case-char = sat (λ t → ⌊ ('a' ≤?C t) ×-dec (t ≤?C 'z') ⌋)
+
+  lower-case-char-printer : Pretty-printer lower-case-char
+  lower-case-char-printer _ = sat-doc
+
+  -- Note that if we had defined Lower-case-char = Char, then it
+  -- wouldn't have been possible to define lower-case-char-printer.
+
+  -- Names. Note that names are allowed to be empty.
+
+  Name : Set
+  Name = List Lower-case-char
+
+  name : G Name
+  name = ♯ (lower-case-char ⋆)  >>= λ n → ♯ (
+         ♯ (whitespace ⋆)       >>= λ _ → ♯
+         return n               )
+
+  name-printer : Pretty-printer name
+  name-printer n =
+    map-doc lower-case-char-printer n · []-doc · nil
+
+  as : Name
+  as = replicate 3 ('a' , _)
+
+  bs : Name
+  bs = replicate 5 ('b' , _)
+
+  cs : Name
+  cs = replicate 3 ('c' , _)
+
+  ds : Name
+  ds = replicate 2 ('d' , _)
+
+  es : Name
+  es = replicate 3 ('e' , _)
+
+  fs : Name
+  fs = replicate 4 ('f' , _)
+
+  gs : Name
+  gs = replicate 2 ('g' , _)
+
+  hs : Name
+  hs = replicate 3 ('h' , _)
+
+  is : Name
+  is = replicate 2 ('i' , _)
+
+  test : render 80 (name-printer as) ≡ "aaa"
+  test = refl
+
+module Name-list where
+
+  open Name
+
+  -- Lists of names. This example is based on one in Swierstra and
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
-  comma-and-bit : G Bit
-  comma-and-bit = ♯ symbol [ ',' ]  >>= λ _ → ♯
-                  bit
+  comma-and-name : G Name
+  comma-and-name = ♯ symbol [ ',' ]  >>= λ _ → ♯
+                   name
 
-  bit-list-body : G (List Bit)
-  bit-list-body = ♯ return []
-                ∣ ♯ (♯ bit                >>= λ b  → ♯ (
-                     ♯ (comma-and-bit ⋆)  >>= λ bs → ♯
-                     return (b ∷ bs)      ))
+  name-list-body : G (List Name)
+  name-list-body = ♯ return []
+                 ∣ ♯ (♯ name                >>= λ n  → ♯ (
+                      ♯ (comma-and-name ⋆)  >>= λ ns → ♯
+                      return (n ∷ ns)      ))
 
-  bit-list : G (List Bit)
-  bit-list = ♯ symbol [ '[' ]  >>= λ _  → ♯ (
-             ♯ bit-list-body   >>= λ bs → ♯ (
-             ♯ symbol [ ']' ]  >>= λ _  → ♯
-             return bs         ))
+  name-list : G (List Name)
+  name-list = ♯ symbol [ '[' ]  >>= λ _  → ♯ (
+              ♯ name-list-body   >>= λ ns → ♯ (
+              ♯ symbol [ ']' ]  >>= λ _  → ♯
+              return ns         ))
 
-  comma-and-bit-printer : Pretty-printer comma-and-bit
-  comma-and-bit-printer b = group symbol-line-doc · bit-printer b
+  comma-and-name-printer : Pretty-printer comma-and-name
+  comma-and-name-printer n = group symbol-line-doc · name-printer n
 
-  bit-list-printer : Pretty-printer bit-list
-  bit-list-printer bs = symbol-doc · body bs · symbol-doc · nil
+  name-list-printer : Pretty-printer name-list
+  name-list-printer ns = symbol-doc · body ns · symbol-doc · nil
     where
-    body : Pretty-printer bit-list-body
+    body : Pretty-printer name-list-body
     body []       = ∣-left-doc nil
-    body (b ∷ bs) = ∣-right-doc
-      (bit-printer b · map-doc comma-and-bit-printer bs · nil)
+    body (n ∷ ns) = ∣-right-doc
+      (name-printer n · map-doc comma-and-name-printer ns · nil)
 
-  ex : List Bit
-  ex = [0] ∷ [1] ∷ [0] ∷ [0] ∷ [1] ∷ []
+  names : List Name
+  names = as ∷ bs ∷ cs ∷ ds ∷ es ∷ []
 
-  ex′ : ℕ → String
-  ex′ w =
-    String.fromList $
-      Renderer.render (wadler's-renderer w) (bit-list-printer ex)
+  test₁ : render 80 (name-list-printer names) ≡ "[aaa, bbbbb, ccc, dd, eee]"
+  test₁ = refl
 
-  ex″ : ex′ 9 ≡ "[0, 1, 0,\n0, 1]"
-  ex″ = refl
+  test₂ : render 11 (name-list-printer names) ≡ "[aaa,\nbbbbb, ccc,\ndd, eee]"
+  test₂ = refl
 
-  ex‴ : ex′ 6 ≡ "[0, 1,\n0, 0,\n1]"
-  ex‴ = refl
+  test₃ : render 8 (name-list-printer names) ≡ "[aaa,\nbbbbb,\nccc, dd,\neee]"
+  test₃ = refl
 
-  ex⁗ : ex′ 3 ≡ "[0,\n1,\n0,\n0,\n1]"
-  ex⁗ = refl
+
+
+
+
