@@ -112,24 +112,44 @@ mutual
          x ∈ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g ⋆ ∙ s₁ ++ s₂
 ∷-sem⋆ x∈ xs∈ = ∣-right (∷-sem+ x∈ xs∈)
 
-sat : (Char → Bool) → G Char
-sat p = ♯ token >>= λ t → ♯ (if p t then return t else fail)
+if-true : (b : Bool) → G (T b)
+if-true true  = return tt
+if-true false = fail
 
-sat-sem : ∀ {p t} → p t ≡ true → t ∈ sat p ∙ [ t ]
-sat-sem {p} {t} pt≡true =
-  token >>= P.subst (λ b → t ∈ if b then return t else fail ∙ [])
-                    (P.sym pt≡true)
-                    return
+if-true-sem : ∀ {b} (t : T b) → t ∈ if-true b ∙ []
+if-true-sem {b = true}  _  = return
+if-true-sem {b = false} ()
+
+sat : (p : Char → Bool) → G (∃ λ t → T (p t))
+sat p = ♯ token          >>= λ t  → ♯ (
+        ♯ if-true (p t)  >>= λ pt → ♯
+        return (t , pt)  )
+
+sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
+          (t , pt) ∈ sat p ∙ [ t ]
+sat-sem pt = token >>= (if-true-sem pt >>= return)
+
+sat-sem⁻¹ : ∀ {p : Char → Bool} {t pt s} →
+            (t , pt) ∈ sat p ∙ s → s ≡ [ t ]
+sat-sem⁻¹ {p = p}
+          (_>>=_ {x = t} token (pt∈    >>= return)) with p t
+sat-sem⁻¹ (_>>=_ {x = t} token (return >>= return)) | true  = refl
+sat-sem⁻¹ (_>>=_ {x = t} token (()     >>= return)) | false
 
 tok : Char → G Char
-tok t = sat (λ t′ → ⌊ t Char.≟ t′ ⌋)
+tok t = ♯ sat (λ t′ → ⌊ t Char.≟ t′ ⌋)  >>= λ { (t , _) → ♯
+        return t                        }
 
 tok-sem : ∀ {t} → t ∈ tok t ∙ [ t ]
-tok-sem {t} = sat-sem (lemma _)
+tok-sem = sat-sem (lemma _) >>= return
   where
-  lemma : (d : Dec (t ≡ t)) → ⌊ d ⌋ ≡ true
-  lemma (yes _)  = refl
-  lemma (no t≢t) = ⊥-elim (t≢t refl)
+  lemma : ∀ {t} (d : Dec (t ≡ t)) → T ⌊ d ⌋
+  lemma (yes refl) = tt
+  lemma (no t≢t)   = ⊥-elim (t≢t refl)
+
+tok-sem⁻¹ : ∀ {t t′ s} → t ∈ tok t′ ∙ s → t ≡ t′ × s ≡ [ t ]
+tok-sem⁻¹ (_>>=_ {x = _ , t′≡t} tp∈ return) =
+  P.sym (toWitness t′≡t) , P.cong (λ s → s ++ []) (sat-sem⁻¹ tp∈)
 
 whitespace : G Char
 whitespace = ♯ tok ' ' ∣ ♯ tok '\n'
@@ -199,6 +219,28 @@ Pretty-printer g = ∀ x → Doc g x
 _∷-doc_ : ∀ {A} {g : G A} {x xs} →
           Doc g x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
 d₁ ∷-doc d₂ = ∣-right-doc (d₁ · d₂ · nil)
+
+-- A document for the given character.
+
+token-doc : ∀ {t} → Doc token t
+token-doc {t} = cast lemma (text [ t ])
+  where
+  lemma : ∀ {s} → [ t ] ∈ string [ t ] ∙ s → t ∈ token ∙ s
+  lemma (t∈tok >>= (return >>= return))
+    rewrite proj₂ (tok-sem⁻¹ t∈tok)
+    = token
+
+-- A document for the empty string.
+
+if-true-doc : ∀ {b} {t : T b} → Doc (if-true b) t
+if-true-doc {true}     = nil
+if-true-doc {false} {}
+
+-- A document for the given character.
+
+sat-doc : ∀ {p : Char → Bool} {t pt} →
+          Doc (sat p) (t , pt)
+sat-doc = token-doc · if-true-doc · nil
 
 -- A document for the given symbol (and no following whitespace).
 
