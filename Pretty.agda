@@ -83,8 +83,8 @@ data _∈_∙_ : ∀ {A} → A → G A → List Char → Set₁ where
 -- Some derived grammar combinators.
 
 _<$_ : ∀ {A B} → A → G B → G A
-x <$ g = ♯ g       >>= λ _ → ♯
-         return x
+x <$ g = ♯ g         >>= λ _ →
+         ♯ return x
 
 <$-sem : ∀ {A B} {x : A} {y : B} {g s} →
          y ∈ g ∙ s → x ∈ x <$ g ∙ s
@@ -98,9 +98,9 @@ mutual
   g ⋆ = ♯ return [] ∣ ♯ (g +)
 
   _+ : ∀ {A} → G A → G (List A)
-  g + = ♯ g              >>= λ x  → ♯ (
-        ♯ (g ⋆)          >>= λ xs → ♯
-        return (x ∷ xs)  )
+  g + = ♯ g                >>= λ x  → ♯ (
+        ♯ (g ⋆)            >>= λ xs →
+        ♯ return (x ∷ xs)  )
 
 []-sem : ∀ {A} {g : G A} → [] ∈ g ⋆ ∙ []
 []-sem = ∣-left return
@@ -125,9 +125,9 @@ if-true-sem {b = true}  _  = return
 if-true-sem {b = false} ()
 
 sat : (p : Char → Bool) → G (∃ λ t → T (p t))
-sat p = ♯ token          >>= λ t  → ♯ (
-        ♯ if-true (p t)  >>= λ pt → ♯
-        return (t , pt)  )
+sat p = ♯ token            >>= λ t  → ♯ (
+        ♯ if-true (p t)    >>= λ pt →
+        ♯ return (t , pt)  )
 
 sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
           (t , pt) ∈ sat p ∙ [ t ]
@@ -141,8 +141,8 @@ sat-sem⁻¹ (_>>=_ {x = t} token (return >>= return)) | true  = refl
 sat-sem⁻¹ (_>>=_ {x = t} token (()     >>= return)) | false
 
 tok : Char → G Char
-tok t = ♯ sat (λ t′ → ⌊ t Char.≟ t′ ⌋)  >>= λ { (t , _) → ♯
-        return t                        }
+tok t = ♯ sat (λ t′ → ⌊ t Char.≟ t′ ⌋)  >>= λ { (t , _) →
+        ♯ return t                      }
 
 tok-sem : ∀ {t} → t ∈ tok t ∙ [ t ]
 tok-sem = sat-sem (lemma _) >>= return
@@ -162,9 +162,9 @@ whitespace = ♯ tok ' ' ∣ ♯ tok '\n'
 
 string : List Char → G (List Char)
 string []      = return []
-string (t ∷ s) = ♯ tok t         >>= λ t → ♯ (
-                 ♯ string s      >>= λ s → ♯
-                 return (t ∷ s)  )
+string (t ∷ s) = ♯ tok t           >>= λ t → ♯ (
+                 ♯ string s        >>= λ s →
+                 ♯ return (t ∷ s)  )
 
 string-sem : ∀ s → s ∈ string s ∙ s
 string-sem []      = return
@@ -177,8 +177,8 @@ string-sem (t ∷ s) =
 -- whitespace.
 
 symbol : List Char → G (List Char)
-symbol s = ♯ string s         >>= λ s → ♯ (
-           s <$ whitespace ⋆  )
+symbol s = ♯ string s             >>= λ s →
+           ♯ (s <$ whitespace ⋆)
 
 ------------------------------------------------------------------------
 -- Pretty-printers
@@ -545,8 +545,8 @@ module Name where
 
   name : G Name
   name = ♯ (lower-case-char ⋆)  >>= λ n → ♯ (
-         ♯ (whitespace ⋆)       >>= λ _ → ♯
-         return n               )
+         ♯ (whitespace ⋆)       >>= λ _ →
+         ♯ return n             )
 
   name-printer : Pretty-printer name
   name-printer n =
@@ -590,20 +590,20 @@ module Name-list where
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
   comma-and-name : G Name
-  comma-and-name = ♯ symbol [ ',' ]  >>= λ _ → ♯
-                   name
+  comma-and-name = ♯ symbol [ ',' ]  >>= λ _ →
+                   ♯ name
 
   name-list-body : G (List Name)
   name-list-body = ♯ return []
                  ∣ ♯ (♯ name                >>= λ n  → ♯ (
-                      ♯ (comma-and-name ⋆)  >>= λ ns → ♯
-                      return (n ∷ ns)      ))
+                      ♯ (comma-and-name ⋆)  >>= λ ns →
+                      ♯ return (n ∷ ns)     ))
 
   name-list : G (List Name)
   name-list = ♯ symbol [ '[' ]  >>= λ _  → ♯ (
-              ♯ name-list-body   >>= λ ns → ♯ (
-              ♯ symbol [ ']' ]  >>= λ _  → ♯
-              return ns         ))
+              ♯ name-list-body  >>= λ ns → ♯ (
+              ♯ symbol [ ']' ]  >>= λ _  →
+              ♯ return ns       ))
 
   comma-and-name-printer : Pretty-printer comma-and-name
   comma-and-name-printer n = group symbol-line-doc · name-printer n
