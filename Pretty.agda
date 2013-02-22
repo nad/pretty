@@ -116,8 +116,8 @@ data Doc : ∀ {A} → G A → A → Set₁ where
   line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
   group : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
   nest  : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
-  cast  : ∀ {A} {g₁ g₂ : G A} {x} →
-          (∀ {s} → x ∈ g₁ ∙ s → x ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ x
+  cast  : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
+          (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
@@ -242,8 +242,8 @@ wadler's-renderer w = record
     line  : ∀ {A} {x : A} → DocU (x <$ whitespace +) x
     union : ∀ {A} {g : G A} {x} → DocU g x → DocU g x → DocU g x
     nest  : ∀ {A} {g : G A} {x} → ℕ → DocU g x → DocU g x
-    cast  : ∀ {A} {g₁ g₂ : G A} {x} →
-            (∀ {s} → x ∈ g₁ ∙ s → x ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ x
+    cast  : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
+            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
 
   -- Replaces line constructors with single spaces, removes groups.
 
