@@ -44,6 +44,49 @@ infixl 15 _>>=_
 infixl 10 _∣_
 
 ------------------------------------------------------------------------
+-- Some boring lemmas
+
+-- TODO: Add a monoid solver to the standard library.
+
+private
+
+  ++-lemma₀ : {A : Set} (a b c d : List A) →
+              a ++ (b ++ c) ++ d ≡ (a ++ b) ++ c ++ d
+  ++-lemma₀ a b c d = begin
+    a ++ (b ++ c) ++ d  ≡⟨ P.cong (_++_ a) $ LM.assoc b c d ⟩
+    a ++ b ++ c ++ d    ≡⟨ P.sym $ LM.assoc a b (c ++ d) ⟩
+    (a ++ b) ++ c ++ d  ∎
+    where open P.≡-Reasoning
+
+  ++-lemma₁ : {A : Set} (a b c d : List A) →
+              a ++ (b ++ c ++ d) ++ [] ≡
+              (a ++ (b ++ c) ++ []) ++ d
+  ++-lemma₁ a b c d = begin
+    a ++ (b ++ c ++ d) ++ []    ≡⟨ P.cong (_++_ a) $ proj₂ LM.identity _ ⟩
+    a ++ (b ++ c ++ d)          ≡⟨ P.cong (_++_ a) $ P.sym $ LM.assoc b _ _ ⟩
+    a ++ ((b ++ c) ++ d)        ≡⟨ P.sym $ LM.assoc a _ _ ⟩
+    (a ++ b ++ c) ++ d          ≡⟨ P.cong (λ bc → (a ++ bc) ++ d) $ P.sym $ proj₂ LM.identity _ ⟩
+    (a ++ (b ++ c) ++ []) ++ d  ∎
+    where open P.≡-Reasoning
+
+  ++-lemma₂ : {A : Set} (a b c d e : List A) →
+              a ++ (b ++ c ++ (d ++ e) ++ []) ++ [] ≡
+              (a ++ (b ++ c ++ d ++ []) ++ []) ++ e
+  ++-lemma₂ a b c d e = begin
+    a ++ (b ++ c ++ (d ++ e) ++ []) ++ []  ≡⟨ P.cong (_++_ a) $ proj₂ LM.identity _ ⟩
+    a ++ b ++ c ++ (d ++ e) ++ []          ≡⟨ P.cong (λ de → a ++ b ++ c ++ de) $ proj₂ LM.identity (d ++ e) ⟩
+    a ++ b ++ c ++ d ++ e                  ≡⟨ P.sym $ LM.assoc a _ _ ⟩
+    (a ++ b) ++ c ++ d ++ e                ≡⟨ P.sym $ LM.assoc (a ++ b) _ _ ⟩
+    ((a ++ b) ++ c) ++ d ++ e              ≡⟨ P.cong (λ abc → abc ++ d ++ e) $ LM.assoc a _ _ ⟩
+    (a ++ b ++ c) ++ d ++ e                ≡⟨ P.sym $ LM.assoc (a ++ b ++ c) _ _ ⟩
+    ((a ++ b ++ c) ++ d) ++ e              ≡⟨ P.cong (λ abcd → abcd ++ e) $ LM.assoc a _ _ ⟩
+    (a ++ (b ++ c) ++ d) ++ e              ≡⟨ P.cong (λ bcd → (a ++ bcd) ++ e) $ LM.assoc b _ _ ⟩
+    (a ++ b ++ c ++ d) ++ e                ≡⟨ P.cong (λ d → (a ++ b ++ c ++ d) ++ e) $ P.sym $ proj₂ LM.identity d ⟩
+    (a ++ b ++ c ++ d ++ []) ++ e          ≡⟨ P.cong (λ bcd → (a ++ bcd) ++ e) $ P.sym $ proj₂ LM.identity (b ++ c ++ d ++ []) ⟩
+    (a ++ (b ++ c ++ d ++ []) ++ []) ++ e  ∎
+    where open P.≡-Reasoning
+
+------------------------------------------------------------------------
 -- Grammars
 
 -- Simple, potentially infinite grammars.
@@ -450,14 +493,6 @@ wadler's-renderer w = record
   if-lemma _ true  ∈l₁ ∈l₂ = ∈l₁
   if-lemma _ false ∈l₁ ∈l₂ = ∈l₂
 
-  ++-lemma : {A : Set} (a b c d : List A) →
-             a ++ (b ++ c) ++ d ≡ (a ++ b) ++ c ++ d
-  ++-lemma a b c d = begin
-    a ++ (b ++ c) ++ d  ≡⟨ P.cong (_++_ a) $ LM.assoc b c d ⟩
-    a ++ b ++ c ++ d    ≡⟨ P.sym $ LM.assoc a b (c ++ d) ⟩
-    (a ++ b) ++ c ++ d  ∎
-    where open P.≡-Reasoning
-
   -- The main correctness property for best.
 
   best-lemma :
@@ -477,7 +512,7 @@ wadler's-renderer w = record
     best-lemma s d₁ λ {s′} f∈ →
       cast (LM.assoc s _ _)
         (best-lemma (s ++ s′) d₂ λ x∈ →
-           cast (++-lemma s _ _ _)
+           cast (++-lemma₀ s _ _ _)
              (hyp (f∈ >>= x∈)))
 
   -- The renderer is correct.
@@ -631,7 +666,197 @@ module Name-list where
           "[aaa,\nbbbbb,\nccc, dd,\neee]"
   test₃ = refl
 
+module Tree where
 
+  open Name
 
+  -- Trees. This example is based on one in Wadler's "A prettier
+  -- printer".
 
+  data Tree : Set where
+    node : Name → List Tree → Tree
 
+  mutual
+
+    tree : G Tree
+    tree = ♯ name                >>= λ n  → ♯ (
+           ♯ brackets            >>= λ ts →
+           ♯ return (node n ts)  )
+
+    brackets : G (List Tree)
+    brackets = ♯ return []
+             ∣ ♯ (♯ symbol [ '[' ]  >>= λ _  → ♯ (
+                  ♯ trees           >>= λ ts → ♯ (
+                  ♯ symbol [ ']' ]  >>= λ _  →
+                  ♯ return ts       )))
+
+    trees : G (List Tree)
+    trees = ♯ tree              >>= λ t → ♯ (
+            ♯ commas-and-trees  >>= λ ts →
+            ♯ return (t ∷ ts)   )
+
+    commas-and-trees : G (List Tree)
+    commas-and-trees = ♯ return []
+                     ∣ ♯ (♯ symbol [ ',' ] >>= λ _ →
+                          ♯ trees)
+
+  -- Wadler presents two pretty-printers for trees.
+
+  module Printer₁ where
+
+    mutual
+
+      tree-printer : Pretty-printer tree
+      tree-printer (node s ts) = group
+        (name-printer s · nest (length s) (brackets-printer ts) · nil)
+
+      brackets-printer : Pretty-printer brackets
+      brackets-printer []       = ∣-left-doc nil
+      brackets-printer (t ∷ ts) = ∣-right-doc
+        (symbol-doc · nest 1 (trees-printer t ts) · symbol-doc · nil)
+
+      trees-printer : ∀ t ts → Doc trees (t ∷ ts)
+      trees-printer t ts =
+        tree-printer t · commas-and-trees-printer ts · nil
+
+      commas-and-trees-printer : Pretty-printer commas-and-trees
+      commas-and-trees-printer []       = ∣-left-doc nil
+      commas-and-trees-printer (t ∷ ts) =
+        ∣-right-doc (symbol-line-doc · trees-printer t ts)
+
+  module Printer₂ where
+
+    -- A bunch of lemmas that show that one can append whitespace to
+    -- various strings without changing their meanings (with respect
+    -- to given grammars, and assuming that these grammars are
+    -- unambiguous).
+
+    whitespace⋆-lemma :
+      ∀ {x y s₁ s₂} →
+      x ∈ whitespace ⋆ ∙ s₁ → y ∈ whitespace + ∙ s₂ →
+      x ++ y ∈ whitespace ⋆ ∙ s₁ ++ s₂
+    whitespace⋆-lemma (∣-left return) w+ = ∣-right w+
+    whitespace⋆-lemma (∣-right (_>>=_ {s₁ = s} w
+                                      (_>>=_ {s₁ = s′} w⋆ return))) w+ =
+      cast (++-lemma₁ s [] s′ _)
+           (∣-right (w >>= (whitespace⋆-lemma w⋆ w+ >>= return)))
+
+    name-lemma : ∀ {n x s₁ s₂} →
+                 n ∈ name ∙ s₁ → x ∈ whitespace + ∙ s₂ →
+                 n ∈ name ∙ s₁ ++ s₂
+    name-lemma (_>>=_ {s₁ = s} n∈ (_>>=_ {s₁ = s′} w⋆ return)) w+ =
+      cast (++-lemma₁ s [] s′ _)
+           (n∈ >>= (whitespace⋆-lemma w⋆ w+ >>= return))
+
+    symbol-lemma : ∀ {s s′ s₁ s₂ x} →
+                   s ∈ symbol s′ ∙ s₁ → x ∈ whitespace + ∙ s₂ →
+                   s ∈ symbol s′ ∙ s₁ ++ s₂
+    symbol-lemma (_>>=_ {s₁ = s} sym (_>>=_ {s₁ = s′} w⋆ return)) w+ =
+      cast (++-lemma₁ s [] s′ _)
+           (sym >>= (whitespace⋆-lemma w⋆ w+ >>= return))
+
+    tree-lemma : ∀ {t x s₁ s₂} →
+                 t ∈ tree ∙ s₁ → x ∈ whitespace + ∙ s₂ →
+                 t ∈ tree ∙ s₁ ++ s₂
+    tree-lemma (_>>=_ {s₁ = s} name (∣-left return >>= return)) w+ =
+      cast (++-lemma₁ [] [] s _)
+           (name-lemma name w+ >>= (∣-left return >>= return))
+    tree-lemma (_>>=_ {s₁ = s} name (∣-right (_>>=_ {s₁ = s′} left
+                (_>>=_ {s₁ = s″} ts∈ (_>>=_ {s₁ = s‴} right return)))
+                >>= return)) w+ =
+      cast (++-lemma₂ s s′ s″ s‴ _)
+           (name >>= (∣-right (left >>= (ts∈ >>= (symbol-lemma right w+
+            >>= return))) >>= return))
+
+    trees-lemma : ∀ {ts x s₁ s₂} →
+                  ts ∈ trees ∙ s₁ → x ∈ whitespace + ∙ s₂ →
+                  ts ∈ trees ∙ s₁ ++ s₂
+    trees-lemma (_>>=_ {s₁ = s} t∈ (∣-left return >>= return)) w+ =
+      cast (++-lemma₁ [] [] s _)
+           (tree-lemma t∈ w+ >>= (∣-left return >>= return))
+    trees-lemma (_>>=_ {s₁ = s} t∈
+                       (∣-right (_>>=_ {s₁ = s′} comma ts∈) >>= return))
+                w+ =
+      cast (++-lemma₁ s s′ _ _)
+           (t∈ >>= (∣-right (comma >>= trees-lemma ts∈ w+) >>= return))
+
+    trees′ : G (List Tree)
+    trees′ = ♯ trees                 >>= λ ts →
+             ♯ (ts <$ whitespace +)
+
+    trees′-lemma : ∀ {ts s} → ts ∈ trees′ ∙ s → ts ∈ trees ∙ s
+    trees′-lemma (_>>=_ {s₁ = s₁} ts∈ (w+ >>= return)) =
+      cast (P.cong (_++_ s₁) $ P.sym $ proj₂ LM.identity _)
+           (trees-lemma ts∈ w+)
+
+    mutual
+
+      tree-printer : Pretty-printer tree
+      tree-printer (node s ts) =
+        name-printer s · brackets-printer ts · nil
+
+      -- Note that this printer is not defined in exactly the same way
+      -- as Wadler's: Wadler used "nest 2" once, here it is used
+      -- twice. Why? His one nest spanned over two parts of the
+      -- grammar (the opening bracket and the rest, respectively), but
+      -- not all of the second part (not the closing bracket).
+      --
+      -- This issue could probably have been addressed by defining the
+      -- grammar in a different way.
+      --
+      -- This issue also leads me to a question: how expressive is
+      -- this pretty-printing framework?
+
+      -- Another observation is that proving trees′-lemma is quite
+      -- cumbersome. Could this have been avoided? A simple solution
+      -- would have been to add some extra whitespace to the grammar,
+      -- at the cost of making the grammar ambiguous. However, I want
+      -- to avoid ambiguity. Perhaps there is a better solution.
+
+      brackets-printer : Pretty-printer brackets
+      brackets-printer []       = ∣-left-doc nil
+      brackets-printer (t ∷ ts) =
+        group
+          (∣-right-doc
+            (nest 2 symbol-line-doc ·
+             embed trees′-lemma (nest 2 (trees-printer t ts) · line) ·
+             symbol-doc · nil))
+
+      trees-printer : ∀ t ts → Doc trees (t ∷ ts)
+      trees-printer t ts =
+        tree-printer t · commas-and-trees-printer ts · nil
+
+      commas-and-trees-printer : Pretty-printer commas-and-trees
+      commas-and-trees-printer []       = ∣-left-doc nil
+      commas-and-trees-printer (t ∷ ts) =
+        ∣-right-doc (symbol-line-doc · trees-printer t ts)
+
+  t : Tree
+  t = node as
+        (node bs
+           (node cs [] ∷
+            node ds [] ∷
+            []) ∷
+         node es [] ∷
+         node fs
+           (node gs [] ∷
+            node hs [] ∷
+            node is [] ∷
+            []) ∷
+         [])
+
+  test₁ : render 0 (Printer₁.tree-printer t) ≡
+          "aaa[bbbbb[ccc,\n          dd],\n    eee,\n    ffff[gg,\n         hhh,\n         ii]]"
+  test₁ = refl
+
+  test₂ : render 30 (Printer₁.tree-printer t) ≡
+          "aaa[bbbbb[ccc, dd],\n    eee,\n    ffff[gg, hhh, ii]]"
+  test₂ = refl
+
+  test₃ : render 0 (Printer₂.tree-printer t) ≡
+          "aaa[\n  bbbbb[\n    ccc,\n    dd\n  ],\n  eee,\n  ffff[\n    gg,\n    hhh,\n    ii\n  ]\n]"
+  test₃ = refl
+
+  test₄ : render 80 (Printer₂.tree-printer t) ≡
+          "aaa[ bbbbb[ ccc, dd ], eee, ffff[ gg, hhh, ii ] ]"
+  test₄ = refl
