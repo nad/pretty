@@ -80,6 +80,12 @@ private
                       refl
     where open List-solver
 
+  ++-lemma₄ : {A : Set} (a b c : List A) →
+              a ++ b ++ c ≡ a ++ (b ++ []) ++ c ++ []
+  ++-lemma₄ = solve 3 (λ a b c → a ⊕ b ⊕ c ⊜ a ⊕ (b ⊕ nil) ⊕ c ⊕ nil)
+                      refl
+    where open List-solver
+
 ------------------------------------------------------------------------
 -- Grammars
 
@@ -224,9 +230,6 @@ tok-sem⁻¹ (_>>=_ {x = _ , t′≡t} tp∈ return) =
 whitespace : G Char
 whitespace = ♯ tok ' ' ∣ ♯ tok '\n'
 
-whitespace+>> : {A B : Set} → (A → ∞ (G B)) → (A → ∞ (G B))
-whitespace+>> g = λ x → ♯ (♯ (whitespace +) >>= λ _ → g x)
-
 single-space-sem : str " " ∈ whitespace + ∙ str " "
 single-space-sem = ∷-sem+ (∣-left tok-sem) []-sem
 
@@ -269,17 +272,14 @@ mutual
     nest  : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
     embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
             (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
-    fill  : ∀ {A} {g : G A} {x} → Docs g x → Doc g x
+    fill  : ∀ {A} {g : G A} {xs} →
+            Docs g xs → Doc (g sep-by whitespace +) xs
 
-  -- Sequences of whitespace-separated documents.
+  -- Sequences of documents, all based on the same grammar.
 
-  data Docs : ∀ {A} → G A → A → Set₁ where
-    [_]   : ∀ {A} {g : G A} {x} → Doc g x → Docs g x
-    _∷_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
-            Doc (♭ g₁) x → Docs (♭ (g₂ x)) y →
-            Docs (g₁ >>= whitespace+>> g₂) y
-    embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
-            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Docs g₁ x → Docs g₂ y
+  data Docs {A} (g : G A) : List A → Set₁ where
+    [_] : ∀ {x} → Doc g x → Docs g (x ∷ [])
+    _∷_ : ∀ {x xs} → Doc g x → Docs g xs → Docs g (x ∷ xs)
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
@@ -392,9 +392,8 @@ ugly-renderer = record
     render (fill ds)   = render-fills ds
 
     render-fills : ∀ {A} {g : G A} {x} → Docs g x → List Char
-    render-fills [ d ]        = render d
-    render-fills (d ∷ ds)     = render d ++ ' ' ∷ render-fills ds
-    render-fills (embed _ ds) = render-fills ds
+    render-fills [ d ]    = render d
+    render-fills (d ∷ ds) = render d ++ ' ' ∷ render-fills ds
 
   mutual
 
@@ -408,13 +407,11 @@ ugly-renderer = record
     parsable (embed f d) = f (parsable d)
     parsable (fill ds)   = parsable-fills ds
 
-    parsable-fills : ∀ {A x} {g : G A} (ds : Docs g x) →
-                     x ∈ g ∙ render-fills ds
-    parsable-fills [ d ]        = parsable d
-    parsable-fills (d ∷ ds)     = parsable d >>=
-                                  (single-space-sem >>=
-                                   parsable-fills ds)
-    parsable-fills (embed f ds) = f (parsable-fills ds)
+    parsable-fills : ∀ {A xs} {g : G A} (ds : Docs g xs) →
+                     xs ∈ g sep-by whitespace + ∙ render-fills ds
+    parsable-fills [ d ]    = sep-by-sem-singleton (parsable d)
+    parsable-fills (d ∷ ds) =
+      sep-by-sem-cons (parsable d) single-space-sem (parsable-fills ds)
 
 -- An example renderer, closely based on the one in Wadler's "A
 -- prettier printer".
@@ -445,14 +442,32 @@ wadler's-renderer w = record
 
   -- A single space character.
 
-  space : DocU (whitespace +) (str " ")
-  space = embed lemma (text (str " "))
+  space : ∀ {A} {x : A} → DocU (x <$ whitespace +) x
+  space = embed lemma (text (str " ")) · nil
     where
     lemma : ∀ {x s} →
             x ∈ string (str " ") ∙ s →
             x ∈ whitespace + ∙ s
     lemma (space >>= (return >>= return)) =
       ∷-sem+ (∣-left space) []-sem
+
+  -- Utility function used by the fill machinery.
+
+  cons : ∀ {A} {g : G A} {x xs} →
+         DocU g x → DocU (tt <$ whitespace +) tt →
+         DocU (g sep-by whitespace +) xs →
+         DocU (g sep-by whitespace +) (x ∷ xs)
+  cons {g = g} d₁ d₂ d₃ = embed lemma (d₁ · d₂ · d₃ · nil)
+    where
+    lemma : ∀ {xs s} →
+            xs ∈ (g                       ≫= λ x →
+                  (tt <$ whitespace +)    >>
+                  (g sep-by whitespace +  ≫= λ xs →
+                   return (x ∷ xs))) ∙ s →
+            xs ∈ g sep-by whitespace + ∙ s
+    lemma (_>>=_ {s₁ = s₁} x∈ (_>>=_ {s₁ = s₂} w+ return >>=
+                               (xs∈ >>= return))) =
+      cast (++-lemma₄ s₁ s₂ _) (sep-by-sem-cons x∈ w+ xs∈)
 
   mutual
 
@@ -462,16 +477,16 @@ wadler's-renderer w = record
     flatten nil         = nil
     flatten (text s)    = text s
     flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
-    flatten line        = space · nil
+    flatten line        = space
     flatten (group d)   = flatten d
     flatten (nest i d)  = nest i (flatten d)
     flatten (embed f d) = embed f (flatten d)
     flatten (fill ds)   = flatten-fills ds
 
-    flatten-fills : ∀ {A} {g : G A} {x} → Docs g x → DocU g x
-    flatten-fills [ d ]        = flatten d
-    flatten-fills (d ∷ ds)     = flatten d · space · flatten-fills ds
-    flatten-fills (embed f ds) = embed f (flatten-fills ds)
+    flatten-fills : ∀ {A} {g : G A} {xs} →
+                    Docs g xs → DocU (g sep-by whitespace +) xs
+    flatten-fills [ d ]    = embed sep-by-sem-singleton (flatten d)
+    flatten-fills (d ∷ ds) = cons (flatten d) space (flatten-fills ds)
 
   mutual
 
@@ -485,36 +500,21 @@ wadler's-renderer w = record
     expand-groups (group d)   = union (flatten d) (expand-groups d)
     expand-groups (nest i d)  = nest i (expand-groups d)
     expand-groups (embed f d) = embed f (expand-groups d)
-    expand-groups (fill ds)   = expand-fills ds
+    expand-groups (fill ds)   = expand-fills false ds
 
-    expand-fills : ∀ {A} {g : G A} {x} → Docs g x → DocU g x
-    expand-fills [ d ]        = expand-groups d
-    expand-fills (d ∷ ds)     = expand-cons (flatten d)
-                                            (expand-groups d)
-                                            ds
-    expand-fills (embed f ds) = embed f (expand-fills ds)
+    expand-fills : Bool → -- Unconditionally flatten the first document?
+                   ∀ {A} {g : G A} {xs} →
+                   Docs g xs → DocU (g sep-by whitespace +) xs
+    expand-fills fl [ d ] =
+      embed sep-by-sem-singleton (flatten/expand fl d)
+    expand-fills fl (d ∷ ds) =
+      union (cons (flatten d)           space (expand-fills true  ds))
+            (cons (flatten/expand fl d) line  (expand-fills false ds))
 
-    flatten-first : ∀ {A} {g : G A} {x} → Docs g x → DocU g x
-    flatten-first [ d ]        = flatten d
-    flatten-first (d ∷ ds)     = expand-cons d′ d′ ds
-                                 where d′ = flatten d
-    flatten-first (embed f ds) = embed f (flatten-first ds)
-
-    expand-cons : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
-                  (d₁ d₂ : DocU (♭ g₁) x) → Docs (♭ (g₂ x)) y →
-                  DocU (g₁ >>= whitespace+>> g₂) y
-    expand-cons {g₂ = g₂} d₁ d₂ ds =
-      union (d₁ · space · flatten-first ds)
-            (d₂ · embed lemma (line · expand-fills ds))
-      where
-      _>>g₂_ : {A : Set} → G A → _ → G _
-      g >>g₂ x = ♯ g >>= λ _ → g₂ x
-
-      lemma : ∀ {x y s} →
-              y ∈ (x <$ whitespace +) >>g₂ x ∙ s →
-              y ∈ ♭ (whitespace+>> g₂ x) ∙ s
-      lemma ((w+ >>= return) >>= y∈) =
-        cast (P.sym $ proj₂ LM.identity _) w+ >>= y∈
+    flatten/expand : Bool → -- Flatten?
+                     ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+    flatten/expand true  d = flatten d
+    flatten/expand false d = expand-groups d
 
   -- Layouts (representations of certain strings).
 
