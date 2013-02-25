@@ -16,11 +16,12 @@ open import Coinduction
 open import Data.Bool
 open import Data.Char as Char
 open import Data.Empty
-open import Data.List as List
+open import Data.List as List hiding ([_])
 open import Data.List.Properties using (module List-solver)
 open import Data.Nat as Nat
 open import Data.Product
-open import Data.String as String using (String)
+open import Data.String as String
+  using (String) renaming (toList to str)
 open import Data.Sum
 open import Data.Unit
 open import Function
@@ -101,7 +102,7 @@ infix 4 _∈_∙_
 
 data _∈_∙_ : ∀ {A} → A → G A → List Char → Set₁ where
   return  : ∀ {A} {x : A} → x ∈ return x ∙ []
-  token   : ∀ {t} → t ∈ token ∙ [ t ]
+  token   : ∀ {t} → t ∈ token ∙ t ∷ []
   _>>=_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y s₁ s₂} →
             x ∈ ♭ g₁ ∙ s₁ → y ∈ ♭ (g₂ x) ∙ s₂ → y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
   ∣-left  : ∀ {A} {g₁ g₂ : ∞ (G A)} {x s} →
@@ -162,11 +163,11 @@ sat p = ♯ token            >>= λ t  → ♯ (
         ♯ return (t , pt)  )
 
 sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
-          (t , pt) ∈ sat p ∙ [ t ]
+          (t , pt) ∈ sat p ∙ t ∷ []
 sat-sem pt = token >>= (if-true-sem pt >>= return)
 
 sat-sem⁻¹ : ∀ {p : Char → Bool} {t pt s} →
-            (t , pt) ∈ sat p ∙ s → s ≡ [ t ]
+            (t , pt) ∈ sat p ∙ s → s ≡ t ∷ []
 sat-sem⁻¹ {p = p}
           (_>>=_ {x = t} token (pt∈    >>= return)) with p t
 sat-sem⁻¹ (_>>=_ {x = t} token (return >>= return)) | true  = refl
@@ -176,19 +177,25 @@ tok : Char → G Char
 tok t = ♯ sat (λ t′ → ⌊ t Char.≟ t′ ⌋)  >>= λ { (t , _) →
         ♯ return t                      }
 
-tok-sem : ∀ {t} → t ∈ tok t ∙ [ t ]
+tok-sem : ∀ {t} → t ∈ tok t ∙ t ∷ []
 tok-sem = sat-sem (lemma _) >>= return
   where
   lemma : ∀ {t} (d : Dec (t ≡ t)) → T ⌊ d ⌋
   lemma (yes refl) = tt
   lemma (no t≢t)   = ⊥-elim (t≢t refl)
 
-tok-sem⁻¹ : ∀ {t t′ s} → t ∈ tok t′ ∙ s → t ≡ t′ × s ≡ [ t ]
+tok-sem⁻¹ : ∀ {t t′ s} → t ∈ tok t′ ∙ s → t ≡ t′ × s ≡ t ∷ []
 tok-sem⁻¹ (_>>=_ {x = _ , t′≡t} tp∈ return) =
   P.sym (toWitness t′≡t) , P.cong (λ s → s ++ []) (sat-sem⁻¹ tp∈)
 
 whitespace : G Char
 whitespace = ♯ tok ' ' ∣ ♯ tok '\n'
+
+whitespace+>> : {A B : Set} → (A → ∞ (G B)) → (A → ∞ (G B))
+whitespace+>> g = λ x → ♯ (♯ (whitespace +) >>= λ _ → g x)
+
+single-space-sem : str " " ∈ whitespace + ∙ str " "
+single-space-sem = ∷-sem+ (∣-left tok-sem) []-sem
 
 -- A grammar for the given string.
 
@@ -214,19 +221,32 @@ symbol s = ♯ string s             >>= λ s →
 ------------------------------------------------------------------------
 -- Pretty-printers
 
--- Pretty-printer documents. If p : Doc g x, then p is a decorated
--- parse tree (with respect to the grammar g) for the value x.
+mutual
 
-data Doc : ∀ {A} → G A → A → Set₁ where
-  nil   : ∀ {A} {x : A} → Doc (return x) x
-  text  : ∀ s → Doc (string s) s
-  _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
-          Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
-  line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
-  group : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
-  nest  : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
-  embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
-          (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
+  -- Pretty-printer documents. If p : Doc g x, then p is a decorated
+  -- parse tree (with respect to the grammar g) for the value x.
+
+  data Doc : ∀ {A} → G A → A → Set₁ where
+    nil   : ∀ {A} {x : A} → Doc (return x) x
+    text  : ∀ s → Doc (string s) s
+    _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
+            Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
+    line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
+    group : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
+    nest  : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
+    embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
+            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
+    fill  : ∀ {A} {g : G A} {x} → Docs g x → Doc g x
+
+  -- Sequences of whitespace-separated documents.
+
+  data Docs : ∀ {A} → G A → A → Set₁ where
+    [_]   : ∀ {A} {g : G A} {x} → Doc g x → Docs g x
+    _∷_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
+            Doc (♭ g₁) x → Docs (♭ (g₂ x)) y →
+            Docs (g₁ >>= whitespace+>> g₂) y
+    embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
+            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Docs g₁ x → Docs g₂ y
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
@@ -258,9 +278,9 @@ d₁ ∷-doc d₂ = ∣-right-doc (d₁ · d₂ · nil)
 -- A document for the given character.
 
 token-doc : ∀ {t} → Doc token t
-token-doc {t} = embed lemma (text [ t ])
+token-doc {t} = embed lemma (text (t ∷ []))
   where
-  lemma : ∀ {s} → [ t ] ∈ string [ t ] ∙ s → t ∈ token ∙ s
+  lemma : ∀ {s} → t ∷ [] ∈ string (t ∷ []) ∙ s → t ∈ token ∙ s
   lemma (t∈tok >>= (return >>= return))
     rewrite proj₂ (tok-sem⁻¹ t∈tok)
     = token
@@ -325,23 +345,43 @@ ugly-renderer = record
   ; parsable = parsable
   }
   where
-  render : ∀ {A} {g : G A} {x} → Doc g x → List Char
-  render nil         = []
-  render (text s)    = s
-  render (d₁ · d₂)   = render d₁ ++ render d₂
-  render line        = [ ' ' ]
-  render (group d)   = render d
-  render (nest _ d)  = render d
-  render (embed _ d) = render d
 
-  parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
-  parsable nil         = return
-  parsable (text s)    = string-sem s
-  parsable (d₁ · d₂)   = parsable d₁ >>= parsable d₂
-  parsable line        = <$-sem (∷-sem+ (∣-left tok-sem) []-sem)
-  parsable (group d)   = parsable d
-  parsable (nest _ d)  = parsable d
-  parsable (embed f d) = f (parsable d)
+  mutual
+
+    render : ∀ {A} {g : G A} {x} → Doc g x → List Char
+    render nil         = []
+    render (text s)    = s
+    render (d₁ · d₂)   = render d₁ ++ render d₂
+    render line        = str " "
+    render (group d)   = render d
+    render (nest _ d)  = render d
+    render (embed _ d) = render d
+    render (fill ds)   = render-fills ds
+
+    render-fills : ∀ {A} {g : G A} {x} → Docs g x → List Char
+    render-fills [ d ]        = render d
+    render-fills (d ∷ ds)     = render d ++ ' ' ∷ render-fills ds
+    render-fills (embed _ ds) = render-fills ds
+
+  mutual
+
+    parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
+    parsable nil         = return
+    parsable (text s)    = string-sem s
+    parsable (d₁ · d₂)   = parsable d₁ >>= parsable d₂
+    parsable line        = <$-sem single-space-sem
+    parsable (group d)   = parsable d
+    parsable (nest _ d)  = parsable d
+    parsable (embed f d) = f (parsable d)
+    parsable (fill ds)   = parsable-fills ds
+
+    parsable-fills : ∀ {A x} {g : G A} (ds : Docs g x) →
+                     x ∈ g ∙ render-fills ds
+    parsable-fills [ d ]        = parsable d
+    parsable-fills (d ∷ ds)     = parsable d >>=
+                                  (single-space-sem >>=
+                                   parsable-fills ds)
+    parsable-fills (embed f ds) = f (parsable-fills ds)
 
 -- An example renderer, closely based on the one in Wadler's "A
 -- prettier printer".
@@ -370,33 +410,78 @@ wadler's-renderer w = record
     embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
             (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
 
-  -- Replaces line constructors with single spaces, removes groups.
+  -- A single space character.
 
-  flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
-  flatten nil         = nil
-  flatten (text s)    = text s
-  flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
-  flatten (group d)   = flatten d
-  flatten (nest i d)  = nest i (flatten d)
-  flatten (embed f d) = embed f (flatten d)
-  flatten line        = embed lemma (text [ ' ' ]) · nil
+  space : DocU (whitespace +) (str " ")
+  space = embed lemma (text (str " "))
     where
     lemma : ∀ {x s} →
-            x ∈ string [ ' ' ] ∙ s →
+            x ∈ string (str " ") ∙ s →
             x ∈ whitespace + ∙ s
     lemma (space >>= (return >>= return)) =
       ∷-sem+ (∣-left space) []-sem
 
-  -- Conversion of Docs to DocUs.
+  mutual
 
-  expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
-  expand-groups nil         = nil
-  expand-groups (text s)    = text s
-  expand-groups (d₁ · d₂)   = expand-groups d₁ · expand-groups d₂
-  expand-groups line        = line
-  expand-groups (group d)   = union (flatten d) (expand-groups d)
-  expand-groups (nest i d)  = nest i (expand-groups d)
-  expand-groups (embed f d) = embed f (expand-groups d)
+    -- Replaces line constructors with single spaces, removes groups.
+
+    flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+    flatten nil         = nil
+    flatten (text s)    = text s
+    flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
+    flatten line        = space · nil
+    flatten (group d)   = flatten d
+    flatten (nest i d)  = nest i (flatten d)
+    flatten (embed f d) = embed f (flatten d)
+    flatten (fill ds)   = flatten-fills ds
+
+    flatten-fills : ∀ {A} {g : G A} {x} → Docs g x → DocU g x
+    flatten-fills [ d ]        = flatten d
+    flatten-fills (d ∷ ds)     = flatten d · space · flatten-fills ds
+    flatten-fills (embed f ds) = embed f (flatten-fills ds)
+
+  mutual
+
+    -- Conversion of Docs to DocUs.
+
+    expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+    expand-groups nil         = nil
+    expand-groups (text s)    = text s
+    expand-groups (d₁ · d₂)   = expand-groups d₁ · expand-groups d₂
+    expand-groups line        = line
+    expand-groups (group d)   = union (flatten d) (expand-groups d)
+    expand-groups (nest i d)  = nest i (expand-groups d)
+    expand-groups (embed f d) = embed f (expand-groups d)
+    expand-groups (fill ds)   = expand-fills ds
+
+    expand-fills : ∀ {A} {g : G A} {x} → Docs g x → DocU g x
+    expand-fills [ d ]        = expand-groups d
+    expand-fills (d ∷ ds)     = expand-cons (flatten d)
+                                            (expand-groups d)
+                                            ds
+    expand-fills (embed f ds) = embed f (expand-fills ds)
+
+    flatten-first : ∀ {A} {g : G A} {x} → Docs g x → DocU g x
+    flatten-first [ d ]        = flatten d
+    flatten-first (d ∷ ds)     = expand-cons d′ d′ ds
+                                 where d′ = flatten d
+    flatten-first (embed f ds) = embed f (flatten-first ds)
+
+    expand-cons : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
+                  (d₁ d₂ : DocU (♭ g₁) x) → Docs (♭ (g₂ x)) y →
+                  DocU (g₁ >>= whitespace+>> g₂) y
+    expand-cons {g₂ = g₂} d₁ d₂ ds =
+      union (d₁ · space · flatten-first ds)
+            (d₂ · embed lemma (line · expand-fills ds))
+      where
+      _>>g₂_ : {A : Set} → G A → _ → G _
+      g >>g₂ x = ♯ g >>= λ _ → g₂ x
+
+      lemma : ∀ {x y s} →
+              y ∈ (x <$ whitespace +) >>g₂ x ∙ s →
+              y ∈ ♭ (whitespace+>> g₂ x) ∙ s
+      lemma ((w+ >>= return) >>= y∈) =
+        cast (P.sym $ proj₂ LM.identity _) w+ >>= y∈
 
   -- Layouts (representations of certain strings).
 
@@ -524,14 +609,14 @@ module Bit where
     [0] [1] : Bit
 
   bit : G Bit
-  bit = ♯ ([0] <$ symbol [ '0' ])
-      ∣ ♯ ([1] <$ symbol [ '1' ])
+  bit = ♯ ([0] <$ symbol (str "0"))
+      ∣ ♯ ([1] <$ symbol (str "1"))
 
   -- The first case below is defined using primitive combinators, the
   -- second one using derived ones.
 
   bit-printer : Pretty-printer bit
-  bit-printer [0] = embed ∣-left ((text [ '0' ] ·
+  bit-printer [0] = embed ∣-left ((text (str "0") ·
                                    (embed ∣-left nil · nil)) ·
                                   nil)
   bit-printer [1] = ∣-right-doc (<$-doc symbol-doc)
@@ -611,7 +696,7 @@ module Name-list where
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
   comma-and-name : G Name
-  comma-and-name = ♯ symbol [ ',' ]  >>= λ _ →
+  comma-and-name = ♯ symbol (str ",")  >>= λ _ →
                    ♯ name
 
   name-list-body : G (List Name)
@@ -621,10 +706,10 @@ module Name-list where
                       ♯ return (n ∷ ns)     ))
 
   name-list : G (List Name)
-  name-list = ♯ symbol [ '[' ]  >>= λ _  → ♯ (
-              ♯ name-list-body  >>= λ ns → ♯ (
-              ♯ symbol [ ']' ]  >>= λ _  →
-              ♯ return ns       ))
+  name-list = ♯ symbol (str "[")  >>= λ _  → ♯ (
+              ♯ name-list-body    >>= λ ns → ♯ (
+              ♯ symbol (str "]")  >>= λ _  →
+              ♯ return ns         ))
 
   comma-and-name-printer : Pretty-printer comma-and-name
   comma-and-name-printer n = group symbol-line-doc · name-printer n
@@ -671,10 +756,10 @@ module Tree where
 
     brackets : G (List Tree)
     brackets = ♯ return []
-             ∣ ♯ (♯ symbol [ '[' ]  >>= λ _  → ♯ (
-                  ♯ trees           >>= λ ts → ♯ (
-                  ♯ symbol [ ']' ]  >>= λ _  →
-                  ♯ return ts       )))
+             ∣ ♯ (♯ symbol (str "[")  >>= λ _  → ♯ (
+                  ♯ trees             >>= λ ts → ♯ (
+                  ♯ symbol (str "]")  >>= λ _  →
+                  ♯ return ts         )))
 
     trees : G (List Tree)
     trees = ♯ tree              >>= λ t  → ♯ (
@@ -683,7 +768,7 @@ module Tree where
 
     commas-and-trees : G (List Tree)
     commas-and-trees = ♯ return []
-                     ∣ ♯ (♯ symbol [ ',' ] >>= λ _ →
+                     ∣ ♯ (♯ symbol (str ",") >>= λ _ →
                           ♯ trees)
 
   -- Wadler presents two pretty-printers for trees in his final code
