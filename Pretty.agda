@@ -357,7 +357,7 @@ wadler's-renderer w = record
 
   -- Documents with unions instead of groups.
 
-  infixl 20 _·_
+  infixr 20 _·_
 
   data DocU : ∀ {A} → G A → A → Set₁ where
     nil   : ∀ {A} {x : A} → DocU (return x) x
