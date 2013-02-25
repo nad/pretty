@@ -677,7 +677,7 @@ module Tree where
                   ♯ return ts       )))
 
     trees : G (List Tree)
-    trees = ♯ tree              >>= λ t → ♯ (
+    trees = ♯ tree              >>= λ t  → ♯ (
             ♯ commas-and-trees  >>= λ ts →
             ♯ return (t ∷ ts)   )
 
@@ -686,7 +686,12 @@ module Tree where
                      ∣ ♯ (♯ symbol [ ',' ] >>= λ _ →
                           ♯ trees)
 
-  -- Wadler presents two pretty-printers for trees.
+  -- Wadler presents two pretty-printers for trees in his final code
+  -- listing (§11.7). I've included corresponding implementations
+  -- here. (One of Wadler's implementations is buggy: recursive calls
+  -- to showTree/showTrees should most likely have referred to
+  -- showTree'/showTrees'. The code below is intended to match a
+  -- corrected version of Wadler's.)
 
   module Printer₁ where
 
