@@ -42,7 +42,7 @@ private
 
 infix  30 _⋆ _+
 infixr 20 _·_ _<$_ _∷-doc_
-infixl 15 _>>=_
+infixl 15 _>>=_ _≫=_ _>>_
 infixl 10 _∣_
 
 ------------------------------------------------------------------------
@@ -118,9 +118,14 @@ cast refl = id
 
 -- Some derived grammar combinators.
 
+_≫=_ : ∀ {A B} → G A → (A → G B) → G B
+g₁ ≫= g₂ = ♯ g₁ >>= λ x → ♯ g₂ x
+
+_>>_ : ∀ {A B} → G A → G B → G B
+g₁ >> g₂ = g₁ ≫= λ _ → g₂
+
 _<$_ : ∀ {A B} → A → G B → G A
-x <$ g = ♯ g         >>= λ _ →
-         ♯ return x
+x <$ g = g >> return x
 
 <$-sem : ∀ {A B} {x : A} {y : B} {g s} →
          y ∈ g ∙ s → x ∈ x <$ g ∙ s
