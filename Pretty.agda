@@ -17,6 +17,7 @@ open import Data.Bool
 open import Data.Char as Char
 open import Data.Empty
 open import Data.List as List
+open import Data.List.Properties using (module List-solver)
 open import Data.Nat as Nat
 open import Data.Product
 open import Data.String as String using (String)
@@ -46,45 +47,30 @@ infixl 10 _∣_
 ------------------------------------------------------------------------
 -- Some boring lemmas
 
--- TODO: Add a monoid solver to the standard library.
-
 private
 
   ++-lemma₀ : {A : Set} (a b c d : List A) →
               a ++ (b ++ c) ++ d ≡ (a ++ b) ++ c ++ d
-  ++-lemma₀ a b c d = begin
-    a ++ (b ++ c) ++ d  ≡⟨ P.cong (_++_ a) $ LM.assoc b c d ⟩
-    a ++ b ++ c ++ d    ≡⟨ P.sym $ LM.assoc a b (c ++ d) ⟩
-    (a ++ b) ++ c ++ d  ∎
-    where open P.≡-Reasoning
+  ++-lemma₀ = solve 4 (λ a b c d → a ⊕ (b ⊕ c) ⊕ d ⊜
+                                   (a ⊕ b) ⊕ c ⊕ d)
+                      refl
+    where open List-solver
 
   ++-lemma₁ : {A : Set} (a b c d : List A) →
               a ++ (b ++ c ++ d) ++ [] ≡
               (a ++ (b ++ c) ++ []) ++ d
-  ++-lemma₁ a b c d = begin
-    a ++ (b ++ c ++ d) ++ []    ≡⟨ P.cong (_++_ a) $ proj₂ LM.identity _ ⟩
-    a ++ (b ++ c ++ d)          ≡⟨ P.cong (_++_ a) $ P.sym $ LM.assoc b _ _ ⟩
-    a ++ ((b ++ c) ++ d)        ≡⟨ P.sym $ LM.assoc a _ _ ⟩
-    (a ++ b ++ c) ++ d          ≡⟨ P.cong (λ bc → (a ++ bc) ++ d) $ P.sym $ proj₂ LM.identity _ ⟩
-    (a ++ (b ++ c) ++ []) ++ d  ∎
-    where open P.≡-Reasoning
+  ++-lemma₁ = solve 4 (λ a b c d → a ⊕ (b ⊕ c ⊕ d) ⊕ nil ⊜
+                                   (a ⊕ (b ⊕ c) ⊕ nil) ⊕ d)
+                      refl
+    where open List-solver
 
   ++-lemma₂ : {A : Set} (a b c d e : List A) →
               a ++ (b ++ c ++ (d ++ e) ++ []) ++ [] ≡
               (a ++ (b ++ c ++ d ++ []) ++ []) ++ e
-  ++-lemma₂ a b c d e = begin
-    a ++ (b ++ c ++ (d ++ e) ++ []) ++ []  ≡⟨ P.cong (_++_ a) $ proj₂ LM.identity _ ⟩
-    a ++ b ++ c ++ (d ++ e) ++ []          ≡⟨ P.cong (λ de → a ++ b ++ c ++ de) $ proj₂ LM.identity (d ++ e) ⟩
-    a ++ b ++ c ++ d ++ e                  ≡⟨ P.sym $ LM.assoc a _ _ ⟩
-    (a ++ b) ++ c ++ d ++ e                ≡⟨ P.sym $ LM.assoc (a ++ b) _ _ ⟩
-    ((a ++ b) ++ c) ++ d ++ e              ≡⟨ P.cong (λ abc → abc ++ d ++ e) $ LM.assoc a _ _ ⟩
-    (a ++ b ++ c) ++ d ++ e                ≡⟨ P.sym $ LM.assoc (a ++ b ++ c) _ _ ⟩
-    ((a ++ b ++ c) ++ d) ++ e              ≡⟨ P.cong (λ abcd → abcd ++ e) $ LM.assoc a _ _ ⟩
-    (a ++ (b ++ c) ++ d) ++ e              ≡⟨ P.cong (λ bcd → (a ++ bcd) ++ e) $ LM.assoc b _ _ ⟩
-    (a ++ b ++ c ++ d) ++ e                ≡⟨ P.cong (λ d → (a ++ b ++ c ++ d) ++ e) $ P.sym $ proj₂ LM.identity d ⟩
-    (a ++ b ++ c ++ d ++ []) ++ e          ≡⟨ P.cong (λ bcd → (a ++ bcd) ++ e) $ P.sym $ proj₂ LM.identity (b ++ c ++ d ++ []) ⟩
-    (a ++ (b ++ c ++ d ++ []) ++ []) ++ e  ∎
-    where open P.≡-Reasoning
+  ++-lemma₂ = solve 5 (λ a b c d e → a ⊕ (b ⊕ c ⊕ (d ⊕ e) ⊕ nil) ⊕ nil ⊜
+                                     (a ⊕ (b ⊕ c ⊕ d ⊕ nil) ⊕ nil) ⊕ e)
+                      refl
+    where open List-solver
 
 ------------------------------------------------------------------------
 -- Grammars
