@@ -42,6 +42,7 @@ private
 
 infix  30 _⋆ _+
 infixr 20 _·_ _<$_ _∷-doc_
+infixl 18 _sep-by_
 infixl 15 _>>=_ _≫=_ _>>_
 infixl 10 _∣_
 
@@ -70,6 +71,12 @@ private
               (a ++ (b ++ c ++ d ++ []) ++ []) ++ e
   ++-lemma₂ = solve 5 (λ a b c d e → a ⊕ (b ⊕ c ⊕ (d ⊕ e) ⊕ nil) ⊕ nil ⊜
                                      (a ⊕ (b ⊕ c ⊕ d ⊕ nil) ⊕ nil) ⊕ e)
+                      refl
+    where open List-solver
+
+  ++-lemma₃ : {A : Set} (a b c d : List A) →
+              ((a ++ b) ++ c) ++ d ≡ a ++ b ++ c ++ d
+  ++-lemma₃ = solve 4 (λ a b c d → ((a ⊕ b) ⊕ c) ⊕ d ⊜ a ⊕ b ⊕ c ⊕ d)
                       refl
     where open List-solver
 
@@ -153,6 +160,27 @@ mutual
 ∷-sem⋆ : ∀ {A} {g : G A} {x xs s₁ s₂} →
          x ∈ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g ⋆ ∙ s₁ ++ s₂
 ∷-sem⋆ x∈ xs∈ = ∣-right (∷-sem+ x∈ xs∈)
+
+_sep-by_ : ∀ {A B} → G A → G B → G (List A)
+g sep-by sep =
+  ♯ g                  >>= λ x  → ♯ (
+  ♯ ((sep >> g) ⋆)     >>= λ xs →
+  ♯ return (x ∷ xs)    )
+
+sep-by-sem-singleton :
+  ∀ {A B} {g : G A} {sep : G B} {x s} →
+  x ∈ g ∙ s → x ∷ [] ∈ g sep-by sep ∙ s
+sep-by-sem-singleton x∈ =
+  cast (proj₂ LM.identity _)
+       (x∈ >>= ([]-sem >>= return))
+
+sep-by-sem-cons :
+  ∀ {A B} {g : G A} {sep : G B} {x y xs s₁ s₂ s₃} →
+  x ∈ g ∙ s₁ → y ∈ sep ∙ s₂ → xs ∈ g sep-by sep ∙ s₃ →
+  x ∷ xs ∈ g sep-by sep ∙ s₁ ++ s₂ ++ s₃
+sep-by-sem-cons {s₂ = s₂} x∈ y∈ (x′∈ >>= (xs∈ >>= return)) =
+  x∈ >>= cast (++-lemma₃ s₂ _ _ _)
+              (∷-sem⋆ (y∈ >>= x′∈) xs∈ >>= return)
 
 if-true : (b : Bool) → G (T b)
 if-true true  = return tt
