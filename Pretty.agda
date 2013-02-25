@@ -218,6 +218,7 @@ symbol s = ♯ string s             >>= λ s →
 -- parse tree (with respect to the grammar g) for the value x.
 
 data Doc : ∀ {A} → G A → A → Set₁ where
+  nil   : ∀ {A} {x : A} → Doc (return x) x
   text  : ∀ s → Doc (string s) s
   _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
           Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
@@ -234,14 +235,6 @@ Pretty-printer : {A : Set} → G A → Set₁
 Pretty-printer g = ∀ x → Doc g x
 
 -- Derived document combinators.
-
-nil : ∀ {A} {x : A} → Doc (return x) x
-nil {x = x} = embed lemma (text [])
-  where
-  lemma : ∀ {s} →
-          [] ∈ return {A = List Char} [] ∙ s →
-          x  ∈ return                 x  ∙ s
-  lemma return = return
 
 ∣-left-doc : ∀ {A} {g₁ g₂ : ∞ (G A)} {x} →
              Doc (♭ g₁) x → Doc (g₁ ∣ g₂) x
@@ -333,6 +326,7 @@ ugly-renderer = record
   }
   where
   render : ∀ {A} {g : G A} {x} → Doc g x → List Char
+  render nil         = []
   render (text s)    = s
   render (d₁ · d₂)   = render d₁ ++ render d₂
   render line        = [ ' ' ]
@@ -341,6 +335,7 @@ ugly-renderer = record
   render (embed _ d) = render d
 
   parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
+  parsable nil         = return
   parsable (text s)    = string-sem s
   parsable (d₁ · d₂)   = parsable d₁ >>= parsable d₂
   parsable line        = <$-sem (∷-sem+ (∣-left tok-sem) []-sem)
@@ -365,6 +360,7 @@ wadler's-renderer w = record
   infixl 20 _·_
 
   data DocU : ∀ {A} → G A → A → Set₁ where
+    nil   : ∀ {A} {x : A} → DocU (return x) x
     text  : ∀ s → DocU (string s) s
     _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
             DocU (♭ g₁) x → DocU (♭ (g₂ x)) y → DocU (g₁ >>= g₂) y
@@ -377,23 +373,24 @@ wadler's-renderer w = record
   -- Replaces line constructors with single spaces, removes groups.
 
   flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+  flatten nil         = nil
   flatten (text s)    = text s
   flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
   flatten (group d)   = flatten d
   flatten (nest i d)  = nest i (flatten d)
   flatten (embed f d) = embed f (flatten d)
-  flatten line        = embed lemma (text [ ' ' ] · text [])
+  flatten line        = embed lemma (text [ ' ' ]) · nil
     where
-    g = ♯ string [ ' ' ] >>= λ _ → ♯ string []
-
-    lemma : ∀ {x s} → [] ∈ g ∙ s → x ∈ x <$ whitespace + ∙ s
-    lemma ((space >>= (return >>= return)) >>= return) =
-      cast (P.sym $ proj₂ LM.identity _)
-           (<$-sem (∷-sem+ (∣-left space) []-sem))
+    lemma : ∀ {x s} →
+            x ∈ string [ ' ' ] ∙ s →
+            x ∈ whitespace + ∙ s
+    lemma (space >>= (return >>= return)) =
+      ∷-sem+ (∣-left space) []-sem
 
   -- Conversion of Docs to DocUs.
 
   expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+  expand-groups nil         = nil
   expand-groups (text s)    = text s
   expand-groups (d₁ · d₂)   = expand-groups d₁ · expand-groups d₂
   expand-groups line        = line
@@ -447,6 +444,7 @@ wadler's-renderer w = record
 
   best : ∀ {A} {g : G A} {x} →
          ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
+  best i nil           = id
   best i (text s)      = λ κ c → text s ∷ κ (length s + c)
   best i (d₁ · d₂)     = best i d₁ ∘ best i d₂
   best i line          = λ κ _ → nest-line i ∷ κ i
@@ -487,6 +485,7 @@ wadler's-renderer w = record
     ∀ {A B} {g : G A} {g′ : G B} {x y c κ} s (d : DocU g x) {i} →
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
+  best-lemma s nil           hyp = hyp return
   best-lemma s (text s′)     hyp = hyp (string-sem s′)
   best-lemma s line {i}      hyp = hyp (nest-line-lemma i)
   best-lemma s (union d₁ d₂) hyp = if-lemma s
