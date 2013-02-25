@@ -650,13 +650,19 @@ module Name where
   Name = List Lower-case-char
 
   name : G Name
-  name = ♯ (lower-case-char ⋆)  >>= λ n → ♯ (
-         ♯ (whitespace ⋆)       >>= λ _ →
-         ♯ return n             )
+  name = lower-case-char ⋆
 
   name-printer : Pretty-printer name
-  name-printer n =
-    map-doc lower-case-char-printer n · []-doc · nil
+  name-printer = map-doc lower-case-char-printer
+
+  -- Names possibly followed by whitespace.
+
+  name-w : G Name
+  name-w = ♯ name                 >>= λ n →
+           ♯ (n <$ whitespace ⋆)
+
+  name-w-printer : Pretty-printer name-w
+  name-w-printer n = name-printer n · []-doc · nil
 
   as : Name
   as = replicate 3 ('a' , _)
@@ -685,7 +691,7 @@ module Name where
   is : Name
   is = replicate 2 ('i' , _)
 
-  test : render 80 (name-printer as) ≡ "aaa"
+  test : render 80 (name-w-printer as) ≡ "aaa"
   test = refl
 
 module Name-list where
@@ -697,11 +703,11 @@ module Name-list where
 
   comma-and-name : G Name
   comma-and-name = ♯ symbol (str ",")  >>= λ _ →
-                   ♯ name
+                   ♯ name-w
 
   name-list-body : G (List Name)
   name-list-body = ♯ return []
-                 ∣ ♯ (♯ name                >>= λ n  → ♯ (
+                 ∣ ♯ (♯ name-w              >>= λ n  → ♯ (
                       ♯ (comma-and-name ⋆)  >>= λ ns →
                       ♯ return (n ∷ ns)     ))
 
@@ -712,7 +718,7 @@ module Name-list where
               ♯ return ns         ))
 
   comma-and-name-printer : Pretty-printer comma-and-name
-  comma-and-name-printer n = group symbol-line-doc · name-printer n
+  comma-and-name-printer n = group symbol-line-doc · name-w-printer n
 
   name-list-printer : Pretty-printer name-list
   name-list-printer ns = symbol-doc · body ns · symbol-doc · nil
@@ -720,7 +726,7 @@ module Name-list where
     body : Pretty-printer name-list-body
     body []       = ∣-left-doc nil
     body (n ∷ ns) = ∣-right-doc
-      (name-printer n · map-doc comma-and-name-printer ns · nil)
+      (name-w-printer n · map-doc comma-and-name-printer ns · nil)
 
   names : List Name
   names = as ∷ bs ∷ cs ∷ ds ∷ es ∷ []
@@ -750,7 +756,7 @@ module Tree where
   mutual
 
     tree : G Tree
-    tree = ♯ name                >>= λ n  → ♯ (
+    tree = ♯ name-w              >>= λ n  → ♯ (
            ♯ brackets            >>= λ ts →
            ♯ return (node n ts)  )
 
@@ -784,7 +790,7 @@ module Tree where
 
       tree-printer : Pretty-printer tree
       tree-printer (node s ts) = group
-        (name-printer s · nest (length s) (brackets-printer ts) · nil)
+        (name-w-printer s · nest (length s) (brackets-printer ts) · nil)
 
       brackets-printer : Pretty-printer brackets
       brackets-printer []       = ∣-left-doc nil
@@ -817,10 +823,10 @@ module Tree where
       cast (++-lemma₁ s [] s′ _)
            (∣-right (w >>= (whitespace⋆-lemma w⋆ w+ >>= return)))
 
-    name-lemma : ∀ {n x s₁ s₂} →
-                 n ∈ name ∙ s₁ → x ∈ whitespace + ∙ s₂ →
-                 n ∈ name ∙ s₁ ++ s₂
-    name-lemma (_>>=_ {s₁ = s} n∈ (_>>=_ {s₁ = s′} w⋆ return)) w+ =
+    name-w-lemma : ∀ {n x s₁ s₂} →
+                   n ∈ name-w ∙ s₁ → x ∈ whitespace + ∙ s₂ →
+                   n ∈ name-w ∙ s₁ ++ s₂
+    name-w-lemma (_>>=_ {s₁ = s} n∈ (_>>=_ {s₁ = s′} w⋆ return)) w+ =
       cast (++-lemma₁ s [] s′ _)
            (n∈ >>= (whitespace⋆-lemma w⋆ w+ >>= return))
 
@@ -836,7 +842,7 @@ module Tree where
                  t ∈ tree ∙ s₁ ++ s₂
     tree-lemma (_>>=_ {s₁ = s} name (∣-left return >>= return)) w+ =
       cast (++-lemma₁ [] [] s _)
-           (name-lemma name w+ >>= (∣-left return >>= return))
+           (name-w-lemma name w+ >>= (∣-left return >>= return))
     tree-lemma (_>>=_ {s₁ = s} name (∣-right (_>>=_ {s₁ = s′} left
                 (_>>=_ {s₁ = s″} ts∈ (_>>=_ {s₁ = s‴} right return)))
                 >>= return)) w+ =
@@ -869,7 +875,7 @@ module Tree where
 
       tree-printer : Pretty-printer tree
       tree-printer (node s ts) =
-        name-printer s · brackets-printer ts · nil
+        name-w-printer s · brackets-printer ts · nil
 
       -- Note that this printer is not defined in exactly the same way
       -- as Wadler's: Wadler used "nest 2" once, here it is used
