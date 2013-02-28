@@ -354,6 +354,16 @@ sat-doc : ∀ {p : Char → Bool} {t pt} →
           Doc (sat p) (t , pt)
 sat-doc = token-doc · if-true-doc · nil
 
+-- A variant of line (with _⋆ instead of _+ in the grammar).
+
+line⋆ : ∀ {A} {x : A} → Doc (x <$ whitespace ⋆) x
+line⋆ {x = x} = embed lemma line
+  where
+  lemma : ∀ {s} →
+          x ∈ x <$ whitespace + ∙ s →
+          x ∈ x <$ whitespace ⋆ ∙ s
+  lemma (w+ >>= return) = ∣-right w+ >>= return
+
 -- A document for the given symbol (and no following whitespace).
 
 symbol-doc : ∀ {s} → Doc (symbol s) s
@@ -362,12 +372,7 @@ symbol-doc = text _ · <$-doc []-doc
 -- A document for the given symbol plus a "line".
 
 symbol-line-doc : ∀ {s} → Doc (symbol s) s
-symbol-line-doc = text _ · embed lemma line
-  where
-  lemma : ∀ {s s′ : List Char} →
-          tt ∈ tt <$ whitespace + ∙ s′ →
-          s  ∈ s  <$ whitespace ⋆  ∙ s′
-  lemma (w+ >>= return) = ∣-right w+ >>= return
+symbol-line-doc = text _ · line⋆
 
 map-doc : {A : Set} {g : G A} →
           Pretty-printer g → Pretty-printer (g ⋆)
