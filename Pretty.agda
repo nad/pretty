@@ -31,14 +31,8 @@ import Relation.Binary.Props.DecTotalOrder as DTO
 import Relation.Binary.Props.StrictTotalOrder as STO
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
-open import Relation.Nullary.Product
 
-open StrictTotalOrder (DTO.strictTotalOrder Nat.decTotalOrder)
-  using (_<?_)
-open DecTotalOrder (STO.decTotalOrder Char.strictTotalOrder)
-  using () renaming (_≤_ to _≤C_; _≤?_ to _≤?C_)
-private
-  module LM {A : Set} = Monoid (List.monoid A)
+private module LM {A : Set} = Monoid (List.monoid A)
 
 infix  30 _⋆ _+
 infixr 20 _·_ _<$_ _∷-doc_
@@ -85,6 +79,40 @@ private
   ++-lemma₄ = solve 3 (λ a b c → a ⊕ b ⊕ c ⊜ a ⊕ (b ⊕ nil) ⊕ c ⊕ nil)
                       refl
     where open List-solver
+
+------------------------------------------------------------------------
+-- Some helper functions
+
+private
+
+  -- Is one number strictly smaller than another?
+
+  _<?ℕ_ : ℕ → ℕ → Bool
+  n₁ <?ℕ n₂ = ⌊ StrictTotalOrder._<?_
+                  (DTO.strictTotalOrder Nat.decTotalOrder)
+                  n₁ n₂ ⌋
+
+  -- Is one character smaller than or equal to another?
+
+  _≤?C_ : Char → Char → Bool
+  c₁ ≤?C c₂ = ⌊ DecTotalOrder._≤?_
+                  (STO.decTotalOrder Char.strictTotalOrder)
+                  c₁ c₂ ⌋
+
+  -- Is one character equal to another?
+
+  _≟C_ : Char → Char → Bool
+  c₁ ≟C c₂ = ⌊ c₁ Char.≟ c₂ ⌋
+
+  -- Some lemmas related to _≟C_.
+
+  ≟C-refl : ∀ {c} → T (c ≟C c)
+  ≟C-refl {c} with c Char.≟ c
+  ... | yes refl = tt
+  ... | no  c≢c  = ⊥-elim (c≢c refl)
+
+  ≟C⇒≡ : ∀ {c c′} → T (c ≟C c′) → c ≡ c′
+  ≟C⇒≡ = toWitness
 
 ------------------------------------------------------------------------
 -- Grammars
@@ -213,19 +241,15 @@ sat-sem⁻¹ (_>>=_ {x = t} token (return >>= return)) | true  = refl
 sat-sem⁻¹ (_>>=_ {x = t} token (()     >>= return)) | false
 
 tok : Char → G Char
-tok t = ♯ sat (λ t′ → ⌊ t Char.≟ t′ ⌋)  >>= λ { (t , _) →
-        ♯ return t                      }
+tok t = ♯ sat (λ t′ → t ≟C t′)  >>= λ { (t , _) →
+        ♯ return t              }
 
 tok-sem : ∀ {t} → t ∈ tok t ∙ t ∷ []
-tok-sem = sat-sem (lemma _) >>= return
-  where
-  lemma : ∀ {t} (d : Dec (t ≡ t)) → T ⌊ d ⌋
-  lemma (yes refl) = tt
-  lemma (no t≢t)   = ⊥-elim (t≢t refl)
+tok-sem = sat-sem ≟C-refl >>= return
 
 tok-sem⁻¹ : ∀ {t t′ s} → t ∈ tok t′ ∙ s → t ≡ t′ × s ≡ t ∷ []
 tok-sem⁻¹ (_>>=_ {x = _ , t′≡t} tp∈ return) =
-  P.sym (toWitness t′≡t) , P.cong (λ s → s ++ []) (sat-sem⁻¹ tp∈)
+  P.sym (≟C⇒≡ t′≡t) , P.cong (λ s → s ++ []) (sat-sem⁻¹ tp∈)
 
 whitespace : G Char
 whitespace = ♯ tok ' ' ∣ ♯ tok '\n'
@@ -545,7 +569,7 @@ wadler's-renderer w = record
     fits w (nest-line i ∷ x) = true
 
     fits′ : ℕ → ℕ → Layout → Bool
-    fits′ w c x = not ⌊ w <? c ⌋ ∧ fits (w ∸ c) x
+    fits′ w c x = not (w <?ℕ c) ∧ fits (w ∸ c) x
 
   -- Chooses the first layout if it fits, otherwise the second (which
   -- is assumed to have a first line that is at most as long as the
@@ -665,11 +689,10 @@ module Name where
   -- Lower-case characters.
 
   Lower-case-char : Set
-  Lower-case-char =
-    ∃ λ (t : Char) → True (('a' ≤?C t) ×-dec (t ≤?C 'z'))
+  Lower-case-char = ∃ λ (t : Char) → T (('a' ≤?C t) ∧ (t ≤?C 'z'))
 
   lower-case-char : G Lower-case-char
-  lower-case-char = sat (λ t → ⌊ ('a' ≤?C t) ×-dec (t ≤?C 'z') ⌋)
+  lower-case-char = sat _
 
   lower-case-char-printer : Pretty-printer lower-case-char
   lower-case-char-printer _ = sat-doc
