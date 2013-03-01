@@ -4,9 +4,8 @@
 -- Nils Anders Danielsson
 ------------------------------------------------------------------------
 
--- A parsing/pretty-printing library which guarantees that
--- pretty-printers are correct (on the assumption that grammars are
--- unambiguous).
+-- A pretty-printing library that guarantees that pretty-printers are
+-- correct (on the assumption that grammars are unambiguous).
 --
 -- I don't start from the pretty-printer, but treat pretty-printer
 -- documents as a kind of decorated parse trees.
