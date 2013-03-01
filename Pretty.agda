@@ -216,9 +216,9 @@ mutual
 
 _sep-by_ : ∀ {A B} → G A → G B → G (List A)
 g sep-by sep =
-  ♯ g                  >>= λ x  → ♯ (
-  ♯ ((sep >> g) ⋆)     >>= λ xs →
-  ♯ return (x ∷ xs)    )
+  ♯ g                >>= λ x  → ♯ (
+  ♯ ((sep >> g) ⋆)   >>= λ xs →
+  ♯ return (x ∷ xs)  )
 
 sep-by-sem-singleton :
   ∀ {A B} {g : G A} {sep : G B} {x s} →
