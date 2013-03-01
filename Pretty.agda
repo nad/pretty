@@ -710,30 +710,44 @@ module Bit where
 
 module Name where
 
-  -- Lower-case characters.
+  -- "Name characters".
 
-  Lower-case-char : Set
-  Lower-case-char = ∃ λ (t : Char) → T (('a' ≤?C t) ∧ (t ≤?C 'z'))
+  is-name-char : Char → Bool
+  is-name-char t =
+    ('A' ≤?C t) ∧ (t ≤?C 'Z')
+      ∨
+    ('a' ≤?C t) ∧ (t ≤?C 'z')
+      ∨
+    ('0' ≤?C t) ∧ (t ≤?C '9')
+      ∨
+    (t ≟C ':')
+      ∨
+    (t ≟C '.')
+      ∨
+    (t ≟C '/')
 
-  lower-case-char : G Lower-case-char
-  lower-case-char = sat _
+  Name-char : Set
+  Name-char = ∃ λ (t : Char) → T (is-name-char t)
 
-  lower-case-char-printer : Pretty-printer lower-case-char
-  lower-case-char-printer _ = sat-doc
+  name-char : G Name-char
+  name-char = sat _
 
-  -- Note that if we had defined Lower-case-char = Char, then it
-  -- wouldn't have been possible to define lower-case-char-printer.
+  name-char-printer : Pretty-printer name-char
+  name-char-printer _ = sat-doc
+
+  -- Note that if we had defined Name-char = Char, then it
+  -- wouldn't have been possible to define name-char-printer.
 
   -- Names. Note that names are allowed to be empty.
 
   Name : Set
-  Name = List Lower-case-char
+  Name = List Name-char
 
   name : G Name
-  name = lower-case-char ⋆
+  name = name-char ⋆
 
   name-printer : Pretty-printer name
-  name-printer = map-doc lower-case-char-printer
+  name-printer = map-doc name-char-printer
 
   -- Names possibly followed by whitespace.
 
@@ -1022,3 +1036,191 @@ module Tree where
   test₄ : render 80 (Printer₂.tree-printer t) ≡
           "aaa[ bbbbb[ ccc, dd ], eee, ffff[ gg, hhh, ii ] ]"
   test₄ = refl
+
+module XML where
+
+  open Name
+
+  -- Simplified XML documents. This example is based on (but not
+  -- identical to) one in Wadler's "A prettier printer".
+
+  -- Text.
+
+  is-space : Char → Bool
+  is-space t = (t ≟C ' ') ∨ (t ≟C '\n')
+
+  is-text-char : Char → Bool
+  is-text-char t = is-name-char t ∨ is-space t
+
+  Text : Set
+  Text = List (∃ λ (t : Char) → T (is-text-char t))
+
+  text-g : G Text
+  text-g = sat _ ⋆
+
+  text-printer : Pretty-printer text-g
+  text-printer = map-doc (λ _ → sat-doc)
+
+  mutual
+
+    data XML : Set where
+      elt : Name → List Att → List XML → XML
+      txt : Text → XML
+
+    data Att : Set where
+      att : Name → Name → Att
+
+  -- The following grammar is ambiguous: a sequence of txt elements
+  -- can be parsed in several different ways.
+
+  mutual
+
+    xml : G XML
+    xml = ♯ (♯ start-of-element                  >>= λ { (t , atts) → ♯
+               ( ♯ (♯ symbol (str "/>")          >>= λ _            →
+                    ♯ return (elt t atts [])     )
+               ∣ ♯ (♯ string (str ">")           >>= λ _            → ♯ (
+                    ♯ w-xmls                     >>= λ xs           → ♯ (
+                    ♯ symbol (str "</")          >>= λ _            → ♯ (
+                    ♯ symbol (List.map proj₁ t)  >>= λ _            → ♯ (
+                    ♯ symbol (str ">")           >>= λ _            →
+                    ♯ return (elt t atts xs)     )))))
+               )})
+        ∣ ♯ (♯ text-g                            >>= λ t            →
+             ♯ return (txt t)                    )
+
+    start-of-element : G (Name × List Att)
+    start-of-element =
+      ♯ symbol (str "<")   >>= λ _    → ♯ (
+      ♯ name               >>= λ t    → ♯ (
+      ♯ w-attrs            >>= λ atts →
+      ♯ return (t , atts)  ))
+
+    w-xmls : G (List XML)
+    w-xmls = ♯ (whitespace ⋆)  >>= λ _ →
+             ♯ xmls
+
+    xmls : G (List XML)
+    xmls = ♯ return []
+         ∣ ♯ (♯ xml              >>= λ x  → ♯ (
+              ♯ xmls             >>= λ xs →
+              ♯ return (x ∷ xs)  ))
+
+    tag : G Name
+    tag = name-w
+
+    w-attrs : G (List Att)
+    w-attrs = ♯ (whitespace ⋆)  >>= λ _ →
+              ♯ attrs
+
+    attrs : G (List Att)
+    attrs = ♯ return []
+          ∣ ♯ (♯ attr             >>= λ a  → ♯ (
+               ♯ attrs            >>= λ as →
+               ♯ return (a ∷ as)  ))
+
+    attr : G Att
+    attr = ♯ name-w             >>= λ n → ♯ (
+           ♯ symbol (str "=")   >>= λ _ → ♯ (
+           ♯ string (str "\"")  >>= λ _ → ♯ (
+           ♯ name               >>= λ v → ♯ (
+           ♯ symbol (str "\"")  >>= λ _ →
+           ♯ return (att n v)   ))))
+
+  mutual
+
+    xml-printer : Pretty-printer xml
+    xml-printer (elt t atts []) =
+      ∣-left-doc (start-of-element-printer (t , atts) ·
+                  ∣-left-doc (symbol-doc · nil))
+    xml-printer (elt t atts xs) =
+      ∣-left-doc (start-of-element-printer (t , atts) ·
+                  ∣-right-doc (text _ ·
+                               xmls-printer xs ·
+                               symbol-doc ·
+                               symbol-doc ·
+                               symbol-doc ·
+                               nil))
+    xml-printer (txt t) =
+      -- Wadler pretty-prints text items in a different way. (The
+      -- grammar that I use does not allow me to remove/modify
+      -- whitespace like Wadler does.)
+      ∣-right-doc (text-printer t · nil)
+
+    start-of-element-printer : Pretty-printer start-of-element
+    start-of-element-printer (t , atts) =
+      symbol-doc · name-printer t · attrs-printer atts · nil
+
+    attrs-printer : Pretty-printer w-attrs
+    attrs-printer []       = []-doc · ∣-left-doc nil
+    attrs-printer (a ∷ as) =
+      group (embed lemma
+        (nest 2 line · nest 2 (fill (to-docs a as)) · line))
+      where
+      to-docs : ∀ a as → Docs attr (a ∷ as)
+      to-docs a []        = [ attr-printer a ]
+      to-docs a (a′ ∷ as) = attr-printer a ∷ to-docs a′ as
+
+      -- TODO: Do something about this boring lemma.
+
+      postulate
+        lemma : ∀ {s} →
+                a ∷ as ∈ (tt <$ whitespace +         >>
+                          (attr sep-by whitespace +  ≫= λ ys →
+                           ys <$ whitespace +)) ∙ s →
+                a ∷ as ∈ w-attrs ∙ s
+        -- lemma (w+₁ >>= return >>= (as >>= (w+₂ >>= return))) = {!!}
+
+    attr-printer : Pretty-printer attr
+    attr-printer (att n v) =
+      name-w-printer n ·
+      symbol-doc ·
+      text _ ·
+      name-printer v ·
+      symbol-doc ·
+      nil
+
+    xmls-printer : Pretty-printer w-xmls
+    xmls-printer []       = []-doc · ∣-left-doc nil
+    xmls-printer (x ∷ xs) =
+      group (embed lemma
+        (nest 2 line · nest 2 (fill (to-docs x xs)) · line))
+      where
+      to-docs : ∀ x xs → Docs xml (x ∷ xs)
+      to-docs x []        = [ xml-printer x ]
+      to-docs x (x′ ∷ xs) = xml-printer x ∷ to-docs x′ xs
+
+      -- TODO: Do something about this boring lemma.
+
+      postulate
+        lemma : ∀ {s} →
+                x ∷ xs ∈ (tt <$ whitespace +        >>
+                          (xml sep-by whitespace +  ≫= λ ys →
+                           ys <$ whitespace +)) ∙ s →
+                x ∷ xs ∈ w-xmls ∙ s
+        -- lemma (w+₁ >>= return >>= (xs >>= (w+₂ >>= return))) = {!!}
+
+  example : XML
+  example = elt (from-string "p")
+                (att (from-string "color") (from-string "red") ∷
+                 att (from-string "font") (from-string "Times") ∷
+                 att (from-string "size") (from-string "10") ∷ [])
+                (txt (from-string "Here is some") ∷
+                 elt (from-string "em")
+                     []
+                     (txt (from-string "emphasized") ∷ []) ∷
+                 txt (from-string "text.") ∷
+                 txt (from-string "Here is a") ∷
+                 elt (from-string "a")
+                     (att (from-string "href")
+                          (from-string "http://www.eg.com/") ∷ [])
+                     (txt (from-string "link") ∷ []) ∷
+                 txt (from-string "elsewhere.") ∷ [])
+
+  test₁ : render 30 (xml-printer example) ≡
+          "<p\n  color=\"red\" font=\"Times\"\n  size=\"10\"\n>\n  Here is some\n  <em> emphasized </em> text.\n  Here is a\n  <a\n    href=\"http://www.eg.com/\"\n  > link </a>\n  elsewhere.\n</p>"
+  test₁ = refl
+
+  test₂ : render 60 (xml-printer example) ≡
+          "<p color=\"red\" font=\"Times\" size=\"10\" >\n  Here is some <em> emphasized </em> text. Here is a\n  <a href=\"http://www.eg.com/\" > link </a> elsewhere.\n</p>"
+  test₂ = refl
