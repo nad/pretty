@@ -14,6 +14,7 @@ module Pretty where
 open import Algebra
 open import Coinduction
 open import Data.Bool
+open import Data.Bool.Properties using (T-∧)
 open import Data.Char as Char
 open import Data.Empty
 open import Data.List as List hiding ([_])
@@ -25,6 +26,9 @@ open import Data.String as String
 open import Data.Sum
 open import Data.Unit
 open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Equivalence
+  using () renaming (module Equivalence to Eq)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 import Relation.Binary.Props.DecTotalOrder as DTO
@@ -113,6 +117,21 @@ private
 
   ≟C⇒≡ : ∀ {c c′} → T (c ≟C c′) → c ≡ c′
   ≟C⇒≡ = toWitness
+
+  -- Converts strings satisfying a given predicate to annotated lists.
+
+  from-string :
+    {p : Char → Bool}
+    (s : String)
+    {ok : T (all p $ str s)} →
+    List (∃ (T ∘ p))
+  from-string {p} s {ok} = from-string′ (str s) {ok}
+    where
+    from-string′ : (s : List Char) {ok : T (all p s)} → List (∃ (T ∘ p))
+    from-string′ []            = []
+    from-string′ (t ∷ ts) {ok} =
+      let (ok₁ , ok₂) = Eq.to T-∧ ⟨$⟩ ok in
+      (t , ok₁) ∷ from-string′ ts {ok₂}
 
 ------------------------------------------------------------------------
 -- Grammars
@@ -726,31 +745,31 @@ module Name where
   name-w-printer n = name-printer n · []-doc · nil
 
   as : Name
-  as = replicate 3 ('a' , _)
+  as = from-string "aaa"
 
   bs : Name
-  bs = replicate 5 ('b' , _)
+  bs = from-string "bbbbb"
 
   cs : Name
-  cs = replicate 3 ('c' , _)
+  cs = from-string "ccc"
 
   ds : Name
-  ds = replicate 2 ('d' , _)
+  ds = from-string "dd"
 
   es : Name
-  es = replicate 3 ('e' , _)
+  es = from-string "eee"
 
   fs : Name
-  fs = replicate 4 ('f' , _)
+  fs = from-string "ffff"
 
   gs : Name
-  gs = replicate 2 ('g' , _)
+  gs = from-string "gg"
 
   hs : Name
-  hs = replicate 3 ('h' , _)
+  hs = from-string "hhh"
 
   is : Name
-  is = replicate 2 ('i' , _)
+  is = from-string "ii"
 
   test : render 80 (name-w-printer as) ≡ "aaa"
   test = refl
