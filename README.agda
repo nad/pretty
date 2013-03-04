@@ -31,3 +31,8 @@ import Examples
 -- Abstract grammars. (Not used by the pretty-printer.)
 
 import Grammar.Abstract
+
+-- Grammars defined as functions from non-terminals to productions.
+-- (Not used by the pretty-printer.)
+
+import Grammar.Non-terminal
