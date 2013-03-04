@@ -11,6 +11,7 @@ open import Data.List as List
 open import Data.Product
 open import Data.Unit
 open import Function
+open import Level using (Lift; lift)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 private module LM {A : Set} = Monoid (List.monoid A)
@@ -42,6 +43,16 @@ data Prod (NT : Set → Set₁) : Set → Set₁ where
 
 Grammar : (Set → Set₁) → Set₁
 Grammar NT = ∀ A → NT A → Prod NT A
+
+-- An empty non-terminal type.
+
+Empty-NT : Set → Set₁
+Empty-NT _ = Lift ⊥
+
+-- A corresponding grammar.
+
+empty-grammar : Grammar Empty-NT
+empty-grammar _ (lift ())
 
 ------------------------------------------------------------------------
 -- Production combinators
