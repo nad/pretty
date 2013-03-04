@@ -1,8 +1,8 @@
 ------------------------------------------------------------------------
--- Grammars
+-- Infinite grammars
 ------------------------------------------------------------------------
 
-module Grammar where
+module Grammar.Infinite where
 
 open import Algebra
 open import Coinduction

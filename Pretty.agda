@@ -19,7 +19,7 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 
 private module LM {A : Set} = Monoid (List.monoid A)
 
-open import Grammar
+open import Grammar.Infinite
 open import Tests
 
 infixr 20 _·_ _∷-doc_

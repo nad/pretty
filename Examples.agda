@@ -24,7 +24,7 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 
 private module LM {A : Set} = Monoid (List.monoid A)
 
-open import Grammar
+open import Grammar.Infinite
 open import Pretty
 open import Tests
 

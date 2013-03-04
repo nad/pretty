@@ -16,9 +16,9 @@ module README where
 
 import Tests
 
--- Grammars.
+-- Infinite grammars.
 
-import Grammar
+import Grammar.Infinite
 
 -- Pretty-printing.
 
@@ -27,3 +27,7 @@ import Pretty
 -- Examples.
 
 import Examples
+
+-- Abstract grammars. (Not used by the pretty-printer.)
+
+import Grammar.Abstract
