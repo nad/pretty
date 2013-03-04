@@ -135,8 +135,11 @@ data [_]_∈_∙_ {NT : Set → Set₁} (g : Grammar NT) :
                 [ g ] x ∈ p₁ ∙ s → [ g ] x ∈ p₁ ∣ p₂ ∙ s
   ∣-right-sem : ∀ {A} {p₁ p₂ : Prod NT A} {x s} →
                 [ g ] x ∈ p₂ ∙ s → [ g ] x ∈ p₁ ∣ p₂ ∙ s
-  ⋆-sem       : ∀ {A} {p : Prod NT A} {xs s} →
-                [ g ] xs ∈ return [] ∣ p + ∙ s → [ g ] xs ∈ p ⋆ ∙ s
+  ⋆-[]-sem    : ∀ {A} {p : Prod NT A} →
+                [ g ] [] ∈ p ⋆ ∙ []
+  ⋆-∷-sem     : ∀ {A} {p : Prod NT A} {x xs s₁ s₂} →
+                [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p ⋆ ∙ s₂ →
+                [ g ] x ∷ xs ∈ p ⋆ ∙ s₁ ++ s₂
 
 -- Cast lemma.
 
@@ -176,20 +179,11 @@ cast P.refl = id
         [ g ] x ∷ xs ∈ p + ∙ s₁ ++ s₂
 +-sem x∈ xs∈ = ⊛-sem (<$>-sem x∈) xs∈
 
-⋆-sem-[] : ∀ {NT g A} {p : Prod NT A} →
-           [ g ] [] ∈ p ⋆ ∙ []
-⋆-sem-[] = ⋆-sem (∣-left-sem return-sem)
-
-⋆-sem-∷ : ∀ {NT g A} {p : Prod NT A} {x xs s₁ s₂} →
-          [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p ⋆ ∙ s₂ →
-          [ g ] x ∷ xs ∈ p ⋆ ∙ s₁ ++ s₂
-⋆-sem-∷ x∈ xs∈ = ⋆-sem (∣-right-sem (+-sem x∈ xs∈))
-
 sep-by-sem-singleton :
   ∀ {NT g A B} {p : Prod NT A} {sep : Prod NT B} {x s} →
   [ g ] x ∈ p ∙ s → [ g ] [ x ] ∈ p sep-by sep ∙ s
 sep-by-sem-singleton x∈ =
-  cast (proj₂ LM.identity _) (⊛-sem (<$>-sem x∈) ⋆-sem-[])
+  cast (proj₂ LM.identity _) (⊛-sem (<$>-sem x∈) ⋆-[]-sem)
 
 sep-by-sem-∷ :
   ∀ {NT g A B} {p : Prod NT A} {sep : Prod NT B} {x y xs s₁ s₂ s₃} →
@@ -197,7 +191,7 @@ sep-by-sem-∷ :
   [ g ] x ∷ xs ∈ p sep-by sep ∙ s₁ ++ s₂ ++ s₃
 sep-by-sem-∷ {s₂ = s₂} x∈ y∈ (⊛-sem (⊛-sem return-sem x′∈) xs∈) =
   ⊛-sem (<$>-sem x∈)
-        (cast (LM.assoc s₂ _ _) (⋆-sem-∷ (>>-sem y∈ x′∈) xs∈))
+        (cast (LM.assoc s₂ _ _) (⋆-∷-sem (>>-sem y∈ x′∈) xs∈))
 
 if-true-sem : ∀ {NT} {g : Grammar NT} {b}
               (t : T b) → [ g ] t ∈ if-true b ∙ []
