@@ -192,6 +192,26 @@ cast P.refl = id
           [ g ] x ∷ xs ∈ p ⋆ ∙ s₁ ++ s₂
 ⋆-∷-sem x∈ xs∈ = ⋆-+-sem (+-sem x∈ xs∈)
 
+⋆-⋆-sem : ∀ {NT g A} {p : Prod NT A} {xs₁ xs₂ s₁ s₂} →
+          [ g ] xs₁ ∈ p ⋆ ∙ s₁ → [ g ] xs₂ ∈ p ⋆ ∙ s₂ →
+          [ g ] xs₁ ++ xs₂ ∈ p ⋆ ∙ s₁ ++ s₂
+⋆-⋆-sem ⋆-[]-sem                            xs₂∈ = xs₂∈
+⋆-⋆-sem (⋆-+-sem (+-sem {s₁ = s₁} x∈ xs₁∈)) xs₂∈ =
+  cast (P.sym $ LM.assoc s₁ _ _)
+       (⋆-∷-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
+
++-∷-sem : ∀ {NT g A} {p : Prod NT A} {x xs s₁ s₂} →
+          [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p + ∙ s₂ →
+          [ g ] x ∷ xs ∈ p + ∙ s₁ ++ s₂
++-∷-sem x∈ xs∈ = +-sem x∈ (⋆-+-sem xs∈)
+
++-⋆-sem : ∀ {NT g A} {p : Prod NT A} {xs₁ xs₂ s₁ s₂} →
+          [ g ] xs₁ ∈ p + ∙ s₁ → [ g ] xs₂ ∈ p ⋆ ∙ s₂ →
+          [ g ] xs₁ ++ xs₂ ∈ p + ∙ s₁ ++ s₂
++-⋆-sem (+-sem {s₁ = s₁} x∈ xs₁∈) xs₂∈ =
+  cast (P.sym $ LM.assoc s₁ _ _)
+       (+-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
+
 sep-by-sem-singleton :
   ∀ {NT g A B} {p : Prod NT A} {sep : Prod NT B} {x s} →
   [ g ] x ∈ p ∙ s → [ g ] [ x ] ∈ p sep-by sep ∙ s
@@ -426,3 +446,180 @@ nullable? {NT} n g p =
   null? (p₁ ∣ p₂)     = (Product.map id ∣-left-sem  <$>M null? p₁)
                           ∣M
                         (Product.map id ∣-right-sem <$>M null? p₂)
+
+------------------------------------------------------------------------
+-- Detecting the whitespace combinator
+
+-- A predicate for the whitespace combinator.
+
+data Is-whitespace {NT} : ∀ {A} → Prod NT A → Set₁ where
+  is-whitespace : Is-whitespace (tok ' ' ∣ tok '\n')
+
+-- Detects the whitespace combinator.
+
+is-whitespace? : ∀ {NT A} (p : Prod NT A) → Maybe (Is-whitespace p)
+is-whitespace? {NT} (tok ' ' ∣ p) = helper p P.refl
+  where
+  helper : ∀ {A} (p : Prod NT A) (eq : A ≡ Char) →
+           Maybe (Is-whitespace (tok ' ' ∣ P.subst (Prod NT) eq p))
+  helper (tok '\n') P.refl = just is-whitespace
+  helper _          _      = nothing
+
+is-whitespace? _ = nothing
+
+------------------------------------------------------------------------
+-- Final whitespace
+
+-- A predicate for productions that can "swallow" extra whitespace at
+-- the end.
+
+Final-whitespace : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
+Final-whitespace g p =
+  ∀ {x s₁ s₂ s} →
+  [ g ] x ∈ p ∙ s₁ → [ g ] s ∈ whitespace ⋆ ∙ s₂ →
+  [ g ] x ∈ p ∙ s₁ ++ s₂
+
+-- A heuristic procedure that either proves that a production can
+-- swallow final whitespace, or returns "don't know" as the answer.
+
+final-whitespace? : ∀ {NT A} (n : ℕ) (g : Grammar NT) (p : Prod NT A) →
+                    Maybe (Final-whitespace g p)
+final-whitespace? {NT} n g p = unfold-lemma <$>M final? (unfold n g p)
+  where
+  ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) P.refl
+    where open List-solver
+
+  unfold-lemma : Final-whitespace g (unfold n g p) →
+                 Final-whitespace g p
+  unfold-lemma f x∈ white = unfold-from n _ (f (unfold-to n _ x∈) white)
+
+  ⊛-return-lemma :
+    ∀ {A B} {p : Prod NT (A → B)} {x} →
+    Final-whitespace g p →
+    Final-whitespace g (p ⊛ return x)
+  ⊛-return-lemma f (⊛-sem {s₁ = s₁} f∈ return-sem) white =
+    cast (++-lemma s₁ _) (⊛-sem (f f∈ white) return-sem)
+
+  +-lemma :
+    ∀ {A} {p : Prod NT A} →
+    Final-whitespace g p →
+    Final-whitespace g (p +)
+  +-lemma f (+-sem {s₁ = s₁} x∈ ⋆-[]-sem) white =
+    cast (++-lemma s₁ _) (+-sem (f x∈ white) ⋆-[]-sem)
+  +-lemma f (+-sem {s₁ = s₁} x∈ (⋆-+-sem xs∈)) white =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (+-∷-sem x∈ (+-lemma f xs∈ white))
+
+  ⊛-⋆-lemma :
+    ∀ {A B} {p₁ : Prod NT (List A → B)} {p₂ : Prod NT A} →
+    Final-whitespace g p₁ →
+    Final-whitespace g p₂ →
+    Final-whitespace g (p₁ ⊛ p₂ ⋆)
+  ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) white =
+    cast (++-lemma s₁ _) (⊛-sem (f₁ f∈ white) ⋆-[]-sem)
+  ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) white =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (⊛-sem f∈ (⋆-+-sem (+-lemma f₂ xs∈ white)))
+
+  ⊛-+-lemma :
+    ∀ {A B} {p₁ : Prod NT (List A → B)} {p₂ : Prod NT A} →
+    Final-whitespace g p₁ →
+    Final-whitespace g p₂ →
+    Final-whitespace g (p₁ ⊛ p₂ +)
+  ⊛-+-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ xs∈) white =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (⊛-sem f∈ (+-lemma f₂ xs∈ white))
+
+  ⊛-∣-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ p₃ : Prod NT A} →
+              Final-whitespace g (p₁ ⊛ p₂) →
+              Final-whitespace g (p₁ ⊛ p₃) →
+              Final-whitespace g (p₁ ⊛ (p₂ ∣ p₃))
+  ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
+    (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (∣-left-sem x∈))
+    white
+    with f x | (s₁ ++ s₂) ++ s₃ | f₁₂ (⊛-sem f∈ x∈) white
+  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (∣-left-sem x∈′)
+  ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
+    (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (∣-right-sem x∈))
+    white
+    with f x | (s₁ ++ s₂) ++ s₃ | f₁₃ (⊛-sem f∈ x∈) white
+  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (∣-right-sem x∈′)
+
+  ⊛-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ : Prod NT A} →
+            Final-whitespace g p₂ →
+            Final-whitespace g (p₁ ⊛ p₂)
+  ⊛-lemma f₂ (⊛-sem {s₁ = s₁} f∈ x∈) white =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (⊛-sem f∈ (f₂ x∈ white))
+
+  <⊛-return-lemma :
+    ∀ {A B} {p : Prod NT A} {x : B} →
+    Final-whitespace g p →
+    Final-whitespace g (p <⊛ return x)
+  <⊛-return-lemma f (<⊛-sem {s₁ = s₁} f∈ return-sem) white =
+    cast (++-lemma s₁ _) (<⊛-sem (f f∈ white) return-sem)
+
+  <⊛-⋆-lemma :
+    ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
+    Is-whitespace p₂ →
+    Final-whitespace g (p₁ <⊛ p₂ ⋆)
+  <⊛-⋆-lemma is-whitespace (<⊛-sem {s₁ = s₁} x∈ white₁) white₂ =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (<⊛-sem x∈ (⋆-⋆-sem white₁ white₂))
+
+  <⊛-+-lemma :
+    ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
+    Is-whitespace p₂ →
+    Final-whitespace g (p₁ <⊛ p₂ +)
+  <⊛-+-lemma is-whitespace (<⊛-sem {s₁ = s₁} x∈ white₁) white₂ =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (<⊛-sem x∈ (+-⋆-sem white₁ white₂))
+
+  <⊛-lemma : ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
+             Final-whitespace g p₂ →
+             Final-whitespace g (p₁ <⊛ p₂)
+  <⊛-lemma f₂ (<⊛-sem {s₁ = s₁} f∈ x∈) white =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (<⊛-sem f∈ (f₂ x∈ white))
+
+  fail->>=-lemma : ∀ {A B} {p : A → Prod NT B} →
+                   Final-whitespace g (fail >>= p)
+  fail->>=-lemma (>>=-sem () _)
+
+  return->>=-lemma : ∀ {A B} {p : A → Prod NT B} {x} →
+                     Final-whitespace g (p x) →
+                     Final-whitespace g (return x >>= p)
+  return->>=-lemma f (>>=-sem return-sem y∈) white =
+    >>=-sem return-sem (f y∈ white)
+
+  tok->>=-lemma : ∀ {A} {p : Char → Prod NT A} {t} →
+                  Final-whitespace g (p t) →
+                  Final-whitespace g (tok t >>= p)
+  tok->>=-lemma f (>>=-sem tok-sem y∈) white =
+    >>=-sem tok-sem (f y∈ white)
+
+  ∣-lemma : ∀ {A} {p₁ p₂ : Prod NT A} →
+            Final-whitespace g p₁ →
+            Final-whitespace g p₂ →
+            Final-whitespace g (p₁ ∣ p₂)
+  ∣-lemma f₁ f₂ (∣-left-sem  x∈) white = ∣-left-sem  (f₁ x∈ white)
+  ∣-lemma f₁ f₂ (∣-right-sem x∈) white = ∣-right-sem (f₂ x∈ white)
+
+  final? : ∀ {A} (p : Prod NT A) →
+           Maybe (Final-whitespace g p)
+  final? fail             = just (λ ())
+  final? (p ⊛ return x)   = ⊛-return-lemma <$>M final? p
+  final? (p₁ ⊛ p₂ ⋆)      = ⊛-⋆-lemma <$>M final? p₁ ⊛M final? p₂
+  final? (p₁ ⊛ p₂ +)      = ⊛-+-lemma <$>M final? p₁ ⊛M final? p₂
+  final? (p₁ ⊛ (p₂ ∣ p₃)) = ⊛-∣-lemma <$>M final? (p₁ ⊛ p₂)
+                                        ⊛M final? (p₁ ⊛ p₃)
+  final? (p₁ ⊛ p₂)        = ⊛-lemma <$>M final? p₂
+  final? (p <⊛ return x)  = <⊛-return-lemma <$>M final? p
+  final? (p₁ <⊛ p₂ ⋆)     = <⊛-⋆-lemma <$>M is-whitespace? p₂
+  final? (p₁ <⊛ p₂ +)     = <⊛-+-lemma <$>M is-whitespace? p₂
+  final? (p₁ <⊛ p₂)       = <⊛-lemma <$>M final? p₂
+  final? (fail >>= p)     = just fail->>=-lemma
+  final? (return x >>= p) = return->>=-lemma <$>M final? (p x)
+  final? (tok t >>= p)    = tok->>=-lemma <$>M final? (p t)
+  final? (p₁ ∣ p₂)        = ∣-lemma <$>M final? p₁ ⊛M final? p₂
+  final? _                = nothing
