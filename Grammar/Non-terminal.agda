@@ -35,7 +35,7 @@ open import Tests
 
 -- Productions. (Note that productions can contain choices.)
 
-infix  30 _⋆ _+
+infix  30 _⋆
 infixl 20 _⊛_ _<⊛_
 infixl 15 _>>=_
 infixl 10 _∣_
@@ -50,7 +50,7 @@ data Prod (NT : Set → Set₁) : Set → Set₁ where
   _<⊛_   : ∀ {A B} → Prod NT A → Prod NT B → Prod NT A
   _>>=_  : ∀ {A B} → Prod NT A → (A → Prod NT B) → Prod NT B
   _∣_    : ∀ {A} → Prod NT A → Prod NT A → Prod NT A
-  _⋆ _+  : ∀ {A} → Prod NT A → Prod NT (List A)
+  _⋆     : ∀ {A} → Prod NT A → Prod NT (List A)
 
 -- Grammars.
 
@@ -91,6 +91,13 @@ p₁ >> p₂ = (λ _ x → x) <$> p₁ ⊛ p₂
 
 _⊛>_ : ∀ {NT A B} → Prod NT A → Prod NT B → Prod NT B
 _⊛>_ = _>>_
+
+-- Kleene plus.
+
+infix 30 _+
+
+_+ : ∀ {NT A} → Prod NT A → Prod NT (List A)
+p + = _∷_ <$> p ⊛ p ⋆
 
 -- Elements separated by something.
 
@@ -156,9 +163,6 @@ data [_]_∈_∙_ {NT : Set → Set₁} (g : Grammar NT) :
                 [ g ] [] ∈ p ⋆ ∙ []
   ⋆-+-sem     : ∀ {A} {p : Prod NT A} {xs s} →
                 [ g ] xs ∈ p + ∙ s → [ g ] xs ∈ p ⋆ ∙ s
-  +-sem       : ∀ {A} {p : Prod NT A} {x xs s₁ s₂} →
-                [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p ⋆ ∙ s₂ →
-                [ g ] x ∷ xs ∈ p + ∙ s₁ ++ s₂
 
 -- Cast lemma.
 
@@ -187,6 +191,11 @@ cast P.refl = id
          [ g ] y ∈ p₁ ⊛> p₂ ∙ s₁ ++ s₂
 ⊛>-sem = >>-sem
 
++-sem : ∀ {NT g A} {p : Prod NT A} {x xs s₁ s₂} →
+        [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p ⋆ ∙ s₂ →
+        [ g ] x ∷ xs ∈ p + ∙ s₁ ++ s₂
++-sem x∈ xs∈ = ⊛-sem (⊛-sem return-sem x∈) xs∈
+
 ⋆-∷-sem : ∀ {NT g A} {p : Prod NT A} {x xs s₁ s₂} →
           [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p ⋆ ∙ s₂ →
           [ g ] x ∷ xs ∈ p ⋆ ∙ s₁ ++ s₂
@@ -195,8 +204,8 @@ cast P.refl = id
 ⋆-⋆-sem : ∀ {NT g A} {p : Prod NT A} {xs₁ xs₂ s₁ s₂} →
           [ g ] xs₁ ∈ p ⋆ ∙ s₁ → [ g ] xs₂ ∈ p ⋆ ∙ s₂ →
           [ g ] xs₁ ++ xs₂ ∈ p ⋆ ∙ s₁ ++ s₂
-⋆-⋆-sem ⋆-[]-sem                            xs₂∈ = xs₂∈
-⋆-⋆-sem (⋆-+-sem (+-sem {s₁ = s₁} x∈ xs₁∈)) xs₂∈ =
+⋆-⋆-sem ⋆-[]-sem xs₂∈ = xs₂∈
+⋆-⋆-sem (⋆-+-sem (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) xs₁∈)) xs₂∈ =
   cast (P.sym $ LM.assoc s₁ _ _)
        (⋆-∷-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
 
@@ -208,7 +217,7 @@ cast P.refl = id
 +-⋆-sem : ∀ {NT g A} {p : Prod NT A} {xs₁ xs₂ s₁ s₂} →
           [ g ] xs₁ ∈ p + ∙ s₁ → [ g ] xs₂ ∈ p ⋆ ∙ s₂ →
           [ g ] xs₁ ++ xs₂ ∈ p + ∙ s₁ ++ s₂
-+-⋆-sem (+-sem {s₁ = s₁} x∈ xs₁∈) xs₂∈ =
++-⋆-sem (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) xs₁∈) xs₂∈ =
   cast (P.sym $ LM.assoc s₁ _ _)
        (+-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
 
@@ -269,7 +278,6 @@ replace f (p₁ <⊛ p₂)  = replace f p₁ <⊛ replace f p₂
 replace f (p₁ >>= p₂) = replace f p₁ >>= λ x → replace f (p₂ x)
 replace f (p₁ ∣ p₂)   = replace f p₁ ∣ replace f p₂
 replace f (p ⋆)       = replace f p ⋆
-replace f (p +)       = replace f p +
 
 -- A lemma relating the resulting production with the original one in
 -- case every non-terminal is replaced by fail.
@@ -290,7 +298,6 @@ replace-fail (p₁ ∣ p₂)   (∣-left-sem  x∈) = ∣-left-sem  (replace-fai
 replace-fail (p₁ ∣ p₂)   (∣-right-sem x∈) = ∣-right-sem (replace-fail p₂ x∈)
 replace-fail (p ⋆)       ⋆-[]-sem         = ⋆-[]-sem
 replace-fail (p ⋆)       (⋆-+-sem xs∈)    = ⋆-+-sem (replace-fail (p +) xs∈)
-replace-fail (p +)       (+-sem x∈ xs∈)   = +-sem (replace-fail p x∈) (replace-fail (p ⋆) xs∈)
 
 -- Unfolds every non-terminal. At most n /nested/ unfoldings are
 -- performed.
@@ -307,7 +314,6 @@ unfold n       g (p₁ <⊛ p₂)  = unfold n g p₁ <⊛ unfold n g p₂
 unfold n       g (p₁ >>= p₂) = unfold n g p₁ >>= λ x → unfold n g (p₂ x)
 unfold n       g (p₁ ∣ p₂)   = unfold n g p₁ ∣ unfold n g p₂
 unfold n       g (p ⋆)       = unfold n g p ⋆
-unfold n       g (p +)       = unfold n g p +
 
 -- Unfold is semantics-preserving.
 
@@ -329,8 +335,6 @@ unfold-to (suc n) (p₁ ∣ p₂)   (∣-left-sem x∈)  = ∣-left-sem  (unfold
 unfold-to (suc n) (p₁ ∣ p₂)   (∣-right-sem x∈) = ∣-right-sem (unfold-to (suc n) p₂ x∈)
 unfold-to (suc n) (p ⋆)       ⋆-[]-sem         = ⋆-[]-sem
 unfold-to (suc n) (p ⋆)       (⋆-+-sem xs∈)    = ⋆-+-sem (unfold-to (suc n) (p +) xs∈)
-unfold-to (suc n) (p +)       (+-sem x∈ xs∈)   = +-sem (unfold-to (suc n) p x∈)
-                                                       (unfold-to (suc n) (p ⋆) xs∈)
 
 unfold-from : ∀ {NT A} {g : Grammar NT} {x s} n (p : Prod NT A) →
               [ g ] x ∈ unfold n g p ∙ s → [ g ] x ∈ p ∙ s
@@ -350,8 +354,6 @@ unfold-from (suc n) (p₁ ∣ p₂)   (∣-left-sem x∈)  = ∣-left-sem  (unfo
 unfold-from (suc n) (p₁ ∣ p₂)   (∣-right-sem x∈) = ∣-right-sem (unfold-from (suc n) p₂ x∈)
 unfold-from (suc n) (p ⋆)       ⋆-[]-sem         = ⋆-[]-sem
 unfold-from (suc n) (p ⋆)       (⋆-+-sem xs∈)    = ⋆-+-sem (unfold-from (suc n) (p +) xs∈)
-unfold-from (suc n) (p +)       (+-sem x∈ xs∈)   = +-sem (unfold-from (suc n) p x∈)
-                                                         (unfold-from (suc n) (p ⋆) xs∈)
 
 ------------------------------------------------------------------------
 -- Nullability
@@ -436,8 +438,6 @@ nullable? {NT} n g p =
   null? (tok t)       = nothing
   null? (return x)    = just (x , return-sem)
   null? (p ⋆)         = just ([] , ⋆-[]-sem)
-  null? (p +)         = Product.map [_] (λ x∈ → +-sem x∈ ⋆-[]-sem) <$>M
-                          null? p
   null? (p₁ ⊛ p₂)     = Product.zip _$_   ⊛-sem  <$>M null? p₁ ⊛M null? p₂
   null? (p₁ <⊛ p₂)    = Product.zip const <⊛-sem <$>M null? p₁ ⊛M null? p₂
   null? (p₁ >>= p₂)   = null? p₁                  >>=M λ { (x , x∈) →
@@ -504,9 +504,10 @@ final-whitespace? {NT} n g p = unfold-lemma <$>M final? (unfold n g p)
     ∀ {A} {p : Prod NT A} →
     Final-whitespace g p →
     Final-whitespace g (p +)
-  +-lemma f (+-sem {s₁ = s₁} x∈ ⋆-[]-sem) white =
+  +-lemma f (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) ⋆-[]-sem) white =
     cast (++-lemma s₁ _) (+-sem (f x∈ white) ⋆-[]-sem)
-  +-lemma f (+-sem {s₁ = s₁} x∈ (⋆-+-sem xs∈)) white =
+  +-lemma f (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) (⋆-+-sem xs∈))
+          white =
     cast (P.sym $ LM.assoc s₁ _ _)
          (+-∷-sem x∈ (+-lemma f xs∈ white))
 
@@ -520,15 +521,6 @@ final-whitespace? {NT} n g p = unfold-lemma <$>M final? (unfold n g p)
   ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) white =
     cast (P.sym $ LM.assoc s₁ _ _)
          (⊛-sem f∈ (⋆-+-sem (+-lemma f₂ xs∈ white)))
-
-  ⊛-+-lemma :
-    ∀ {A B} {p₁ : Prod NT (List A → B)} {p₂ : Prod NT A} →
-    Final-whitespace g p₁ →
-    Final-whitespace g p₂ →
-    Final-whitespace g (p₁ ⊛ p₂ +)
-  ⊛-+-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ xs∈) white =
-    cast (P.sym $ LM.assoc s₁ _ _)
-         (⊛-sem f∈ (+-lemma f₂ xs∈ white))
 
   ⊛-∣-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ p₃ : Prod NT A} →
               Final-whitespace g (p₁ ⊛ p₂) →
@@ -567,14 +559,6 @@ final-whitespace? {NT} n g p = unfold-lemma <$>M final? (unfold n g p)
     cast (P.sym $ LM.assoc s₁ _ _)
          (<⊛-sem x∈ (⋆-⋆-sem white₁ white₂))
 
-  <⊛-+-lemma :
-    ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
-    Is-whitespace p₂ →
-    Final-whitespace g (p₁ <⊛ p₂ +)
-  <⊛-+-lemma is-whitespace (<⊛-sem {s₁ = s₁} x∈ white₁) white₂ =
-    cast (P.sym $ LM.assoc s₁ _ _)
-         (<⊛-sem x∈ (+-⋆-sem white₁ white₂))
-
   <⊛-lemma : ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
              Final-whitespace g p₂ →
              Final-whitespace g (p₁ <⊛ p₂)
@@ -610,13 +594,11 @@ final-whitespace? {NT} n g p = unfold-lemma <$>M final? (unfold n g p)
   final? fail             = just (λ ())
   final? (p ⊛ return x)   = ⊛-return-lemma <$>M final? p
   final? (p₁ ⊛ p₂ ⋆)      = ⊛-⋆-lemma <$>M final? p₁ ⊛M final? p₂
-  final? (p₁ ⊛ p₂ +)      = ⊛-+-lemma <$>M final? p₁ ⊛M final? p₂
   final? (p₁ ⊛ (p₂ ∣ p₃)) = ⊛-∣-lemma <$>M final? (p₁ ⊛ p₂)
                                         ⊛M final? (p₁ ⊛ p₃)
   final? (p₁ ⊛ p₂)        = ⊛-lemma <$>M final? p₂
   final? (p <⊛ return x)  = <⊛-return-lemma <$>M final? p
   final? (p₁ <⊛ p₂ ⋆)     = <⊛-⋆-lemma <$>M is-whitespace? p₂
-  final? (p₁ <⊛ p₂ +)     = <⊛-+-lemma <$>M is-whitespace? p₂
   final? (p₁ <⊛ p₂)       = <⊛-lemma <$>M final? p₂
   final? (fail >>= p)     = just fail->>=-lemma
   final? (return x >>= p) = return->>=-lemma <$>M final? (p x)
