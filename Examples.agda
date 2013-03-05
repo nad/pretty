@@ -61,7 +61,7 @@ private
 -- Uses wadler's-renderer to render a document using the given line
 -- width.
 
-render : ∀ {A} {g : G A} {x} → ℕ → Doc g x → String
+render : ∀ {A} {g : Grammar A} {x} → ℕ → Doc g x → String
 render w d = String.fromList (Renderer.render (wadler's-renderer w) d)
 
 -- Converts strings satisfying a given predicate to annotated lists.
@@ -89,7 +89,7 @@ module Bit where
   data Bit : Set where
     [0] [1] : Bit
 
-  bit : G Bit
+  bit : Grammar Bit
   bit = ♯ ([0] <$ symbol (str "0"))
       ∣ ♯ ([1] <$ symbol (str "1"))
 
@@ -97,9 +97,9 @@ module Bit where
   -- second one using derived ones.
 
   bit-printer : Pretty-printer bit
-  bit-printer [0] = embed ∣-left ((text (str "0") ·
-                                   (embed ∣-left nil · nil)) ·
-                                  nil)
+  bit-printer [0] = embed ∣-left-sem ((text (str "0") ·
+                                       (embed ∣-left-sem nil · nil)) ·
+                                      nil)
   bit-printer [1] = ∣-right-doc (<$-doc symbol-doc)
 
   test₁ : render 4 (bit-printer [0]) ≡ "0"
@@ -129,7 +129,7 @@ module Name where
   Name-char : Set
   Name-char = ∃ λ (t : Char) → T (is-name-char t)
 
-  name-char : G Name-char
+  name-char : Grammar Name-char
   name-char = sat _
 
   name-char-printer : Pretty-printer name-char
@@ -143,7 +143,7 @@ module Name where
   Name : Set
   Name = List Name-char
 
-  name : G Name
+  name : Grammar Name
   name = name-char ⋆
 
   name-printer : Pretty-printer name
@@ -151,7 +151,7 @@ module Name where
 
   -- Names possibly followed by whitespace.
 
-  name-w : G Name
+  name-w : Grammar Name
   name-w = ♯ name                 >>= λ n →
            ♯ (n <$ whitespace ⋆)
 
@@ -195,17 +195,17 @@ module Name-list where
   -- Lists of names. This example is based on one in Swierstra and
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
-  comma-and-name : G Name
+  comma-and-name : Grammar Name
   comma-and-name = ♯ symbol (str ",")  >>= λ _ →
                    ♯ name-w
 
-  name-list-body : G (List Name)
+  name-list-body : Grammar (List Name)
   name-list-body = ♯ return []
                  ∣ ♯ (♯ name-w              >>= λ n  → ♯ (
                       ♯ (comma-and-name ⋆)  >>= λ ns →
                       ♯ return (n ∷ ns)     ))
 
-  name-list : G (List Name)
+  name-list : Grammar (List Name)
   name-list = ♯ symbol (str "[")  >>= λ _  → ♯ (
               ♯ name-list-body    >>= λ ns → ♯ (
               ♯ symbol (str "]")  >>= λ _  →
@@ -249,24 +249,24 @@ module Tree where
 
   mutual
 
-    tree : G Tree
+    tree : Grammar Tree
     tree = ♯ name-w              >>= λ n  → ♯ (
            ♯ brackets            >>= λ ts →
            ♯ return (node n ts)  )
 
-    brackets : G (List Tree)
+    brackets : Grammar (List Tree)
     brackets = ♯ return []
              ∣ ♯ (♯ symbol (str "[")  >>= λ _  → ♯ (
                   ♯ trees             >>= λ ts → ♯ (
                   ♯ symbol (str "]")  >>= λ _  →
                   ♯ return ts         )))
 
-    trees : G (List Tree)
+    trees : Grammar (List Tree)
     trees = ♯ tree              >>= λ t  → ♯ (
             ♯ commas-and-trees  >>= λ ts →
             ♯ return (t ∷ ts)   )
 
-    commas-and-trees : G (List Tree)
+    commas-and-trees : Grammar (List Tree)
     commas-and-trees = ♯ return []
                      ∣ ♯ (♯ symbol (str ",") >>= λ _ →
                           ♯ trees)
@@ -311,57 +311,79 @@ module Tree where
       ∀ {x y s₁ s₂} →
       x ∈ whitespace ⋆ ∙ s₁ → y ∈ whitespace + ∙ s₂ →
       x ++ y ∈ whitespace ⋆ ∙ s₁ ++ s₂
-    whitespace⋆-lemma (∣-left return) w+ = ∣-right w+
-    whitespace⋆-lemma (∣-right (_>>=_ {s₁ = s} w
-                                      (_>>=_ {s₁ = s′} w⋆ return))) w+ =
+    whitespace⋆-lemma (∣-left-sem return-sem) w+ = ∣-right-sem w+
+    whitespace⋆-lemma (∣-right-sem
+                         (>>=-sem {s₁ = s} w
+                           (>>=-sem {s₁ = s′} w⋆ return-sem))) w+ =
       cast (++-lemma₁ s [] s′ _)
-           (∣-right (w >>= (whitespace⋆-lemma w⋆ w+ >>= return)))
+           (∣-right-sem (>>=-sem w (>>=-sem (whitespace⋆-lemma w⋆ w+)
+                                            return-sem)))
 
     name-w-lemma : ∀ {n x s₁ s₂} →
                    n ∈ name-w ∙ s₁ → x ∈ whitespace + ∙ s₂ →
                    n ∈ name-w ∙ s₁ ++ s₂
-    name-w-lemma (_>>=_ {s₁ = s} n∈ (_>>=_ {s₁ = s′} w⋆ return)) w+ =
+    name-w-lemma (>>=-sem {s₁ = s} n∈
+                          (>>=-sem {s₁ = s′} w⋆ return-sem)) w+ =
       cast (++-lemma₁ s [] s′ _)
-           (n∈ >>= (whitespace⋆-lemma w⋆ w+ >>= return))
+           (>>=-sem n∈ (>>=-sem (whitespace⋆-lemma w⋆ w+) return-sem))
 
     symbol-lemma : ∀ {s s′ s₁ s₂ x} →
                    s ∈ symbol s′ ∙ s₁ → x ∈ whitespace + ∙ s₂ →
                    s ∈ symbol s′ ∙ s₁ ++ s₂
-    symbol-lemma (_>>=_ {s₁ = s} sym (_>>=_ {s₁ = s′} w⋆ return)) w+ =
+    symbol-lemma (>>=-sem {s₁ = s} sym
+                          (>>=-sem {s₁ = s′} w⋆ return-sem)) w+ =
       cast (++-lemma₁ s [] s′ _)
-           (sym >>= (whitespace⋆-lemma w⋆ w+ >>= return))
+           (>>=-sem sym (>>=-sem (whitespace⋆-lemma w⋆ w+) return-sem))
 
     tree-lemma : ∀ {t x s₁ s₂} →
                  t ∈ tree ∙ s₁ → x ∈ whitespace + ∙ s₂ →
                  t ∈ tree ∙ s₁ ++ s₂
-    tree-lemma (_>>=_ {s₁ = s} name (∣-left return >>= return)) w+ =
+    tree-lemma (>>=-sem {s₁ = s} name
+                        (>>=-sem (∣-left-sem return-sem) return-sem))
+               w+ =
       cast (++-lemma₁ [] [] s _)
-           (name-w-lemma name w+ >>= (∣-left return >>= return))
-    tree-lemma (_>>=_ {s₁ = s} name (∣-right (_>>=_ {s₁ = s′} left
-                (_>>=_ {s₁ = s″} ts∈ (_>>=_ {s₁ = s‴} right return)))
-                >>= return)) w+ =
+           (>>=-sem (name-w-lemma name w+)
+                    (>>=-sem (∣-left-sem return-sem) return-sem))
+    tree-lemma (>>=-sem {s₁ = s} name
+                  (>>=-sem (∣-right-sem
+                              (>>=-sem {s₁ = s′} left
+                                 (>>=-sem {s₁ = s″} ts∈
+                                    (>>=-sem {s₁ = s‴} right
+                                       return-sem))))
+                     return-sem)) w+ =
       cast (++-lemma₂ s s′ s″ s‴ _)
-           (name >>= (∣-right (left >>= (ts∈ >>= (symbol-lemma right w+
-            >>= return))) >>= return))
+           (>>=-sem name
+              (>>=-sem (∣-right-sem
+                          (>>=-sem left
+                             (>>=-sem ts∈
+                                (>>=-sem (symbol-lemma right w+)
+                                   return-sem))))
+                 return-sem))
 
     trees-lemma : ∀ {ts x s₁ s₂} →
                   ts ∈ trees ∙ s₁ → x ∈ whitespace + ∙ s₂ →
                   ts ∈ trees ∙ s₁ ++ s₂
-    trees-lemma (_>>=_ {s₁ = s} t∈ (∣-left return >>= return)) w+ =
-      cast (++-lemma₁ [] [] s _)
-           (tree-lemma t∈ w+ >>= (∣-left return >>= return))
-    trees-lemma (_>>=_ {s₁ = s} t∈
-                       (∣-right (_>>=_ {s₁ = s′} comma ts∈) >>= return))
+    trees-lemma (>>=-sem {s₁ = s} t∈
+                         (>>=-sem (∣-left-sem return-sem) return-sem))
                 w+ =
+      cast (++-lemma₁ [] [] s _)
+           (>>=-sem (tree-lemma t∈ w+)
+                    (>>=-sem (∣-left-sem return-sem) return-sem))
+    trees-lemma (>>=-sem {s₁ = s} t∈
+                   (>>=-sem (∣-right-sem (>>=-sem {s₁ = s′} comma ts∈))
+                      return-sem)) w+ =
       cast (++-lemma₁ s s′ _ _)
-           (t∈ >>= (∣-right (comma >>= trees-lemma ts∈ w+) >>= return))
+           (>>=-sem t∈
+               (>>=-sem (∣-right-sem
+                           (>>=-sem comma (trees-lemma ts∈ w+)))
+                  return-sem))
 
-    trees′ : G (List Tree)
+    trees′ : Grammar (List Tree)
     trees′ = ♯ trees                 >>= λ ts →
              ♯ (ts <$ whitespace +)
 
     trees′-lemma : ∀ {ts s} → ts ∈ trees′ ∙ s → ts ∈ trees ∙ s
-    trees′-lemma (_>>=_ {s₁ = s₁} ts∈ (w+ >>= return)) =
+    trees′-lemma (>>=-sem {s₁ = s₁} ts∈ (>>=-sem w+ return-sem)) =
       cast (P.cong (_++_ s₁) $ P.sym $ proj₂ LM.identity _)
            (trees-lemma ts∈ w+)
 
@@ -455,7 +477,7 @@ module XML where
   Text : Set
   Text = List (∃ λ (t : Char) → T (is-text-char t))
 
-  text-g : G Text
+  text-g : Grammar Text
   text-g = sat _ ⋆
 
   text-printer : Pretty-printer text-g
@@ -475,7 +497,7 @@ module XML where
 
   mutual
 
-    xml : G XML
+    xml : Grammar XML
     xml = ♯ (♯ start-of-element                  >>= λ { (t , atts) → ♯
                ( ♯ (♯ symbol (str "/>")          >>= λ _            →
                     ♯ return (elt t atts [])     )
@@ -489,37 +511,37 @@ module XML where
         ∣ ♯ (♯ text-g                            >>= λ t            →
              ♯ return (txt t)                    )
 
-    start-of-element : G (Name × List Att)
+    start-of-element : Grammar (Name × List Att)
     start-of-element =
       ♯ symbol (str "<")   >>= λ _    → ♯ (
       ♯ name               >>= λ t    → ♯ (
       ♯ w-attrs            >>= λ atts →
       ♯ return (t , atts)  ))
 
-    w-xmls : G (List XML)
+    w-xmls : Grammar (List XML)
     w-xmls = ♯ (whitespace ⋆)  >>= λ _ →
              ♯ xmls
 
-    xmls : G (List XML)
+    xmls : Grammar (List XML)
     xmls = ♯ return []
          ∣ ♯ (♯ xml              >>= λ x  → ♯ (
               ♯ xmls             >>= λ xs →
               ♯ return (x ∷ xs)  ))
 
-    tag : G Name
+    tag : Grammar Name
     tag = name-w
 
-    w-attrs : G (List Att)
+    w-attrs : Grammar (List Att)
     w-attrs = ♯ (whitespace ⋆)  >>= λ _ →
               ♯ attrs
 
-    attrs : G (List Att)
+    attrs : Grammar (List Att)
     attrs = ♯ return []
           ∣ ♯ (♯ attr             >>= λ a  → ♯ (
                ♯ attrs            >>= λ as →
                ♯ return (a ∷ as)  ))
 
-    attr : G Att
+    attr : Grammar Att
     attr = ♯ name-w             >>= λ n → ♯ (
            ♯ symbol (str "=")   >>= λ _ → ♯ (
            ♯ string (str "\"")  >>= λ _ → ♯ (

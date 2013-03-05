@@ -22,8 +22,6 @@ private module LM {A : Set} = Monoid (List.monoid A)
 open import Grammar.Infinite
 open import Tests
 
-infixr 20 _·_ _∷-doc_
-
 ------------------------------------------------------------------------
 -- Some boring lemmas
 
@@ -50,49 +48,54 @@ mutual
   -- Pretty-printer documents. If p : Doc g x, then p is a decorated
   -- parse tree (with respect to the grammar g) for the value x.
 
-  data Doc : ∀ {A} → G A → A → Set₁ where
+  infixr 20 _·_
+
+  data Doc : ∀ {A} → Grammar A → A → Set₁ where
     nil   : ∀ {A} {x : A} → Doc (return x) x
     text  : ∀ s → Doc (string s) s
-    _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
+    _·_   : ∀ {A B} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
+              {x y} →
             Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
     line  : ∀ {A} {x : A} → Doc (x <$ whitespace +) x
-    group : ∀ {A} {g : G A} {x} → Doc g x → Doc g x
-    nest  : ∀ {A} {g : G A} {x} → ℕ → Doc g x → Doc g x
-    embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
+    group : ∀ {A} {g : Grammar A} {x} → Doc g x → Doc g x
+    nest  : ∀ {A} {g : Grammar A} {x} → ℕ → Doc g x → Doc g x
+    embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
             (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
-    fill  : ∀ {A} {g : G A} {xs} →
+    fill  : ∀ {A} {g : Grammar A} {xs} →
             Docs g xs → Doc (g sep-by whitespace +) xs
 
   -- Sequences of documents, all based on the same grammar.
 
-  data Docs {A} (g : G A) : List A → Set₁ where
+  data Docs {A} (g : Grammar A) : List A → Set₁ where
     [_] : ∀ {x} → Doc g x → Docs g (x ∷ [])
     _∷_ : ∀ {x xs} → Doc g x → Docs g xs → Docs g (x ∷ xs)
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
 
-Pretty-printer : {A : Set} → G A → Set₁
+Pretty-printer : {A : Set} → Grammar A → Set₁
 Pretty-printer g = ∀ x → Doc g x
 
 -- Derived document combinators.
 
-∣-left-doc : ∀ {A} {g₁ g₂ : ∞ (G A)} {x} →
+∣-left-doc : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x} →
              Doc (♭ g₁) x → Doc (g₁ ∣ g₂) x
-∣-left-doc d = embed ∣-left d
+∣-left-doc d = embed ∣-left-sem d
 
-∣-right-doc : ∀ {A} {g₁ g₂ : ∞ (G A)} {x} →
+∣-right-doc : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x} →
               Doc (♭ g₂) x → Doc (g₁ ∣ g₂) x
-∣-right-doc d = embed ∣-right d
+∣-right-doc d = embed ∣-right-sem d
 
 <$-doc : ∀ {A B : Set} {x : A} {y : B} {g} →
          Doc g y → Doc (x <$ g) x
 <$-doc d = d · nil
 
-[]-doc : ∀ {A} {g : G A} → Doc (g ⋆) []
+[]-doc : ∀ {A} {g : Grammar A} → Doc (g ⋆) []
 []-doc = ∣-left-doc nil
 
-_∷-doc_ : ∀ {A} {g : G A} {x xs} →
+infixr 20 _∷-doc_
+
+_∷-doc_ : ∀ {A} {g : Grammar A} {x xs} →
           Doc g x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
 d₁ ∷-doc d₂ = ∣-right-doc (d₁ · d₂ · nil)
 
@@ -102,9 +105,9 @@ token-doc : ∀ {t} → Doc token t
 token-doc {t} = embed lemma (text (t ∷ []))
   where
   lemma : ∀ {s} → t ∷ [] ∈ string (t ∷ []) ∙ s → t ∈ token ∙ s
-  lemma (t∈tok >>= (return >>= return))
+  lemma (>>=-sem t∈tok (>>=-sem return-sem return-sem))
     rewrite proj₂ (tok-sem⁻¹ t∈tok)
-    = token
+    = token-sem
 
 -- A document for the empty string.
 
@@ -126,7 +129,7 @@ line⋆ {x = x} = embed lemma line
   lemma : ∀ {s} →
           x ∈ x <$ whitespace + ∙ s →
           x ∈ x <$ whitespace ⋆ ∙ s
-  lemma (w+ >>= return) = ∣-right w+ >>= return
+  lemma (>>=-sem w+ return-sem) = >>=-sem (∣-right-sem w+) return-sem
 
 -- A document for the given symbol (and no following whitespace).
 
@@ -138,7 +141,7 @@ symbol-doc = text _ · <$-doc []-doc
 symbol-line-doc : ∀ {s} → Doc (symbol s) s
 symbol-line-doc = text _ · line⋆
 
-map-doc : {A : Set} {g : G A} →
+map-doc : {A : Set} {g : Grammar A} →
           Pretty-printer g → Pretty-printer (g ⋆)
 map-doc p []       = []-doc
 map-doc p (x ∷ xs) = p x ∷-doc map-doc p xs
@@ -149,17 +152,18 @@ record Renderer : Set₁ where
   field
     -- The function that renders.
 
-    render : ∀ {A} {g : G A} {x} → Doc g x → List Char
+    render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
 
     -- The rendered string must be parsable.
 
-    parsable : ∀ {A} {g : G A} {x} (d : Doc g x) → x ∈ g ∙ render d
+    parsable : ∀ {A} {g : Grammar A} {x}
+               (d : Doc g x) → x ∈ g ∙ render d
 
   -- Pretty-printers are correct by definition, for any renderer,
   -- assuming that the underlying grammar is unambiguous.
 
   pretty-printer-correct :
-    ∀ {A} {g : G A} (pretty : Pretty-printer g) →
+    ∀ {A} {g : Grammar A} (pretty : Pretty-printer g) →
     ∀ x → x ∈ g ∙ render (pretty x)
   pretty-printer-correct pretty x = parsable (pretty x)
 
@@ -174,7 +178,7 @@ ugly-renderer = record
 
   mutual
 
-    render : ∀ {A} {g : G A} {x} → Doc g x → List Char
+    render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
     render nil         = []
     render (text s)    = s
     render (d₁ · d₂)   = render d₁ ++ render d₂
@@ -184,27 +188,28 @@ ugly-renderer = record
     render (embed _ d) = render d
     render (fill ds)   = render-fills ds
 
-    render-fills : ∀ {A} {g : G A} {x} → Docs g x → List Char
+    render-fills : ∀ {A} {g : Grammar A} {x} → Docs g x → List Char
     render-fills [ d ]    = render d
     render-fills (d ∷ ds) = render d ++ ' ' ∷ render-fills ds
 
   mutual
 
-    parsable : ∀ {A x} {g : G A} (d : Doc g x) → x ∈ g ∙ render d
-    parsable nil         = return
+    parsable : ∀ {A x} {g : Grammar A}
+               (d : Doc g x) → x ∈ g ∙ render d
+    parsable nil         = return-sem
     parsable (text s)    = string-sem s
-    parsable (d₁ · d₂)   = parsable d₁ >>= parsable d₂
+    parsable (d₁ · d₂)   = >>=-sem (parsable d₁) (parsable d₂)
     parsable line        = <$-sem single-space-sem
     parsable (group d)   = parsable d
     parsable (nest _ d)  = parsable d
     parsable (embed f d) = f (parsable d)
     parsable (fill ds)   = parsable-fills ds
 
-    parsable-fills : ∀ {A xs} {g : G A} (ds : Docs g xs) →
+    parsable-fills : ∀ {A xs} {g : Grammar A} (ds : Docs g xs) →
                      xs ∈ g sep-by whitespace + ∙ render-fills ds
     parsable-fills [ d ]    = sep-by-sem-singleton (parsable d)
     parsable-fills (d ∷ ds) =
-      sep-by-sem-cons (parsable d) single-space-sem (parsable-fills ds)
+      sep-by-sem-∷ (parsable d) single-space-sem (parsable-fills ds)
 
 -- An example renderer, closely based on the one in Wadler's "A
 -- prettier printer".
@@ -222,15 +227,16 @@ wadler's-renderer w = record
 
   infixr 20 _·_
 
-  data DocU : ∀ {A} → G A → A → Set₁ where
+  data DocU : ∀ {A} → Grammar A → A → Set₁ where
     nil   : ∀ {A} {x : A} → DocU (return x) x
     text  : ∀ s → DocU (string s) s
-    _·_   : ∀ {A B} {g₁ : ∞ (G A)} {g₂ : A → ∞ (G B)} {x y} →
+    _·_   : ∀ {A B} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
+              {x y} →
             DocU (♭ g₁) x → DocU (♭ (g₂ x)) y → DocU (g₁ >>= g₂) y
     line  : ∀ {A} {x : A} → DocU (x <$ whitespace +) x
-    union : ∀ {A} {g : G A} {x} → DocU g x → DocU g x → DocU g x
-    nest  : ∀ {A} {g : G A} {x} → ℕ → DocU g x → DocU g x
-    embed : ∀ {A B} {g₁ : G A} {g₂ : G B} {x y} →
+    union : ∀ {A} {g : Grammar A} {x} → DocU g x → DocU g x → DocU g x
+    nest  : ∀ {A} {g : Grammar A} {x} → ℕ → DocU g x → DocU g x
+    embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
             (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
 
   -- A single space character.
@@ -241,12 +247,12 @@ wadler's-renderer w = record
     lemma : ∀ {x s} →
             x ∈ string (str " ") ∙ s →
             x ∈ whitespace + ∙ s
-    lemma (space >>= (return >>= return)) =
-      ∷-sem+ (∣-left space) []-sem
+    lemma (>>=-sem space (>>=-sem return-sem return-sem)) =
+      +-sem (∣-left-sem space) ⋆-[]-sem
 
   -- Utility function used by the fill machinery.
 
-  cons : ∀ {A} {g : G A} {x xs} →
+  cons : ∀ {A} {g : Grammar A} {x xs} →
          DocU g x → DocU (tt <$ whitespace +) tt →
          DocU (g sep-by whitespace +) xs →
          DocU (g sep-by whitespace +) (x ∷ xs)
@@ -258,15 +264,16 @@ wadler's-renderer w = record
                   (g sep-by whitespace +  ≫= λ xs →
                    return (x ∷ xs))) ∙ s →
             xs ∈ g sep-by whitespace + ∙ s
-    lemma (_>>=_ {s₁ = s₁} x∈ (_>>=_ {s₁ = s₂} w+ return >>=
-                               (xs∈ >>= return))) =
-      cast (++-lemma₂ s₁ s₂ _) (sep-by-sem-cons x∈ w+ xs∈)
+    lemma (>>=-sem {s₁ = s₁} x∈
+                   (>>=-sem (>>=-sem {s₁ = s₂} w+ return-sem)
+                            (>>=-sem xs∈ return-sem))) =
+      cast (++-lemma₂ s₁ s₂ _) (sep-by-sem-∷ x∈ w+ xs∈)
 
   mutual
 
     -- Replaces line constructors with single spaces, removes groups.
 
-    flatten : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+    flatten : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     flatten nil         = nil
     flatten (text s)    = text s
     flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
@@ -276,7 +283,7 @@ wadler's-renderer w = record
     flatten (embed f d) = embed f (flatten d)
     flatten (fill ds)   = flatten-fills ds
 
-    flatten-fills : ∀ {A} {g : G A} {xs} →
+    flatten-fills : ∀ {A} {g : Grammar A} {xs} →
                     Docs g xs → DocU (g sep-by whitespace +) xs
     flatten-fills [ d ]    = embed sep-by-sem-singleton (flatten d)
     flatten-fills (d ∷ ds) = cons (flatten d) space (flatten-fills ds)
@@ -285,7 +292,7 @@ wadler's-renderer w = record
 
     -- Conversion of Docs to DocUs.
 
-    expand-groups : ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+    expand-groups : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     expand-groups nil         = nil
     expand-groups (text s)    = text s
     expand-groups (d₁ · d₂)   = expand-groups d₁ · expand-groups d₂
@@ -296,7 +303,7 @@ wadler's-renderer w = record
     expand-groups (fill ds)   = expand-fills false ds
 
     expand-fills : Bool → -- Unconditionally flatten the first document?
-                   ∀ {A} {g : G A} {xs} →
+                   ∀ {A} {g : Grammar A} {xs} →
                    Docs g xs → DocU (g sep-by whitespace +) xs
     expand-fills fl [ d ] =
       embed sep-by-sem-singleton (flatten/expand fl d)
@@ -305,7 +312,7 @@ wadler's-renderer w = record
             (cons (flatten/expand fl d) line  (expand-fills false ds))
 
     flatten/expand : Bool → -- Flatten?
-                     ∀ {A} {g : G A} {x} → Doc g x → DocU g x
+                     ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     flatten/expand true  d = flatten d
     flatten/expand false d = expand-groups d
 
@@ -353,7 +360,7 @@ wadler's-renderer w = record
   -- this text, given the current indentation i and the current column
   -- number c.
 
-  best : ∀ {A} {g : G A} {x} →
+  best : ∀ {A} {g : Grammar A} {x} →
          ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
   best i nil           = id
   best i (text s)      = λ κ c → text s ∷ κ (length s + c)
@@ -366,24 +373,25 @@ wadler's-renderer w = record
 
   -- Renders a document.
 
-  render : ∀ {A} {g : G A} {x} → Doc g x → List Char
+  render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
   render d = show (best 0 (expand-groups d) (λ _ → []) 0)
 
   -- Some simple lemmas.
 
   replicate-lemma :
     ∀ i → replicate i ' ' ∈ whitespace ⋆ ∙ replicate i ' '
-  replicate-lemma zero    = []-sem
-  replicate-lemma (suc i) = ∷-sem⋆ (∣-left tok-sem) (replicate-lemma i)
+  replicate-lemma zero    = ⋆-[]-sem
+  replicate-lemma (suc i) =
+    ⋆-∷-sem (∣-left-sem tok-sem) (replicate-lemma i)
 
   nest-line-lemma :
     ∀ {A} {x : A} i →
     x ∈ x <$ whitespace + ∙ showE (nest-line i)
   nest-line-lemma i =
-    <$-sem (∷-sem+ (∣-right tok-sem) (replicate-lemma i))
+    <$-sem (+-sem (∣-right-sem tok-sem) (replicate-lemma i))
 
   if-lemma :
-    ∀ {A} {g : G A} {x l₁ l₂} s b →
+    ∀ {A} {g : Grammar A} {x l₁ l₂} s b →
     x ∈ g ∙ s ++ show l₁ →
     x ∈ g ∙ s ++ show l₂ →
     x ∈ g ∙ s ++ show (if b then l₁ else l₂)
@@ -393,10 +401,11 @@ wadler's-renderer w = record
   -- The main correctness property for best.
 
   best-lemma :
-    ∀ {A B} {g : G A} {g′ : G B} {x y c κ} s (d : DocU g x) {i} →
+    ∀ {A B} {g : Grammar A} {g′ : Grammar B} {x y c κ}
+      s (d : DocU g x) {i} →
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
-  best-lemma s nil           hyp = hyp return
+  best-lemma s nil           hyp = hyp return-sem
   best-lemma s (text s′)     hyp = hyp (string-sem s′)
   best-lemma s line {i}      hyp = hyp (nest-line-lemma i)
   best-lemma s (union d₁ d₂) hyp = if-lemma s
@@ -410,10 +419,11 @@ wadler's-renderer w = record
       cast (LM.assoc s _ _)
         (best-lemma (s ++ s′) d₂ λ x∈ →
            cast (++-lemma₁ s _ _ _)
-             (hyp (f∈ >>= x∈)))
+             (hyp (>>=-sem f∈ x∈)))
 
   -- The renderer is correct.
 
-  parsable : ∀ {A} {g : G A} {x} (d : Doc g x) → x ∈ g ∙ render d
+  parsable : ∀ {A} {g : Grammar A} {x}
+             (d : Doc g x) → x ∈ g ∙ render d
   parsable d = best-lemma [] (expand-groups d)
                           (cast (P.sym $ proj₂ LM.identity _))
