@@ -406,11 +406,11 @@ nullability-not-decidable dec f = goal
 
 nullable? : ∀ {NT A} (n : ℕ) (g : Grammar NT) (p : Prod NT A) →
             Maybe (Nullable g p)
-nullable? n g p =
-  Product.map id (unfold-from n _ ∘ replace-fail _) <$>M
-    null? (replace (λ _ → fail) (unfold n g p))
+nullable? {NT} n g p =
+  Product.map id (unfold-from n _) <$>M null? (unfold n g p)
   where
-  null? : ∀ {A} (p : Prod Empty-NT A) → Maybe (Nullable empty-grammar p)
+  null? : ∀ {A} (p : Prod NT A) → Maybe (Nullable g p)
+  null? (! nt)        = nothing
   null? fail          = nothing
   null? token         = nothing
   null? (tok t)       = nothing
@@ -423,4 +423,3 @@ nullable? n g p =
   null? (p₁ ∣ p₂)     = (Product.map id ∣-left-sem  <$>M null? p₁)
                           ∣M
                         (Product.map id ∣-right-sem <$>M null? p₂)
-  null? (! (lift ()))
