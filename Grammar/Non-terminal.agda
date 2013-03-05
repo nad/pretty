@@ -144,8 +144,8 @@ data [_]_∈_∙_ {NT : Set → Set₁} (g : Grammar NT) :
   !-sem       : ∀ {A} {nt : NT A} {x s} →
                 [ g ] x ∈ g A nt ∙ s → [ g ] x ∈ ! nt ∙ s
   return-sem  : ∀ {A} {x : A} → [ g ] x ∈ return x ∙ []
-  token-sem   : ∀ {t} → [ g ] t ∈ token ∙ t ∷ []
-  tok-sem     : ∀ {t} → [ g ] t ∈ tok t ∙ t ∷ []
+  token-sem   : ∀ {t} → [ g ] t ∈ token ∙ [ t ]
+  tok-sem     : ∀ {t} → [ g ] t ∈ tok t ∙ [ t ]
   ⊛-sem       : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ : Prod NT A}
                   {f x s₁ s₂} →
                 [ g ] f ∈ p₁ ∙ s₁ → [ g ] x ∈ p₂ ∙ s₂ →
@@ -222,7 +222,7 @@ if-true-sem {b = true}  _  = return-sem
 if-true-sem {b = false} ()
 
 sat-sem : ∀ {NT} {g : Grammar NT} {p t}
-          (pt : T (p t)) → [ g ] (t , pt) ∈ sat p ∙ t ∷ []
+          (pt : T (p t)) → [ g ] (t , pt) ∈ sat p ∙ [ t ]
 sat-sem pt = >>=-sem token-sem (<$>-sem (if-true-sem pt))
 
 whitespace-sem-space : ∀ {NT} {g : Grammar NT} →
