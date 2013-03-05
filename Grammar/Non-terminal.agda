@@ -341,13 +341,12 @@ unfold-from (suc n) (p ⋆)       (⋆-∷-sem x∈ xs∈) = ⋆-∷-sem (unfold
 Nullable : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
 Nullable g p = ∃ λ x → [ g ] x ∈ p ∙ []
 
--- Nullability is not decidable. If nullability were decidable, then
--- we could decide if a given function of type ℕ → Bool always returns
--- false.
+-- Nullability is not decidable, not even for productions without
+-- non-terminals. If nullability were decidable, then we could decide
+-- if a given function of type ℕ → Bool always returns false.
 
 nullability-not-decidable :
-  (∀ {NT A} (g : Grammar NT) (p : Prod NT A) →
-   Dec (Nullable g p)) →
+  (∀ {A} (p : Prod Empty-NT A) → Dec (Nullable empty-grammar p)) →
   (f : ℕ → Bool) → Dec (∀ n → f n ≡ false)
 nullability-not-decidable dec f = goal
   where
@@ -387,7 +386,7 @@ nullability-not-decidable dec f = goal
   yes-lemma n n∉ fn≡true = n∉ (>>=-sem (n∈₁ n) (n∈₂ n fn≡true))
 
   goal : Dec (∀ n → f n ≡ false)
-  goal with dec empty-grammar p
+  goal with dec p
   ... | yes (_ , n∈) = no (no-lemma (true-lemma n∈))
   ... | no ¬[]∈      = yes λ n → ¬-not (yes-lemma n (¬[]∈ ∘ ,_))
 
