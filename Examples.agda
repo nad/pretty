@@ -10,7 +10,6 @@ open import Data.Bool
 open import Data.Bool.Properties using (T-∧)
 open import Data.Char
 open import Data.List as List hiding ([_])
-open import Data.List.Properties using (module List-solver)
 open import Data.Nat
 open import Data.Product
 open import Data.String as String
@@ -27,33 +26,6 @@ private module LM {A : Set} = Monoid (List.monoid A)
 open import Grammar.Infinite
 open import Pretty
 open import Tests
-
-------------------------------------------------------------------------
--- Some boring lemmas
-
-private
-
-  ++-lemma₁ : {A : Set} (a b c d : List A) →
-              a ++ (b ++ c ++ d) ++ [] ≡
-              (a ++ (b ++ c) ++ []) ++ d
-  ++-lemma₁ = solve 4 (λ a b c d → a ⊕ (b ⊕ c ⊕ d) ⊕ nil ⊜
-                                   (a ⊕ (b ⊕ c) ⊕ nil) ⊕ d)
-                      refl
-    where open List-solver
-
-  ++-lemma₂ : {A : Set} (a b c d e : List A) →
-              a ++ (b ++ c ++ (d ++ e) ++ []) ++ [] ≡
-              (a ++ (b ++ c ++ d ++ []) ++ []) ++ e
-  ++-lemma₂ = solve 5 (λ a b c d e → a ⊕ (b ⊕ c ⊕ (d ⊕ e) ⊕ nil) ⊕ nil ⊜
-                                     (a ⊕ (b ⊕ c ⊕ d ⊕ nil) ⊕ nil) ⊕ e)
-                      refl
-    where open List-solver
-
-  ++-lemma₃ : {A : Set} (a b c d : List A) →
-              ((a ++ b) ++ c) ++ d ≡ a ++ b ++ c ++ d
-  ++-lemma₃ = solve 4 (λ a b c d → ((a ⊕ b) ⊕ c) ⊕ d ⊜ a ⊕ b ⊕ c ⊕ d)
-                      refl
-    where open List-solver
 
 ------------------------------------------------------------------------
 -- Utility functions
