@@ -39,7 +39,7 @@ mutual
     _·_   : ∀ {A B} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
               {x y} →
             Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
-    line  : ∀ {A} {x : A} → Doc (x <$ whitespace+) x
+    line  : Doc (tt <$ whitespace+) tt
     group : ∀ {A} {g : Grammar A} {x} → Doc g x → Doc g x
     nest  : ∀ {A} {g : Grammar A} {x} → ℕ → Doc g x → Doc g x
     embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
@@ -157,12 +157,12 @@ sat-doc = token-doc · <$>-doc if-true-doc
 
 -- A variant of line (with _⋆ instead of _+ in the grammar).
 
-line⋆ : ∀ {A} {x : A} → Doc (x <$ whitespace⋆) x
-line⋆ {x = x} = embed lemma line
+line⋆ : Doc (tt <$ whitespace⋆) tt
+line⋆ = embed lemma line
   where
   lemma : ∀ {s} →
-          x ∈ x <$ whitespace+ ∙ s →
-          x ∈ x <$ whitespace⋆ ∙ s
+          tt ∈ tt <$ whitespace+ ∙ s →
+          tt ∈ tt <$ whitespace⋆ ∙ s
   lemma (<⊛-sem return-sem w+) = <⊛-sem return-sem (⋆-+-sem w+)
 
 -- Adds a final "line" combinator to the document. (The grammar has to
@@ -330,7 +330,7 @@ wadler's-renderer w = record
     _·_   : ∀ {A B} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
               {x y} →
             DocU (♭ g₁) x → DocU (♭ (g₂ x)) y → DocU (g₁ >>= g₂) y
-    line  : ∀ {A} {x : A} → DocU (x <$ whitespace+) x
+    line  : DocU (tt <$ whitespace+) tt
     union : ∀ {A} {g : Grammar A} {x} → DocU g x → DocU g x → DocU g x
     nest  : ∀ {A} {g : Grammar A} {x} → ℕ → DocU g x → DocU g x
     embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
