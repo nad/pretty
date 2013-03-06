@@ -316,8 +316,8 @@ ugly-renderer = record
     parsable-fills (d ∷ ds) =
       sep-by-sem-∷ (parsable d) single-space-sem (parsable-fills ds)
 
--- An example renderer, closely based on the one in Wadler's "A
--- prettier printer".
+-- An example renderer, based on the one in Wadler's "A prettier
+-- printer".
 --
 -- The natural number is the line width.
 
@@ -328,7 +328,7 @@ wadler's-renderer w = record
   }
   where
 
-  -- Documents with unions instead of groups.
+  -- Documents with unions instead of groups, and no fills.
 
   infixr 20 _·_
 
