@@ -161,20 +161,13 @@ module Name-list where
   -- Lists of names. This example is based on one in Swierstra and
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
-  comma-and-name : Grammar Name
-  comma-and-name = ♯ symbol (str ",") ⊛> ♯ name-w
-
   name-list-body : Grammar (List Name)
   name-list-body = ♯ return []
-                 ∣ ♯ (♯ (_∷_ <$> ♯ name-w) ⊛ ♯ (♯ comma-and-name ⋆))
+                 ∣ ♯ (name-w sep-by symbol (str ","))
 
   name-list : Grammar (List Name)
   name-list =
     ♯ (♯ symbol (str "[") ⊛> ♯ name-list-body) <⊛ ♯ symbol (str "]")
-
-  comma-and-name-printer : Pretty-printer comma-and-name
-  comma-and-name-printer n =
-    group symbol-line-doc ⊛>-doc name-w-printer n
 
   name-list-printer : Pretty-printer name-list
   name-list-printer ns = symbol-doc ⊛>-doc body ns <⊛-doc symbol-doc
@@ -182,9 +175,13 @@ module Name-list where
     body : Pretty-printer name-list-body
     body []       = ∣-left-doc nil
     body (n ∷ ns) =
-      ∣-right-doc (<$>-doc (name-w-printer n)
-                     ⊛-doc
-                   map-doc comma-and-name-printer ns)
+      ∣-right-doc
+        (<$>-doc (name-w-printer n)
+           ⊛-doc
+         map-doc (λ n → group symbol-line-doc
+                          ⊛>-doc
+                        name-w-printer n)
+                 ns)
 
   names : List Name
   names = as ∷ bs ∷ cs ∷ ds ∷ es ∷ []
