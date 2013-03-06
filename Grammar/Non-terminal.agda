@@ -453,7 +453,7 @@ nullable? {NT} n g p =
 -- A predicate for the whitespace combinator.
 
 data Is-whitespace {NT} : ∀ {A} → Prod NT A → Set₁ where
-  is-whitespace : Is-whitespace (tok ' ' ∣ tok '\n')
+  is-whitespace : Is-whitespace whitespace
 
 -- Detects the whitespace combinator.
 
