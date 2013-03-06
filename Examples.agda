@@ -93,13 +93,8 @@ module Bit where
   bit = ♯ ([0] <$ symbol (str "0"))
       ∣ ♯ ([1] <$ symbol (str "1"))
 
-  -- The first case below is defined using primitive combinators, the
-  -- second one using derived ones.
-
   bit-printer : Pretty-printer bit
-  bit-printer [0] = embed ∣-left-sem ((text (str "0") ·
-                                       (embed ∣-left-sem nil · nil)) ·
-                                      nil)
+  bit-printer [0] = ∣-left-doc  (<$-doc symbol-doc)
   bit-printer [1] = ∣-right-doc (<$-doc symbol-doc)
 
   test₁ : render 4 (bit-printer [0]) ≡ "0"
@@ -144,7 +139,7 @@ module Name where
   Name = List Name-char
 
   name : Grammar Name
-  name = name-char ⋆
+  name = ♯ name-char ⋆
 
   name-printer : Pretty-printer name
   name-printer = map-doc name-char-printer
@@ -152,11 +147,10 @@ module Name where
   -- Names possibly followed by whitespace.
 
   name-w : Grammar Name
-  name-w = ♯ name                 >>= λ n →
-           ♯ (n <$ whitespace ⋆)
+  name-w = ♯ name <⊛ ♯ (♯ whitespace ⋆)
 
   name-w-printer : Pretty-printer name-w
-  name-w-printer n = name-printer n · []-doc · nil
+  name-w-printer n = name-printer n <⊛-doc []-doc
 
   as : Name
   as = from-string "aaa"
@@ -196,31 +190,29 @@ module Name-list where
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
   comma-and-name : Grammar Name
-  comma-and-name = ♯ symbol (str ",")  >>= λ _ →
-                   ♯ name-w
+  comma-and-name = ♯ symbol (str ",") ⊛> ♯ name-w
 
   name-list-body : Grammar (List Name)
   name-list-body = ♯ return []
-                 ∣ ♯ (♯ name-w              >>= λ n  → ♯ (
-                      ♯ (comma-and-name ⋆)  >>= λ ns →
-                      ♯ return (n ∷ ns)     ))
+                 ∣ ♯ (♯ (_∷_ <$> ♯ name-w) ⊛ ♯ (♯ comma-and-name ⋆))
 
   name-list : Grammar (List Name)
-  name-list = ♯ symbol (str "[")  >>= λ _  → ♯ (
-              ♯ name-list-body    >>= λ ns → ♯ (
-              ♯ symbol (str "]")  >>= λ _  →
-              ♯ return ns         ))
+  name-list =
+    ♯ (♯ symbol (str "[") ⊛> ♯ name-list-body) <⊛ ♯ symbol (str "]")
 
   comma-and-name-printer : Pretty-printer comma-and-name
-  comma-and-name-printer n = group symbol-line-doc · name-w-printer n
+  comma-and-name-printer n =
+    group symbol-line-doc ⊛>-doc name-w-printer n
 
   name-list-printer : Pretty-printer name-list
-  name-list-printer ns = symbol-doc · body ns · symbol-doc · nil
+  name-list-printer ns = symbol-doc ⊛>-doc body ns <⊛-doc symbol-doc
     where
     body : Pretty-printer name-list-body
     body []       = ∣-left-doc nil
-    body (n ∷ ns) = ∣-right-doc
-      (name-w-printer n · map-doc comma-and-name-printer ns · nil)
+    body (n ∷ ns) =
+      ∣-right-doc (<$>-doc (name-w-printer n)
+                     ⊛-doc
+                   map-doc comma-and-name-printer ns)
 
   names : List Name
   names = as ∷ bs ∷ cs ∷ ds ∷ es ∷ []
@@ -250,31 +242,25 @@ module Tree where
   mutual
 
     tree : Grammar Tree
-    tree = ♯ name-w              >>= λ n  → ♯ (
-           ♯ brackets            >>= λ ts →
-           ♯ return (node n ts)  )
+    tree = ♯ (node <$> ♯ name-w) ⊛ ♯ brackets
 
     brackets : Grammar (List Tree)
-    brackets = ♯ return []
-             ∣ ♯ (♯ symbol (str "[")  >>= λ _  → ♯ (
-                  ♯ trees             >>= λ ts → ♯ (
-                  ♯ symbol (str "]")  >>= λ _  →
-                  ♯ return ts         )))
+    brackets =
+        ♯ return []
+      ∣ ♯ (♯ (♯ symbol (str "[") ⊛> ♯ trees) <⊛ ♯ symbol (str "]"))
 
     trees : Grammar (List Tree)
-    trees = ♯ tree              >>= λ t  → ♯ (
-            ♯ commas-and-trees  >>= λ ts →
-            ♯ return (t ∷ ts)   )
+    trees = ♯ (_∷_ <$> ♯ tree) ⊛ ♯ commas-and-trees
 
     commas-and-trees : Grammar (List Tree)
-    commas-and-trees = ♯ return []
-                     ∣ ♯ (♯ symbol (str ",") >>= λ _ →
-                          ♯ trees)
+    commas-and-trees = ♯ (♯ symbol (str ",") ⊛> ♯ tree) ⋆
 
   -- Wadler presents two pretty-printers for trees in his final code
-  -- listing (§11.7). I've included corresponding implementations
-  -- here. (One of Wadler's implementations is buggy: recursive calls
-  -- to showTree/showTrees should most likely have referred to
+  -- listing (§11.7). I've included corresponding, but not quite
+  -- identical, implementations here.
+  --
+  -- (One of Wadler's implementations is buggy: recursive calls to
+  -- showTree/showTrees should most likely have referred to
   -- showTree'/showTrees'. The code below is intended to match a
   -- corrected version of Wadler's.)
 
@@ -283,151 +269,68 @@ module Tree where
     mutual
 
       tree-printer : Pretty-printer tree
-      tree-printer (node s ts) = group
-        (name-w-printer s · nest (length s) (brackets-printer ts) · nil)
+      tree-printer (node s ts) =
+        group
+          (<$>-doc (name-w-printer s)
+             ⊛-doc
+           nest (length s) (brackets-printer ts))
 
       brackets-printer : Pretty-printer brackets
       brackets-printer []       = ∣-left-doc nil
-      brackets-printer (t ∷ ts) = ∣-right-doc
-        (symbol-doc · nest 1 (trees-printer t ts) · symbol-doc · nil)
+      brackets-printer (t ∷ ts) =
+        ∣-right-doc
+          (symbol-doc
+             ⊛>-doc
+           nest 1 (trees-printer t ts)
+             <⊛-doc
+           symbol-doc)
 
       trees-printer : ∀ t ts → Doc trees (t ∷ ts)
       trees-printer t ts =
-        tree-printer t · commas-and-trees-printer ts · nil
+        <$>-doc (tree-printer t) ⊛-doc commas-and-trees-printer ts
 
       commas-and-trees-printer : Pretty-printer commas-and-trees
-      commas-and-trees-printer []       = ∣-left-doc nil
+      commas-and-trees-printer []       = []-doc
       commas-and-trees-printer (t ∷ ts) =
-        ∣-right-doc (symbol-line-doc · trees-printer t ts)
+        (symbol-line-doc ⊛>-doc tree-printer t)
+          ⋆-∷-doc
+        commas-and-trees-printer ts
 
   module Printer₂ where
-
-    -- A bunch of lemmas that show that one can append whitespace to
-    -- various strings without changing their meanings (with respect
-    -- to given grammars, and assuming that these grammars are
-    -- unambiguous).
-
-    whitespace⋆-lemma :
-      ∀ {x y s₁ s₂} →
-      x ∈ whitespace ⋆ ∙ s₁ → y ∈ whitespace + ∙ s₂ →
-      x ++ y ∈ whitespace ⋆ ∙ s₁ ++ s₂
-    whitespace⋆-lemma (∣-left-sem return-sem) w+ = ∣-right-sem w+
-    whitespace⋆-lemma (∣-right-sem
-                         (>>=-sem {s₁ = s} w
-                           (>>=-sem {s₁ = s′} w⋆ return-sem))) w+ =
-      cast (++-lemma₁ s [] s′ _)
-           (∣-right-sem (>>=-sem w (>>=-sem (whitespace⋆-lemma w⋆ w+)
-                                            return-sem)))
-
-    name-w-lemma : ∀ {n x s₁ s₂} →
-                   n ∈ name-w ∙ s₁ → x ∈ whitespace + ∙ s₂ →
-                   n ∈ name-w ∙ s₁ ++ s₂
-    name-w-lemma (>>=-sem {s₁ = s} n∈
-                          (>>=-sem {s₁ = s′} w⋆ return-sem)) w+ =
-      cast (++-lemma₁ s [] s′ _)
-           (>>=-sem n∈ (>>=-sem (whitespace⋆-lemma w⋆ w+) return-sem))
-
-    symbol-lemma : ∀ {s s′ s₁ s₂ x} →
-                   s ∈ symbol s′ ∙ s₁ → x ∈ whitespace + ∙ s₂ →
-                   s ∈ symbol s′ ∙ s₁ ++ s₂
-    symbol-lemma (>>=-sem {s₁ = s} sym
-                          (>>=-sem {s₁ = s′} w⋆ return-sem)) w+ =
-      cast (++-lemma₁ s [] s′ _)
-           (>>=-sem sym (>>=-sem (whitespace⋆-lemma w⋆ w+) return-sem))
-
-    tree-lemma : ∀ {t x s₁ s₂} →
-                 t ∈ tree ∙ s₁ → x ∈ whitespace + ∙ s₂ →
-                 t ∈ tree ∙ s₁ ++ s₂
-    tree-lemma (>>=-sem {s₁ = s} name
-                        (>>=-sem (∣-left-sem return-sem) return-sem))
-               w+ =
-      cast (++-lemma₁ [] [] s _)
-           (>>=-sem (name-w-lemma name w+)
-                    (>>=-sem (∣-left-sem return-sem) return-sem))
-    tree-lemma (>>=-sem {s₁ = s} name
-                  (>>=-sem (∣-right-sem
-                              (>>=-sem {s₁ = s′} left
-                                 (>>=-sem {s₁ = s″} ts∈
-                                    (>>=-sem {s₁ = s‴} right
-                                       return-sem))))
-                     return-sem)) w+ =
-      cast (++-lemma₂ s s′ s″ s‴ _)
-           (>>=-sem name
-              (>>=-sem (∣-right-sem
-                          (>>=-sem left
-                             (>>=-sem ts∈
-                                (>>=-sem (symbol-lemma right w+)
-                                   return-sem))))
-                 return-sem))
-
-    trees-lemma : ∀ {ts x s₁ s₂} →
-                  ts ∈ trees ∙ s₁ → x ∈ whitespace + ∙ s₂ →
-                  ts ∈ trees ∙ s₁ ++ s₂
-    trees-lemma (>>=-sem {s₁ = s} t∈
-                         (>>=-sem (∣-left-sem return-sem) return-sem))
-                w+ =
-      cast (++-lemma₁ [] [] s _)
-           (>>=-sem (tree-lemma t∈ w+)
-                    (>>=-sem (∣-left-sem return-sem) return-sem))
-    trees-lemma (>>=-sem {s₁ = s} t∈
-                   (>>=-sem (∣-right-sem (>>=-sem {s₁ = s′} comma ts∈))
-                      return-sem)) w+ =
-      cast (++-lemma₁ s s′ _ _)
-           (>>=-sem t∈
-               (>>=-sem (∣-right-sem
-                           (>>=-sem comma (trees-lemma ts∈ w+)))
-                  return-sem))
-
-    trees′ : Grammar (List Tree)
-    trees′ = ♯ trees                 >>= λ ts →
-             ♯ (ts <$ whitespace +)
-
-    trees′-lemma : ∀ {ts s} → ts ∈ trees′ ∙ s → ts ∈ trees ∙ s
-    trees′-lemma (>>=-sem {s₁ = s₁} ts∈ (>>=-sem w+ return-sem)) =
-      cast (P.cong (_++_ s₁) $ P.sym $ proj₂ LM.identity _)
-           (trees-lemma ts∈ w+)
 
     mutual
 
       tree-printer : Pretty-printer tree
       tree-printer (node s ts) =
-        name-w-printer s · brackets-printer ts · nil
+        <$>-doc (name-w-printer s) ⊛-doc brackets-printer ts
 
       -- Note that this printer is not defined in exactly the same way
       -- as Wadler's: Wadler used "nest 2" once, here it is used
       -- twice. Why? His one nest spanned over two parts of the
-      -- grammar (the opening bracket and the rest, respectively), but
-      -- not all of the second part (not the closing bracket).
-      --
-      -- This issue could probably have been addressed by defining the
-      -- grammar in a different way.
-      --
-      -- This issue also leads me to a question: how expressive is
-      -- this pretty-printing framework?
-
-      -- Another observation is that proving trees′-lemma is quite
-      -- cumbersome. Could this have been avoided? A simple solution
-      -- would have been to add some extra whitespace to the grammar,
-      -- at the cost of making the grammar ambiguous. However, I want
-      -- to avoid ambiguity. Perhaps there is a better solution.
+      -- grammar (the opening bracket and the trees, respectively),
+      -- but not all of the second part (not the "line" combinator).
 
       brackets-printer : Pretty-printer brackets
       brackets-printer []       = ∣-left-doc nil
       brackets-printer (t ∷ ts) =
         group
           (∣-right-doc
-            (nest 2 symbol-line-doc ·
-             embed trees′-lemma (nest 2 (trees-printer t ts) · line) ·
-             symbol-doc · nil))
+            ((nest 2 symbol-line-doc
+                ⊛>-doc
+              final-line 6 (nest 2 (trees-printer t ts)))
+               <⊛-doc
+             symbol-doc))
 
       trees-printer : ∀ t ts → Doc trees (t ∷ ts)
       trees-printer t ts =
-        tree-printer t · commas-and-trees-printer ts · nil
+        <$>-doc (tree-printer t) ⊛-doc commas-and-trees-printer ts
 
       commas-and-trees-printer : Pretty-printer commas-and-trees
-      commas-and-trees-printer []       = ∣-left-doc nil
+      commas-and-trees-printer []       = []-doc
       commas-and-trees-printer (t ∷ ts) =
-        ∣-right-doc (symbol-line-doc · trees-printer t ts)
+        (symbol-line-doc ⊛>-doc tree-printer t)
+          ⋆-∷-doc
+        commas-and-trees-printer ts
 
   t : Tree
   t = node as
@@ -478,7 +381,7 @@ module XML where
   Text = List (∃ λ (t : Char) → T (is-text-char t))
 
   text-g : Grammar Text
-  text-g = sat _ ⋆
+  text-g = ♯ sat _ ⋆
 
   text-printer : Pretty-printer text-g
   text-printer = map-doc (λ _ → sat-doc)
@@ -497,130 +400,110 @@ module XML where
 
   mutual
 
+    -- Below I use string followed by "w-xmls" (whitespace, then
+    -- xmls)—rather than symbol followed by xmls—in order to make
+    -- pretty-printing easier.
+
     xml : Grammar XML
-    xml = ♯ (♯ start-of-element                  >>= λ { (t , atts) → ♯
-               ( ♯ (♯ symbol (str "/>")          >>= λ _            →
-                    ♯ return (elt t atts [])     )
-               ∣ ♯ (♯ string (str ">")           >>= λ _            → ♯ (
-                    ♯ w-xmls                     >>= λ xs           → ♯ (
-                    ♯ symbol (str "</")          >>= λ _            → ♯ (
-                    ♯ symbol (List.map proj₁ t)  >>= λ _            → ♯ (
-                    ♯ symbol (str ">")           >>= λ _            →
-                    ♯ return (elt t atts xs)     )))))
-               )})
-        ∣ ♯ (♯ text-g                            >>= λ t            →
-             ♯ return (txt t)                    )
+    xml = ♯ (♯ (♯ start-of-element >>= λ { (t , atts) →
+                ♯ (elt t atts <$> ♯ (
+                       ♯ ([] <$ string (str "/"))
+                     ∣ ♯ (♯ (♯ (♯ string (str ">")
+                             ⊛> ♯ w-xmls)
+                            <⊛  ♯ symbol (str "</"))
+                            <⊛  ♯ symbol (List.map proj₁ t))))}) <⊛
+             ♯ symbol (str ">"))
+        ∣ ♯ (♯ (txt <$> ♯ text-g) <⊛ ♯ whitespace⋆)
 
     start-of-element : Grammar (Name × List Att)
     start-of-element =
-      ♯ symbol (str "<")   >>= λ _    → ♯ (
-      ♯ name               >>= λ t    → ♯ (
-      ♯ w-attrs            >>= λ atts →
-      ♯ return (t , atts)  ))
+      ♯ (♯ (_,_ <$ symbol (str "<")) ⊛ ♯ name) ⊛ ♯ w-attrs
+
+    -- The following definition uses "tt <$" in order to make
+    -- pretty-printing easier.
 
     w-xmls : Grammar (List XML)
-    w-xmls = ♯ (whitespace ⋆)  >>= λ _ →
-             ♯ xmls
+    w-xmls = ♯ (tt <$ whitespace⋆) ⊛> ♯ xmls
 
     xmls : Grammar (List XML)
-    xmls = ♯ return []
-         ∣ ♯ (♯ xml              >>= λ x  → ♯ (
-              ♯ xmls             >>= λ xs →
-              ♯ return (x ∷ xs)  ))
+    xmls = ♯ xml ⋆
 
     tag : Grammar Name
     tag = name-w
 
+    -- The following definition uses "tt <$" in order to make
+    -- pretty-printing easier.
+
     w-attrs : Grammar (List Att)
-    w-attrs = ♯ (whitespace ⋆)  >>= λ _ →
-              ♯ attrs
+    w-attrs = ♯ (tt <$ whitespace⋆) ⊛> ♯ attrs
 
     attrs : Grammar (List Att)
-    attrs = ♯ return []
-          ∣ ♯ (♯ attr             >>= λ a  → ♯ (
-               ♯ attrs            >>= λ as →
-               ♯ return (a ∷ as)  ))
+    attrs = ♯ attr ⋆
 
     attr : Grammar Att
-    attr = ♯ name-w             >>= λ n → ♯ (
-           ♯ symbol (str "=")   >>= λ _ → ♯ (
-           ♯ string (str "\"")  >>= λ _ → ♯ (
-           ♯ name               >>= λ v → ♯ (
-           ♯ symbol (str "\"")  >>= λ _ →
-           ♯ return (att n v)   ))))
+    attr = ♯ (♯ (♯ (♯ (att <$> ♯ name-w)
+                           <⊛  ♯ symbol (str "="))
+                           <⊛  ♯ string (str "\""))
+                            ⊛  ♯ name)
+                           <⊛  ♯ symbol (str "\"")
 
   mutual
 
     xml-printer : Pretty-printer xml
     xml-printer (elt t atts []) =
-      ∣-left-doc (start-of-element-printer (t , atts) ·
-                  ∣-left-doc (symbol-doc · nil))
+      ∣-left-doc ((start-of-element-printer (t , atts)
+                     ·
+                   <$>-doc (∣-left-doc (<$-doc (text _))))
+                    <⊛-doc
+                  symbol-doc)
     xml-printer (elt t atts xs) =
-      ∣-left-doc (start-of-element-printer (t , atts) ·
-                  ∣-right-doc (text _ ·
-                               xmls-printer xs ·
-                               symbol-doc ·
-                               symbol-doc ·
-                               symbol-doc ·
-                               nil))
+      ∣-left-doc ((start-of-element-printer (t , atts)
+                     ·
+                   <$>-doc (∣-right-doc (text _            ⊛>-doc
+                                         w-xmls-printer xs <⊛-doc
+                                         symbol-doc        <⊛-doc
+                                         symbol-doc        )))
+                    <⊛-doc
+                  symbol-doc)
     xml-printer (txt t) =
       -- Wadler pretty-prints text items in a different way. (The
       -- grammar that I use does not allow me to remove/modify
       -- whitespace like Wadler does.)
-      ∣-right-doc (text-printer t · nil)
+      ∣-right-doc (<$>-doc (text-printer t) <⊛-doc []-doc)
 
     start-of-element-printer : Pretty-printer start-of-element
     start-of-element-printer (t , atts) =
-      symbol-doc · name-printer t · attrs-printer atts · nil
+      <$-doc symbol-doc ⊛-doc name-printer t ⊛-doc w-attrs-printer atts
 
-    attrs-printer : Pretty-printer w-attrs
-    attrs-printer []       = []-doc · ∣-left-doc nil
-    attrs-printer (a ∷ as) =
-      group (embed lemma
-        (nest 2 line · nest 2 (fill (to-docs a as)) · line))
-      where
-      to-docs : ∀ a as → Docs attr (a ∷ as)
-      to-docs a []        = [ attr-printer a ]
-      to-docs a (a′ ∷ as) = attr-printer a ∷ to-docs a′ as
-
-      -- TODO: Do something about this boring lemma.
-
-      postulate
-        lemma : ∀ {s} →
-                a ∷ as ∈ (tt <$ whitespace +         >>
-                          (attr sep-by whitespace +  ≫= λ ys →
-                           ys <$ whitespace +)) ∙ s →
-                a ∷ as ∈ w-attrs ∙ s
-        -- lemma (w+₁ >>= return >>= (as >>= (w+₂ >>= return))) = {!!}
+    w-attrs-printer : Pretty-printer w-attrs
+    w-attrs-printer []       = <$-doc []-doc ⊛>-doc []-doc
+    w-attrs-printer (a ∷ as) =
+      group
+        (nest 2 line⋆
+           ⊛>-doc
+         embed ⋆-+-sem
+           (final-line 4 (nest 2 (map+-fill-doc 2 attr-printer a as))))
 
     attr-printer : Pretty-printer attr
     attr-printer (att n v) =
-      name-w-printer n ·
-      symbol-doc ·
-      text _ ·
-      name-printer v ·
-      symbol-doc ·
-      nil
+      <$>-doc (name-w-printer n) <⊛-doc
+              symbol-doc         <⊛-doc
+              text _              ⊛-doc
+              name-printer v     <⊛-doc
+              symbol-doc
 
-    xmls-printer : Pretty-printer w-xmls
-    xmls-printer []       = []-doc · ∣-left-doc nil
-    xmls-printer (x ∷ xs) =
-      group (embed lemma
-        (nest 2 line · nest 2 (fill (to-docs x xs)) · line))
+    w-xmls-printer : Pretty-printer w-xmls
+    w-xmls-printer []       = <$-doc []-doc ⊛>-doc []-doc
+    w-xmls-printer (x ∷ xs) =
+      group
+        (nest 2 line⋆
+           ⊛>-doc
+         embed ⋆-+-sem
+           (final-line 5 (nest 2 (fill-+-doc 3 (to-docs x xs)))))
       where
       to-docs : ∀ x xs → Docs xml (x ∷ xs)
       to-docs x []        = [ xml-printer x ]
       to-docs x (x′ ∷ xs) = xml-printer x ∷ to-docs x′ xs
-
-      -- TODO: Do something about this boring lemma.
-
-      postulate
-        lemma : ∀ {s} →
-                x ∷ xs ∈ (tt <$ whitespace +        >>
-                          (xml sep-by whitespace +  ≫= λ ys →
-                           ys <$ whitespace +)) ∙ s →
-                x ∷ xs ∈ w-xmls ∙ s
-        -- lemma (w+₁ >>= return >>= (xs >>= (w+₂ >>= return))) = {!!}
 
   example : XML
   example = elt (from-string "p")
