@@ -192,6 +192,31 @@ symbol-doc = text _ <⊛-doc []-doc
 symbol-line-doc : ∀ {s} → Doc (symbol s) s
 symbol-line-doc = final-line 1 symbol-doc
 
+-- A combinator for bracketed output, based on one in Wadler's "A
+-- prettier printer".
+
+bracket : ∀ {A g₁ g₂ g₃ g₁₂ s₁ s₂} {x : A} (n : ℕ) →
+          ♭ g₁  ≡ symbol s₁ →
+          ♭ g₁₂ ≡ g₁ ⊛> g₂ →
+          ♭ g₃  ≡ symbol s₂ →
+          {final : IsJust (final-whitespace? n (♭ g₂))} →
+          Doc (♭ g₂) x → Doc (g₁₂ <⊛ g₃) x
+bracket {g₂ = g₂} {g₃} {g₁₂} {s₁} {s₂} n eq₁ eq₂ eq₃ {final} d =
+  group
+    (embed lemma₁
+       (nest 2 symbol-line-doc
+          ⊛>-doc
+        final-line n {final = final} (nest 2 d))
+       <⊛-doc
+     embed lemma₂ symbol-doc)
+  where
+  lemma₁ : ∀ {x s} → x ∈ symbol s₁ ⊛>′ ♭ g₂ ∙ s → x ∈ ♭ g₁₂ ∙ s
+  lemma₁ (⊛>-sem s₁∈ x∈) rewrite eq₂ =
+    ⊛>-sem (cast (P.sym eq₁) refl s₁∈) x∈
+
+  lemma₂ : ∀ {x s} → x ∈ symbol s₂ ∙ s → x ∈ ♭ g₃ ∙ s
+  lemma₂ s₂∈ rewrite eq₃ = s₂∈
+
 -- Converts a pretty-printer for elements into a pretty-printer for
 -- lists.
 

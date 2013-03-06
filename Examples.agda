@@ -282,13 +282,7 @@ module Tree where
       brackets-printer : Pretty-printer brackets
       brackets-printer []       = ∣-left-doc nil
       brackets-printer (t ∷ ts) =
-        group
-          (∣-right-doc
-            ((nest 2 symbol-line-doc
-                ⊛>-doc
-              final-line 6 (nest 2 (trees-printer t ts)))
-               <⊛-doc
-             symbol-doc))
+        ∣-right-doc (bracket 6 refl refl refl (trees-printer t ts))
 
       trees-printer : ∀ t ts → Doc trees (t ∷ ts)
       trees-printer t ts =
