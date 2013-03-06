@@ -359,25 +359,16 @@ final-whitespace′? = final?
                                                        x∈′)))
                               (coerce xs∈)
 
-  final? : ℕ → ∀ {A} (g : Grammar A) →
-           Maybe (Final-whitespace′ g)
-
-  final? (suc n) fail = just (λ ())
-
-  final? (suc n) (f <$> g) = <$>-lemma <$>M final? n (♭ g)
-
-  final? (suc n) (g₁ ⊛ g₂) = ⊛-lemma <$>M final? n (♭ g₂)
-
-  final? (suc n) (g₁ <⊛ g₂) = <⊛-lemma <$>M final? n (♭ g₂)
-
-  final? (suc n) (g₁ ⊛> g₂) = ⊛>-lemma <$>M final? n (♭ g₂)
-
-  final? (suc n) (g₁ ∣ g₂) = ∣-lemma <$>M final? n (♭ g₁)
-                                       ⊛M final? n (♭ g₂)
-
-  final? (suc n) (g ⋆) = whitespace⋆-lemma <$>M is-whitespace? (♭ g)
-
-  final? _ _ = nothing
+  final? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Final-whitespace′ g)
+  final? (suc n) fail       = just (λ ())
+  final? (suc n) (f <$> g)  = <$>-lemma <$>M final? n (♭ g)
+  final? (suc n) (g₁ ⊛ g₂)  = ⊛-lemma   <$>M final? n (♭ g₂)
+  final? (suc n) (g₁ <⊛ g₂) = <⊛-lemma  <$>M final? n (♭ g₂)
+  final? (suc n) (g₁ ⊛> g₂) = ⊛>-lemma  <$>M final? n (♭ g₂)
+  final? (suc n) (g₁ ∣ g₂)  = ∣-lemma   <$>M final? n (♭ g₁)
+                                          ⊛M final? n (♭ g₂)
+  final? (suc n) (g ⋆)      = whitespace⋆-lemma <$>M is-whitespace? (♭ g)
+  final? _       _          = nothing
 
 -- A heuristic (and rather incomplete) procedure that either proves
 -- that a production can swallow final whitespace, or returns "don't
@@ -501,8 +492,7 @@ final-whitespace? = final?
   ∣-lemma f₁ f₂ (∣-left-sem  x∈) w = ∣-left-sem  (f₁ x∈ w)
   ∣-lemma f₁ f₂ (∣-right-sem x∈) w = ∣-right-sem (f₂ x∈ w)
 
-  final? : ℕ → ∀ {A} (g : Grammar A) →
-           Maybe (Final-whitespace g)
+  final? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Final-whitespace g)
 
   final? (suc n) fail = just (λ ())
 
