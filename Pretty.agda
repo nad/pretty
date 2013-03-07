@@ -185,17 +185,21 @@ line⋆ = embed lemma line
           tt ∈ tt <$ whitespace⋆ ∙ s
   lemma (<⊛-sem return-sem w+) = <⊛-sem return-sem (⋆-+-sem w+)
 
--- Adds a final "line" combinator to the document, nested i steps.
--- (The grammar has to satisfy a certain predicate.)
+-- Combinators that add a final "line" to the document, nested i
+-- steps. (The grammars have to satisfy certain predicates.)
+
+final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
+              Final-whitespace g → Doc g x → Doc g x
+final-line′ {g = g} i final d = embed lemma (d <⊛-doc nest i line⋆)
+  where
+  lemma : ∀ {x s} → x ∈ g <⊛′ tt <$ whitespace⋆ ∙ s → x ∈ g ∙ s
+  lemma (<⊛-sem x∈ (<⊛-sem return-sem white)) = final x∈ white
 
 final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
              {final : IsJust (final-whitespace? n g)} →
              Doc g x → Doc g x
-final-line {g = g} i n {final} d = embed lemma (d <⊛-doc nest i line⋆)
-  where
-  lemma : ∀ {x s} → x ∈ g <⊛′ tt <$ whitespace⋆ ∙ s → x ∈ g ∙ s
-  lemma (<⊛-sem x∈ (<⊛-sem return-sem white)) =
-    toWitness (final-whitespace? n g) final x∈ white
+final-line i n {final} d =
+  final-line′ i (toWitness (final-whitespace? n _) final) d
 
 -- A document for the given symbol (and no following whitespace).
 
