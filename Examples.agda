@@ -432,13 +432,13 @@ module XML where
     xml-printer (elt t atts []) =
       ∣-left-doc ((start-of-element-printer (t , atts)
                      ·
-                   <$>-doc (∣-left-doc (<$-doc (text _))))
+                   <$>-doc (∣-left-doc (<$-doc text)))
                     <⊛-doc
                   symbol-doc)
     xml-printer (elt t atts xs) =
       ∣-left-doc ((start-of-element-printer (t , atts)
                      ·
-                   <$>-doc (∣-right-doc (text _            ⊛>-doc
+                   <$>-doc (∣-right-doc (text              ⊛>-doc
                                          w-xmls-printer xs <⊛-doc
                                          symbol-doc        <⊛-doc
                                          symbol-doc        )))
@@ -468,7 +468,7 @@ module XML where
     attr-printer (att n v) =
       <$>-doc (name-w-printer n) <⊛-doc
               symbol-doc         <⊛-doc
-              text _              ⊛-doc
+              text                ⊛-doc
               name-printer v     <⊛-doc
               symbol-doc
 

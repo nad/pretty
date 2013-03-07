@@ -41,7 +41,7 @@ mutual
 
   data Doc : ∀ {A} → Grammar A → A → Set₁ where
     nil   : ∀ {A} {x : A} → Doc (return x) x
-    text  : ∀ s → Doc (string s) s
+    text  : ∀ {s} → Doc (string s) s
     _·_   : ∀ {A B} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
               {x y} →
             Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
@@ -71,7 +71,7 @@ Pretty-printer g = ∀ x → Doc g x
 -- A document for the given character.
 
 token-doc : ∀ {t} → Doc token t
-token-doc {t} = embed lemma (text (t ∷ []))
+token-doc {t} = embed lemma text
   where
   lemma′ : ∀ {x s} → x ∈ string (t ∷ []) ∙ s → x ≡ t ∷ [] →
            t ∈ token ∙ s
@@ -190,7 +190,7 @@ final-line {g = g} n {final} d = embed lemma (d <⊛-doc line⋆)
 -- A document for the given symbol (and no following whitespace).
 
 symbol-doc : ∀ {s} → Doc (symbol s) s
-symbol-doc = text _ <⊛-doc []-doc
+symbol-doc = text <⊛-doc []-doc
 
 -- A document for the given symbol plus a "line".
 
@@ -317,14 +317,14 @@ ugly-renderer = record
   mutual
 
     render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
-    render nil         = []
-    render (text s)    = s
-    render (d₁ · d₂)   = render d₁ ++ render d₂
-    render line        = str " "
-    render (group d)   = render d
-    render (nest _ d)  = render d
-    render (embed _ d) = render d
-    render (fill ds)   = render-fills ds
+    render nil            = []
+    render (text {s = s}) = s
+    render (d₁ · d₂)      = render d₁ ++ render d₂
+    render line           = str " "
+    render (group d)      = render d
+    render (nest _ d)     = render d
+    render (embed _ d)    = render d
+    render (fill ds)      = render-fills ds
 
     render-fills : ∀ {A} {g : Grammar A} {x} → Docs g x → List Char
     render-fills [ d ]    = render d
@@ -335,7 +335,7 @@ ugly-renderer = record
     parsable : ∀ {A x} {g : Grammar A}
                (d : Doc g x) → x ∈ g ∙ render d
     parsable nil         = return-sem
-    parsable (text _)    = string-sem
+    parsable text        = string-sem
     parsable (d₁ · d₂)   = >>=-sem (parsable d₁) (parsable d₂)
     parsable line        = <$-sem single-space-sem
     parsable (group d)   = parsable d
@@ -367,7 +367,7 @@ wadler's-renderer w = record
 
   data DocU : ∀ {A} → Grammar A → A → Set₁ where
     nil   : ∀ {A} {x : A} → DocU (return x) x
-    text  : ∀ s → DocU (string s) s
+    text  : ∀ {s} → DocU (string s) s
     _·_   : ∀ {A B} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
               {x y} →
             DocU (♭ g₁) x → DocU (♭ (g₂ x)) y → DocU (g₁ >>= g₂) y
@@ -430,7 +430,7 @@ wadler's-renderer w = record
   -- A single space character.
 
   space : DocU (tt <$ whitespace+) tt
-  space = embed lemma (<$-docU (text (str " ")))
+  space = embed lemma (<$-docU text)
     where
     lemma : ∀ {s} →
             tt ∈ tt <$ string (str " ") ∙ s →
@@ -444,7 +444,7 @@ wadler's-renderer w = record
 
     flatten : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     flatten nil         = nil
-    flatten (text s)    = text s
+    flatten text        = text
     flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
     flatten line        = space
     flatten (group d)   = flatten d
@@ -463,7 +463,7 @@ wadler's-renderer w = record
 
     expand-groups : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     expand-groups nil         = nil
-    expand-groups (text s)    = text s
+    expand-groups text        = text
     expand-groups (d₁ · d₂)   = expand-groups d₁ · expand-groups d₂
     expand-groups line        = line
     expand-groups (group d)   = union (flatten d) (expand-groups d)
@@ -531,14 +531,14 @@ wadler's-renderer w = record
 
   best : ∀ {A} {g : Grammar A} {x} →
          ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
-  best i nil           = id
-  best i (text s)      = λ κ c → text s ∷ κ (length s + c)
-  best i (d₁ · d₂)     = best i d₁ ∘ best i d₂
-  best i line          = λ κ _ → nest-line i ∷ κ i
-  best i (union d₁ d₂) = λ κ c → better c (best i d₁ κ c)
-                                          (best i d₂ κ c)
-  best i (nest j d)    = best (j + i) d
-  best i (embed _ d)   = best i d
+  best i nil            = id
+  best i (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
+  best i (d₁ · d₂)      = best i d₁ ∘ best i d₂
+  best i line           = λ κ _ → nest-line i ∷ κ i
+  best i (union d₁ d₂)  = λ κ c → better c (best i d₁ κ c)
+                                           (best i d₂ κ c)
+  best i (nest j d)     = best (j + i) d
+  best i (embed _ d)    = best i d
 
   -- Renders a document.
 
@@ -575,7 +575,7 @@ wadler's-renderer w = record
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
   best-lemma s nil           hyp = hyp return-sem
-  best-lemma s (text _)      hyp = hyp string-sem
+  best-lemma s text          hyp = hyp string-sem
   best-lemma s line {i}      hyp = hyp (nest-line-lemma i)
   best-lemma s (union d₁ d₂) hyp = if-lemma s
                                      (fits′ w _ (best _ d₁ _ _))
