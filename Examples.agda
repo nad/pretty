@@ -523,35 +523,42 @@ module Expression₁ where
     one : E
     sub : E → E → E
 
-  -- Note the use of "tt <$".
+  mutual
 
-  expr : Grammar E
-  expr = ♯ (♯ (one <$ string′ "1")
-       ∣ ♯ (♯ (sub <$> ♯ expr)
-                   ⊛ ♯ (♯ (♯ (
-                      ♯ (tt <$ whitespace⋆)
-                   ⊛> ♯ string′ "-")
-                   ⊛> ♯ whitespace⋆)
-                   ⊛> ♯ expr)))
-       ∣ ♯ (♯ (♯ (♯ (♯ string′ "("
-                  ⊛> ♯ whitespace⋆)
-                  ⊛> ♯ expr)
-                  <⊛ ♯ whitespace⋆)
-                  <⊛ ♯ string′ ")")
+    -- Note the use of "tt <$".
+
+    expr : Grammar E
+    expr = ♯ atom
+         ∣ ♯ (♯ (sub <$> ♯ expr)
+                     ⊛ ♯ (♯ (♯ (
+                        ♯ (tt <$ whitespace⋆)
+                     ⊛> ♯ string′ "-")
+                     ⊛> ♯ whitespace⋆)
+                     ⊛> ♯ atom))
+
+    atom : Grammar E
+    atom = ♯ (one <$ string′ "1")
+         ∣ ♯ (♯ (♯ (♯ (♯ string′ "("
+                    ⊛> ♯ whitespace⋆)
+                    ⊛> ♯ expr)
+                    <⊛ ♯ whitespace⋆)
+                    <⊛ ♯ string′ ")")
+
+  one-doc : Doc atom one
+  one-doc = ∣-left-doc (<$-doc text)
 
   mutual
 
     ppr : Pretty-printer expr
-    ppr one         = ∣-left-doc (∣-left-doc (<$-doc text))
+    ppr one         = ∣-left-doc one-doc
     ppr (sub e₁ e₂) =
-      ∣-left-doc
-        (∣-right-doc
-           (group (<$>-doc (ppr e₁) ⊛-doc
-                   nest 2 (line⋆ ⊛>-doc text ⊛>-doc space-doc
-                                 ⊛>-doc pprP e₂))))
+       ∣-right-doc
+         (group (<$>-doc (ppr e₁) ⊛-doc
+                 nest 2 (line⋆ ⊛>-doc text ⊛>-doc space-doc
+                               ⊛>-doc pprP e₂)))
 
-    pprP : Pretty-printer expr
-    pprP one = ppr one
+    pprP : Pretty-printer atom
+    pprP one = one-doc
     pprP e   =
       ∣-right-doc
         (text ⊛>-doc []-doc ⊛>-doc ppr e <⊛-doc []-doc <⊛-doc text)
@@ -569,53 +576,36 @@ module Expression₁ where
   test₃ = refl
 
 -- Expression.expr does not accept final whitespace. The grammar below
--- does. Unfortunately final-whitespace? doesn't succeed for expr.
--- However, one could probably make final-whitespace? succeed by
--- representing grammars in a different way.
+-- does.
 
 module Expression₂ where
 
   open Expression₁ using (E; one; sub; example)
 
-  right-paren : ∞ (Grammar (List Char))
-  right-paren = ♯ symbol′ ")"
+  mutual
 
-  expr : Grammar E
-  expr = ♯ (♯ (one <$ symbol′ "1")
-       ∣ ♯ (♯ (sub <$> ♯ expr) ⊛ ♯ (♯ symbol′ "-" ⊛> ♯ expr)))
-       ∣ ♯ (♯ (♯ symbol′ "(" ⊛> ♯ expr) <⊛ right-paren)
+    expr : Grammar E
+    expr = ♯ atom
+         ∣ ♯ (♯ (sub <$> ♯ expr) ⊛ ♯ (♯ symbol′ "-" ⊛> ♯ atom))
 
-  -- A lemma that could have been avoided if final-whitespace? had
-  -- succeeded for expr.
+    atom : Grammar E
+    atom = ♯ (one <$ symbol′ "1")
+         ∣ ♯ (♯ (♯ symbol′ "(" ⊛> ♯ expr) <⊛ ♯ symbol′ ")")
 
-  final : Final-whitespace expr
-  final (∣-left-sem (∣-left-sem 1∈)) w =
-    ∣-left-sem (∣-left-sem
-      (from-just (final-whitespace? 2 (_ <$ symbol′ "1")) 1∈ w))
-  final (∣-right-sem e∈) w =
-    ∣-right-sem
-      (from-just (final-whitespace? 2 (_ <⊛ right-paren)) e∈ w)
-  final (∣-left-sem (∣-right-sem
-           (⊛-sem {s₁ = s₁} e₁∈ (⊛>-sem {s₁ = s₂} -∈ e₂∈)))) w =
-    cast refl lemma
-      (∣-left-sem (∣-right-sem (⊛-sem e₁∈ (⊛>-sem -∈ (final e₂∈ w)))))
-    where
-    open List-solver
-    lemma = solve 4 (λ a b c d → a ⊕ b ⊕ c ⊕ d ⊜ (a ⊕ b ⊕ c) ⊕ d) refl
-                  s₁ s₂ _ _
+  one-doc : Doc atom one
+  one-doc = ∣-left-doc (<$-doc symbol-doc)
 
   mutual
 
     ppr : Pretty-printer expr
-    ppr one         = ∣-left-doc (∣-left-doc (<$-doc symbol-doc))
+    ppr one         = ∣-left-doc one-doc
     ppr (sub e₁ e₂) =
-      ∣-left-doc
-        (∣-right-doc
-           (group (<$>-doc (final-line′ 2 final (ppr e₁)) ⊛-doc
-                   nest 2 (symbol-space-doc ⊛>-doc pprP e₂))))
+      ∣-right-doc
+        (group (<$>-doc (final-line 2 6 (ppr e₁)) ⊛-doc
+                nest 2 (symbol-space-doc ⊛>-doc pprP e₂)))
 
-    pprP : Pretty-printer expr
-    pprP one = ppr one
+    pprP : Pretty-printer atom
+    pprP one = one-doc
     pprP e   = ∣-right-doc (symbol-doc ⊛>-doc ppr e <⊛-doc symbol-doc)
 
   test₁ : render 80 (ppr example) ≡ "1 - 1 - (1 - 1)"
