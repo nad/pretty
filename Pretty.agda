@@ -9,6 +9,7 @@ open import Coinduction
 open import Data.Bool
 open import Data.Char
 open import Data.List as List hiding ([_])
+open import Data.List.NonEmpty using (List⁺; _∷_; _∷⁺_)
 open import Data.List.Properties using (module List-solver)
 open import Data.Maybe
 open import Data.Nat
@@ -54,9 +55,9 @@ mutual
 
   -- Sequences of documents, all based on the same grammar.
 
-  data Docs {A} (g : Grammar A) : List A → Set₁ where
+  data Docs {A} (g : Grammar A) : List⁺ A → Set₁ where
     [_] : ∀ {x} → Doc g x → Docs g (x ∷ [])
-    _∷_ : ∀ {x xs} → Doc g x → Docs g xs → Docs g (x ∷ xs)
+    _∷_ : ∀ {x xs} → Doc g x → Docs g xs → Docs g (x ∷⁺ xs)
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
@@ -134,7 +135,7 @@ _⊛>-doc_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛-doc d₁ ⊛-do
               Doc (♭ g₂) x → Doc (g₁ ∣ g₂) x
 ∣-right-doc d = embed ∣-right-sem d
 
--- Some Kleene star combinators.
+-- Some Kleene star and plus combinators.
 
 []-doc : ∀ {A} {g : ∞ (Grammar A)} → Doc (g ⋆) []
 []-doc {A} {g} = embed lemma nil
@@ -142,11 +143,15 @@ _⊛>-doc_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛-doc d₁ ⊛-do
   lemma : ∀ {s} → [] ∈ return {A = List A} [] ∙ s → [] ∈ g ⋆ ∙ s
   lemma return-sem = ⋆-[]-sem
 
-infixr 20 _⋆-∷-doc_
+infixr 20 _+-∷-⋆-doc_ _⋆-∷-doc_
+
+_+-∷-⋆-doc_ : ∀ {A} {g : ∞ (Grammar A)} {x xs} →
+              Doc (♭ g) x → Doc (g ⋆) xs → Doc (g +) (x ∷ xs)
+d₁ +-∷-⋆-doc d₂ = <$>-doc d₁ ⊛-doc d₂
 
 _⋆-∷-doc_ : ∀ {A} {g : ∞ (Grammar A)} {x xs} →
             Doc (♭ g) x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
-d₁ ⋆-∷-doc d₂ = embed ⋆-+-sem (<$>-doc d₁ ⊛-doc d₂)
+d₁ ⋆-∷-doc d₂ = embed ⋆-+-sem (d₁ +-∷-⋆-doc d₂)
 
 -- A document for the empty string.
 
@@ -217,21 +222,27 @@ bracket {g₂ = g₂} {g₃} {g₁₂} {s₁} {s₂} n eq₁ eq₂ eq₃ {final}
   lemma₂ : ∀ {x s} → x ∈ symbol s₂ ∙ s → x ∈ ♭ g₃ ∙ s
   lemma₂ s₂∈ rewrite eq₃ = s₂∈
 
--- Converts a pretty-printer for elements into a pretty-printer for
--- lists.
+mutual
 
-map-doc : {A : Set} {g : ∞ (Grammar A)} →
-          Pretty-printer (♭ g) → Pretty-printer (g ⋆)
-map-doc p []       = []-doc
-map-doc p (x ∷ xs) = p x ⋆-∷-doc map-doc p xs
+  -- Converts pretty-printers for elements into pretty-printers for
+  -- lists.
+
+  map⋆-doc : {A : Set} {g : ∞ (Grammar A)} →
+            Pretty-printer (♭ g) → Pretty-printer (g ⋆)
+  map⋆-doc p []       = []-doc
+  map⋆-doc p (x ∷ xs) = embed ⋆-+-sem (map+-doc p (x ∷ xs))
+
+  map+-doc : {A : Set} {g : ∞ (Grammar A)} →
+             Pretty-printer (♭ g) → Pretty-printer (g +)
+  map+-doc p (x ∷ xs) = p x +-∷-⋆-doc map⋆-doc p xs
 
 -- A variant of fill. (The grammar has to satisfy a certain
 -- predicate.)
 
-fill-+-doc : ∀ {A} {g : ∞ (Grammar A)} (n : ℕ)
-             {final : IsJust (final-whitespace? n (♭ g))} →
-             ∀ {x xs} → Docs (♭ g) (x ∷ xs) → Doc (g +) (x ∷ xs)
-fill-+-doc {g = g} n {final} ds = embed lemma (fill ds)
+fill+ : ∀ {A} {g : ∞ (Grammar A)} (n : ℕ)
+        {final : IsJust (final-whitespace? n (♭ g))} →
+        ∀ {xs} → Docs (♭ g) xs → Doc (g +) xs
+fill+ {g = g} n {final} ds = embed lemma (fill ds)
   where
   open List-solver
 
@@ -250,27 +261,27 @@ fill-+-doc {g = g} n {final} ds = embed lemma (fill ds)
   lemma : ∀ {s xs} → xs ∈ ♭ g sep-by whitespace+ ∙ s → xs ∈ g + ∙ s
   lemma (⊛-sem (<$>-sem x∈) xs∈) = lemma′ x∈ xs∈
 
--- Variants of map-doc that use fill. (The grammars have to satisfy a
--- certain predicate.)
+-- Variants of map+-doc/map⋆-doc that use fill. (The grammars have to
+-- satisfy a certain predicate.)
 
 map+-fill-doc : ∀ {A} {g : ∞ (Grammar A)} (n : ℕ)
                 {final : IsJust (final-whitespace? n (♭ g))} →
                 Pretty-printer (♭ g) →
-                ∀ x xs → Doc (g +) (x ∷ xs)
-map+-fill-doc {g = g} n {final} p x xs =
-  fill-+-doc n {final = final} (to-docs x xs)
+                Pretty-printer (g +)
+map+-fill-doc {g = g} n {final} p xs =
+  fill+ n {final = final} (uncurry to-docs xs)
   where
   to-docs : ∀ x xs → Docs (♭ g) (x ∷ xs)
   to-docs x []        = [ p x ]
   to-docs x (x′ ∷ xs) = p x ∷ to-docs x′ xs
 
-map-fill-doc : ∀ {A} {g : ∞ (Grammar A)} (n : ℕ)
-               {final : IsJust (final-whitespace? n (♭ g))} →
-               Pretty-printer (♭ g) →
-               Pretty-printer (g ⋆)
-map-fill-doc n         p []       = []-doc
-map-fill-doc n {final} p (x ∷ xs) =
-  embed ⋆-+-sem (map+-fill-doc n {final = final} p x xs)
+map⋆-fill-doc : ∀ {A} {g : ∞ (Grammar A)} (n : ℕ)
+                {final : IsJust (final-whitespace? n (♭ g))} →
+                Pretty-printer (♭ g) →
+                Pretty-printer (g ⋆)
+map⋆-fill-doc n         p []       = []-doc
+map⋆-fill-doc n {final} p (x ∷ xs) =
+  embed ⋆-+-sem (map+-fill-doc n {final = final} p (x ∷ xs))
 
 ------------------------------------------------------------------------
 -- Document renderers
@@ -406,23 +417,26 @@ wadler's-renderer w = record
 
   cons : ∀ {A B} {g : Grammar A} {sep : Grammar B} {x xs} →
          DocU g x → DocU (tt <$ sep) tt → DocU (g sep-by sep) xs →
-         DocU (g sep-by sep) (x ∷ xs)
+         DocU (g sep-by sep) (x ∷⁺ xs)
   cons {g = g} {sep} d₁ d₂ d₃ =
     embed lemma (<$>-docU d₁ ⊛-docU (d₂ ⊛>-docU d₃))
     where
     lemma : ∀ {ys s} →
-            ys ∈ _∷_ <$>′ g ⊛′ ((tt <$ sep) ⊛>′ (g sep-by sep)) ∙ s →
+            ys ∈ _∷⁺_ <$>′ g ⊛′ ((tt <$ sep) ⊛>′ (g sep-by sep)) ∙ s →
             ys ∈ g sep-by sep ∙ s
     lemma (⊛-sem (<$>-sem x∈) (⊛>-sem (<⊛-sem return-sem y∈) xs∈)) =
       sep-by-sem-∷ x∈ y∈ xs∈
 
   -- A single space character.
 
-  space : ∀ {A} {x : A} → DocU (x <$ whitespace+) x
-  space = <$-docU (embed lemma (text (str " ")))
+  space : DocU (tt <$ whitespace+) tt
+  space = embed lemma (<$-docU (text (str " ")))
     where
-    lemma : ∀ {x s} → x ∈ string (str " ") ∙ s → x ∈ whitespace+ ∙ s
-    lemma (⊛-sem (<$>-sem tok-sem) return-sem) = single-space-sem
+    lemma : ∀ {s} →
+            tt ∈ tt <$ string (str " ") ∙ s →
+            tt ∈ tt <$ whitespace+ ∙ s
+    lemma (<⊛-sem return-sem (⊛-sem (<$>-sem tok-sem) return-sem)) =
+      <$-sem single-space-sem
 
   mutual
 

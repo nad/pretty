@@ -10,6 +10,7 @@ open import Coinduction
 open import Data.Bool
 open import Data.Char
 open import Data.List as List
+open import Data.List.NonEmpty using (List⁺; _∷_; _∷⁺_)
 open import Data.List.Properties using (module List-solver)
 open import Data.Maybe as Maybe
 open import Data.Nat
@@ -70,7 +71,7 @@ x <$ g = ♯ return x <⊛ ♯ g
 
 infix 30 _+
 
-_+ : ∀ {A} → ∞ (Grammar A) → Grammar (List A)
+_+ : ∀ {A} → ∞ (Grammar A) → Grammar (List⁺ A)
 p + = ♯ (_∷_ <$> p) ⊛ ♯ (p ⋆)
 
 -- Elements preceded by something.
@@ -84,7 +85,7 @@ g prec-by prec = ♯ (♯ prec ⊛> ♯ g) ⋆
 
 infixl 18 _sep-by_
 
-_sep-by_ : ∀ {A B} → Grammar A → Grammar B → Grammar (List A)
+_sep-by_ : ∀ {A B} → Grammar A → Grammar B → Grammar (List⁺ A)
 g sep-by sep = ♯ (_∷_ <$> ♯ g) ⊛ ♯ (g prec-by sep)
 
 -- A grammar for tokens satisfying a given predicate.
@@ -107,7 +108,7 @@ whitespace = ♯ tok ' ' ∣ ♯ tok '\n'
 whitespace⋆ : Grammar (List Char)
 whitespace⋆ = ♯whitespace ⋆
 
-whitespace+ : Grammar (List Char)
+whitespace+ : Grammar (List⁺ Char)
 whitespace+ = ♯whitespace +
 
 -- A grammar for the given string.
@@ -146,7 +147,7 @@ g₁ >>=′ g₂ = ♯ g₁ >>= λ x → ♯ g₂ x
 _⋆′ : ∀ {A} → Grammar A → Grammar (List A)
 g ⋆′ = ♯ g ⋆
 
-_+′ : ∀ {A} → Grammar A → Grammar (List A)
+_+′ : ∀ {A} → Grammar A → Grammar (List⁺ A)
 g +′ = ♯ g +
 
 ------------------------------------------------------------------------
@@ -183,8 +184,8 @@ data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
                 x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
   ⋆-[]-sem    : ∀ {A} {g : ∞ (Grammar A)} →
                 [] ∈ g ⋆ ∙ []
-  ⋆-+-sem     : ∀ {A} {g : ∞ (Grammar A)} {xs s} →
-                xs ∈ g + ∙ s → xs ∈ g ⋆ ∙ s
+  ⋆-+-sem     : ∀ {A} {g : ∞ (Grammar A)} {x xs s} →
+                (x ∷ xs) ∈ g + ∙ s → x ∷ xs ∈ g ⋆ ∙ s
 
 -- Cast lemma.
 
@@ -200,7 +201,7 @@ cast refl refl = id
 <$-sem y∈ = <⊛-sem return-sem y∈
 
 +-sem : ∀ {A} {g : ∞ (Grammar A)} {x xs s₁ s₂} →
-        x ∈ ♭ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g + ∙ s₁ ++ s₂
+        x ∈ ♭ g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → (x ∷ xs) ∈ g + ∙ s₁ ++ s₂
 +-sem x∈ xs∈ = ⊛-sem (<$>-sem x∈) xs∈
 
 ⋆-∷-sem : ∀ {A} {g : ∞ (Grammar A)} {x xs s₁ s₂} →
@@ -215,12 +216,12 @@ cast refl refl = id
        (⋆-∷-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
 
 +-∷-sem : ∀ {A} {g : ∞ (Grammar A)} {x xs s₁ s₂} →
-          x ∈ ♭ g ∙ s₁ → xs ∈ g + ∙ s₂ → x ∷ xs ∈ g + ∙ s₁ ++ s₂
+          x ∈ ♭ g ∙ s₁ → xs ∈ g + ∙ s₂ → x ∷⁺ xs ∈ g + ∙ s₁ ++ s₂
 +-∷-sem x∈ xs∈ = +-sem x∈ (⋆-+-sem xs∈)
 
 sep-by-sem-singleton :
   ∀ {A B} {g : Grammar A} {sep : Grammar B} {x s} →
-  x ∈ g ∙ s → [ x ] ∈ g sep-by sep ∙ s
+  x ∈ g ∙ s → x ∷ [] ∈ g sep-by sep ∙ s
 sep-by-sem-singleton x∈ =
   cast refl (proj₂ LM.identity _)
        (⊛-sem (<$>-sem x∈) ⋆-[]-sem)
@@ -228,7 +229,7 @@ sep-by-sem-singleton x∈ =
 sep-by-sem-∷ :
   ∀ {A B} {g : Grammar A} {sep : Grammar B} {x y xs s₁ s₂ s₃} →
   x ∈ g ∙ s₁ → y ∈ sep ∙ s₂ → xs ∈ g sep-by sep ∙ s₃ →
-  x ∷ xs ∈ g sep-by sep ∙ s₁ ++ s₂ ++ s₃
+  x ∷⁺ xs ∈ g sep-by sep ∙ s₁ ++ s₂ ++ s₃
 sep-by-sem-∷ {s₂ = s₂} x∈ y∈ (⊛-sem (<$>-sem x′∈) xs∈) =
   ⊛-sem (<$>-sem x∈)
         (cast refl (LM.assoc s₂ _ _)
@@ -242,7 +243,7 @@ sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
           (t , pt) ∈ sat p ∙ [ t ]
 sat-sem pt = >>=-sem token-sem (<$>-sem (if-true-sem pt))
 
-single-space-sem : str " " ∈ whitespace+ ∙ str " "
+single-space-sem : (' ' ∷ []) ∈ whitespace+ ∙ str " "
 single-space-sem = +-sem (∣-left-sem tok-sem) ⋆-[]-sem
 
 string-sem : ∀ {s} → s ∈ string s ∙ s

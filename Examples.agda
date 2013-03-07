@@ -10,6 +10,7 @@ open import Data.Bool
 open import Data.Bool.Properties using (T-∧)
 open import Data.Char
 open import Data.List as List hiding ([_])
+open import Data.List.NonEmpty as List⁺ using (List⁺; _∷_)
 open import Data.Nat
 open import Data.Product
 open import Data.String as String
@@ -114,7 +115,7 @@ module Name where
   name = ♯ name-char ⋆
 
   name-printer : Pretty-printer name
-  name-printer = map-doc name-char-printer
+  name-printer = map⋆-doc name-char-printer
 
   -- Names possibly followed by whitespace.
 
@@ -162,8 +163,9 @@ module Name-list where
   -- Chitil's "Linear, bounded, functional pretty-printing".
 
   name-list-body : Grammar (List Name)
-  name-list-body = ♯ return []
-                 ∣ ♯ (name-w sep-by symbol (str ","))
+  name-list-body =
+      ♯ return []
+    ∣ ♯ (List⁺.toList <$> ♯ (name-w sep-by symbol (str ",")))
 
   name-list : Grammar (List Name)
   name-list =
@@ -176,12 +178,13 @@ module Name-list where
     body []       = ∣-left-doc nil
     body (n ∷ ns) =
       ∣-right-doc
-        (<$>-doc (name-w-printer n)
-           ⊛-doc
-         map-doc (λ n → group symbol-line-doc
-                          ⊛>-doc
-                        name-w-printer n)
-                 ns)
+        (<$>-doc
+           (<$>-doc (name-w-printer n)
+              ⊛-doc
+            map⋆-doc (λ n → group symbol-line-doc
+                              ⊛>-doc
+                            name-w-printer n)
+                     ns))
 
   names : List Name
   names = as ∷ bs ∷ cs ∷ ds ∷ es ∷ []
@@ -216,9 +219,10 @@ module Tree where
     brackets : Grammar (List Tree)
     brackets =
         ♯ return []
-      ∣ ♯ (♯ (♯ symbol (str "[") ⊛> ♯ trees) <⊛ ♯ symbol (str "]"))
+      ∣ ♯ (List⁺.toList <$>
+           ♯ (♯ (♯ symbol (str "[") ⊛> ♯ trees) <⊛ ♯ symbol (str "]")))
 
-    trees : Grammar (List Tree)
+    trees : Grammar (List⁺ Tree)
     trees = ♯ (_∷_ <$> ♯ tree) ⊛ ♯ commas-and-trees
 
     commas-and-trees : Grammar (List Tree)
@@ -248,14 +252,15 @@ module Tree where
       brackets-printer []       = ∣-left-doc nil
       brackets-printer (t ∷ ts) =
         ∣-right-doc
-          (symbol-doc
-             ⊛>-doc
-           nest 1 (trees-printer t ts)
-             <⊛-doc
-           symbol-doc)
+          (<$>-doc
+             (symbol-doc
+                ⊛>-doc
+              nest 1 (trees-printer (t ∷ ts))
+                <⊛-doc
+              symbol-doc))
 
-      trees-printer : ∀ t ts → Doc trees (t ∷ ts)
-      trees-printer t ts =
+      trees-printer : Pretty-printer trees
+      trees-printer (t ∷ ts) =
         <$>-doc (tree-printer t) ⊛-doc commas-and-trees-printer ts
 
       commas-and-trees-printer : Pretty-printer commas-and-trees
@@ -282,10 +287,12 @@ module Tree where
       brackets-printer : Pretty-printer brackets
       brackets-printer []       = ∣-left-doc nil
       brackets-printer (t ∷ ts) =
-        ∣-right-doc (bracket 6 refl refl refl (trees-printer t ts))
+        ∣-right-doc
+          (<$>-doc
+             (bracket 7 refl refl refl (trees-printer (t ∷ ts))))
 
-      trees-printer : ∀ t ts → Doc trees (t ∷ ts)
-      trees-printer t ts =
+      trees-printer : Pretty-printer trees
+      trees-printer (t ∷ ts) =
         <$>-doc (tree-printer t) ⊛-doc commas-and-trees-printer ts
 
       commas-and-trees-printer : Pretty-printer commas-and-trees
@@ -347,7 +354,7 @@ module XML where
   text-g = ♯ sat _ ⋆
 
   text-printer : Pretty-printer text-g
-  text-printer = map-doc (λ _ → sat-doc)
+  text-printer = map⋆-doc (λ _ → sat-doc)
 
   mutual
 
@@ -445,7 +452,8 @@ module XML where
         (nest 2 line⋆
            ⊛>-doc
          embed ⋆-+-sem
-           (final-line 4 (nest 2 (map+-fill-doc 2 attr-printer a as))))
+           (final-line 4
+              (nest 2 (map+-fill-doc 2 attr-printer (a ∷ as)))))
 
     attr-printer : Pretty-printer attr
     attr-printer (att n v) =
@@ -462,7 +470,7 @@ module XML where
         (nest 2 line⋆
            ⊛>-doc
          embed ⋆-+-sem
-           (final-line 5 (nest 2 (fill-+-doc 3 (to-docs x xs)))))
+           (final-line 5 (nest 2 (fill+ 3 (to-docs x xs)))))
       where
       to-docs : ∀ x xs → Docs xml (x ∷ xs)
       to-docs x []        = [ xml-printer x ]
