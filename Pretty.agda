@@ -9,8 +9,8 @@ open import Coinduction
 open import Data.Bool
 open import Data.Char
 open import Data.List as List hiding ([_])
-open import Data.List.NonEmpty using (List⁺; _∷_; _∷⁺_)
-open import Data.List.Properties using (module List-solver)
+open import Data.List.NonEmpty as List⁺ using (List⁺; _∷_; _∷⁺_)
+open import Data.List.Properties as List-Prop using (module List-solver)
 open import Data.Maybe
 open import Data.Nat
 open import Data.Product
@@ -27,37 +27,30 @@ open import Tests
 ------------------------------------------------------------------------
 -- Pretty-printers
 
-mutual
+-- Pretty-printer documents. If p : Doc g x, then p is a decorated
+-- parse tree (with respect to the grammar g) for the value x.
 
-  -- Pretty-printer documents. If p : Doc g x, then p is a decorated
-  -- parse tree (with respect to the grammar g) for the value x.
+-- One could introduce a smart wrapper for embed, to avoid long
+-- chains of embed constructors. I tried this, and it didn't seem to
+-- have a large impact on the time needed to typecheck the code
+-- (including the examples).
 
-  -- One could introduce a smart wrapper for embed, to avoid long
-  -- chains of embed constructors. I tried this, and it didn't seem to
-  -- have a large impact on the time needed to typecheck the code
-  -- (including the examples).
+infixr 20 _·_
 
-  infixr 20 _·_
-
-  data Doc : ∀ {A} → Grammar A → A → Set₁ where
-    nil   : ∀ {A} {x : A} → Doc (return x) x
-    text  : ∀ s → Doc (string s) s
-    _·_   : ∀ {A B} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
-              {x y} →
-            Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
-    line  : Doc (tt <$ whitespace+) tt
-    group : ∀ {A} {g : Grammar A} {x} → Doc g x → Doc g x
-    nest  : ∀ {A} {g : Grammar A} {x} → ℕ → Doc g x → Doc g x
-    embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
-            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
-    fill  : ∀ {A} {g : Grammar A} {xs} →
-            Docs g xs → Doc (g sep-by whitespace+) xs
-
-  -- Sequences of documents, all based on the same grammar.
-
-  data Docs {A} (g : Grammar A) : List⁺ A → Set₁ where
-    [_] : ∀ {x} → Doc g x → Docs g (x ∷ [])
-    _∷_ : ∀ {x xs} → Doc g x → Docs g xs → Docs g (x ∷⁺ xs)
+data Doc : ∀ {A} → Grammar A → A → Set₁ where
+  nil   : ∀ {A} {x : A} → Doc (return x) x
+  text  : ∀ s → Doc (string s) s
+  _·_   : ∀ {A B} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
+            {x y} →
+          Doc (♭ g₁) x → Doc (♭ (g₂ x)) y → Doc (g₁ >>= g₂) y
+  line  : Doc (tt <$ whitespace+) tt
+  group : ∀ {A} {g : Grammar A} {x} → Doc g x → Doc g x
+  nest  : ∀ {A} {g : Grammar A} {x} → ℕ → Doc g x → Doc g x
+  embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
+          (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
+  fill  : ∀ {A} {g : Grammar A}
+          (ds : List⁺ (∃ (Doc g))) →
+          Doc (g sep-by whitespace+) (List⁺.map proj₁ ds)
 
 -- Pretty-printers. A pretty-printer is a function that for every
 -- value constructs a matching document.
@@ -241,7 +234,8 @@ mutual
 
 fill+ : ∀ {A} {g : ∞ (Grammar A)} (n : ℕ)
         {final : IsJust (final-whitespace? n (♭ g))} →
-        ∀ {xs} → Docs (♭ g) xs → Doc (g +) xs
+        (ds : List⁺ (∃ (Doc (♭ g)))) →
+        Doc (g +) (List⁺.map proj₁ ds)
 fill+ {g = g} n {final} ds = embed lemma (fill ds)
   where
   open List-solver
@@ -269,11 +263,16 @@ map+-fill-doc : ∀ {A} {g : ∞ (Grammar A)} (n : ℕ)
                 Pretty-printer (♭ g) →
                 Pretty-printer (g +)
 map+-fill-doc {g = g} n {final} p xs =
-  fill+ n {final = final} (uncurry to-docs xs)
+  P.subst (Doc (g +)) lemma
+    (fill+ n {final = final} (List⁺.map (,_ ∘ p) xs))
   where
-  to-docs : ∀ x xs → Docs (♭ g) (x ∷ xs)
-  to-docs x []        = [ p x ]
-  to-docs x (x′ ∷ xs) = p x ∷ to-docs x′ xs
+  open P.≡-Reasoning
+
+  lemma : List⁺.map proj₁ (List⁺.map (,_ ∘ p) xs) ≡ xs
+  lemma = P.cong (_∷_ _) (begin
+    List.map proj₁ (List.map (λ x → x , p x) (List⁺.tail xs))  ≡⟨ P.sym $ List-Prop.map-compose _ ⟩
+    List.map id (List⁺.tail xs)                                ≡⟨ List-Prop.map-id _ ⟩
+    List⁺.tail xs                                              ∎)
 
 map⋆-fill-doc : ∀ {A} {g : ∞ (Grammar A)} (n : ℕ)
                 {final : IsJust (final-whitespace? n (♭ g))} →
@@ -317,37 +316,41 @@ ugly-renderer = record
   mutual
 
     render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
-    render nil         = []
-    render (text s)    = s
-    render (d₁ · d₂)   = render d₁ ++ render d₂
-    render line        = str " "
-    render (group d)   = render d
-    render (nest _ d)  = render d
-    render (embed _ d) = render d
-    render (fill ds)   = render-fills ds
+    render nil             = []
+    render (text s)        = s
+    render (d₁ · d₂)       = render d₁ ++ render d₂
+    render line            = str " "
+    render (group d)       = render d
+    render (nest _ d)      = render d
+    render (embed _ d)     = render d
+    render (fill (d ∷ ds)) = render (proj₂ d) ++ render-fills ds
 
-    render-fills : ∀ {A} {g : Grammar A} {x} → Docs g x → List Char
-    render-fills [ d ]    = render d
-    render-fills (d ∷ ds) = render d ++ ' ' ∷ render-fills ds
+    render-fills : ∀ {A} {g : Grammar A} →
+                   List (∃ (Doc g)) → List Char
+    render-fills []       = []
+    render-fills (d ∷ ds) = ' ' ∷ render (proj₂ d) ++ render-fills ds
 
   mutual
 
     parsable : ∀ {A x} {g : Grammar A}
                (d : Doc g x) → x ∈ g ∙ render d
-    parsable nil         = return-sem
-    parsable (text _)    = string-sem
-    parsable (d₁ · d₂)   = >>=-sem (parsable d₁) (parsable d₂)
-    parsable line        = <$-sem single-space-sem
-    parsable (group d)   = parsable d
-    parsable (nest _ d)  = parsable d
-    parsable (embed f d) = f (parsable d)
-    parsable (fill ds)   = parsable-fills ds
+    parsable nil             = return-sem
+    parsable (text _)        = string-sem
+    parsable (d₁ · d₂)       = >>=-sem (parsable d₁) (parsable d₂)
+    parsable line            = <$-sem single-space-sem
+    parsable (group d)       = parsable d
+    parsable (nest _ d)      = parsable d
+    parsable (embed f d)     = f (parsable d)
+    parsable (fill (d ∷ ds)) = ⊛-sem (<$>-sem (parsable (proj₂ d)))
+                                     (parsable-fills ds)
 
-    parsable-fills : ∀ {A xs} {g : Grammar A} (ds : Docs g xs) →
-                     xs ∈ g sep-by whitespace+ ∙ render-fills ds
-    parsable-fills [ d ]    = sep-by-sem-singleton (parsable d)
+    parsable-fills :
+      ∀ {A} {g : Grammar A} (ds : List (∃ (Doc g))) →
+      List.map proj₁ ds ∈ g prec-by whitespace+ ∙ render-fills ds
+    parsable-fills []       = ⋆-[]-sem
     parsable-fills (d ∷ ds) =
-      sep-by-sem-∷ (parsable d) single-space-sem (parsable-fills ds)
+      ⋆-∷-sem (⊛>-sem single-space-sem (parsable (proj₂ d)))
+              (parsable-fills ds)
 
 -- An example renderer, based on the one in Wadler's "A prettier
 -- printer".
@@ -443,42 +446,48 @@ wadler's-renderer w = record
     -- Replaces line constructors with single spaces, removes groups.
 
     flatten : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
-    flatten nil         = nil
-    flatten (text s)    = text s
-    flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
-    flatten line        = space
-    flatten (group d)   = flatten d
-    flatten (nest i d)  = nest i (flatten d)
-    flatten (embed f d) = embed f (flatten d)
-    flatten (fill ds)   = flatten-fills ds
+    flatten nil             = nil
+    flatten (text s)        = text s
+    flatten (d₁ · d₂)       = flatten d₁ · flatten d₂
+    flatten line            = space
+    flatten (group d)       = flatten d
+    flatten (nest i d)      = nest i (flatten d)
+    flatten (embed f d)     = embed f (flatten d)
+    flatten (fill (d ∷ ds)) = flatten-fills d ds
 
-    flatten-fills : ∀ {A} {g : Grammar A} {xs} →
-                    Docs g xs → DocU (g sep-by whitespace+) xs
-    flatten-fills [ d ]    = embed sep-by-sem-singleton (flatten d)
-    flatten-fills (d ∷ ds) = cons (flatten d) space (flatten-fills ds)
+    flatten-fills :
+      ∀ {A} {g : Grammar A}
+      (d : ∃ (Doc g)) (ds : List (∃ (Doc g))) →
+      DocU (g sep-by whitespace+) (List⁺.map proj₁ (d ∷ ds))
+    flatten-fills (_ , d) [] =
+      embed sep-by-sem-singleton (flatten d)
+    flatten-fills (_ , d) (d′ ∷ ds) =
+      cons (flatten d) space (flatten-fills d′ ds)
 
   mutual
 
     -- Conversion of Docs to DocUs.
 
     expand-groups : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
-    expand-groups nil         = nil
-    expand-groups (text s)    = text s
-    expand-groups (d₁ · d₂)   = expand-groups d₁ · expand-groups d₂
-    expand-groups line        = line
-    expand-groups (group d)   = union (flatten d) (expand-groups d)
-    expand-groups (nest i d)  = nest i (expand-groups d)
-    expand-groups (embed f d) = embed f (expand-groups d)
-    expand-groups (fill ds)   = expand-fills false ds
+    expand-groups nil             = nil
+    expand-groups (text s)        = text s
+    expand-groups (d₁ · d₂)       = expand-groups d₁ · expand-groups d₂
+    expand-groups line            = line
+    expand-groups (group d)       = union (flatten d) (expand-groups d)
+    expand-groups (nest i d)      = nest i (expand-groups d)
+    expand-groups (embed f d)     = embed f (expand-groups d)
+    expand-groups (fill (d ∷ ds)) = expand-fills false d ds
 
-    expand-fills : Bool → -- Unconditionally flatten the first document?
-                   ∀ {A} {g : Grammar A} {xs} →
-                   Docs g xs → DocU (g sep-by whitespace+) xs
-    expand-fills fl [ d ] =
+    expand-fills :
+      Bool → -- Unconditionally flatten the first document?
+      ∀ {A} {g : Grammar A}
+      (d : ∃ (Doc g)) (ds : List (∃ (Doc g))) →
+      DocU (g sep-by whitespace+) (List⁺.map proj₁ (d ∷ ds))
+    expand-fills fl (_ , d) [] =
       embed sep-by-sem-singleton (flatten/expand fl d)
-    expand-fills fl (d ∷ ds) =
-      union (cons (flatten d)           space (expand-fills true  ds))
-            (cons (flatten/expand fl d) line  (expand-fills false ds))
+    expand-fills fl (_ , d) (d′ ∷ ds) =
+      union (cons (flatten d)           space (expand-fills true  d′ ds))
+            (cons (flatten/expand fl d) line  (expand-fills false d′ ds))
 
     flatten/expand : Bool → -- Flatten?
                      ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
