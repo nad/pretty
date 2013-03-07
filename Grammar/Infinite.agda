@@ -15,7 +15,7 @@ open import Data.List.Properties using (module List-solver)
 open import Data.Maybe as Maybe
 open import Data.Nat
 open import Data.Product
-open import Data.String using () renaming (toList to str)
+open import Data.String as String using (String)
 open import Data.Unit
 open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
@@ -117,11 +117,17 @@ string : List Char → Grammar (List Char)
 string []      = return []
 string (t ∷ s) = ♯ (_∷_ <$> ♯ tok t) ⊛ ♯ string s
 
+string′ : String → Grammar (List Char)
+string′ = string ∘ String.toList
+
 -- A grammar for the given string, possibly followed by some
 -- whitespace.
 
 symbol : List Char → Grammar (List Char)
 symbol s = ♯ string s <⊛ ♯ whitespace⋆
+
+symbol′ : String → Grammar (List Char)
+symbol′ = symbol ∘ String.toList
 
 -- Variants that take non-delayed arguments.
 
@@ -243,7 +249,7 @@ sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
           (t , pt) ∈ sat p ∙ [ t ]
 sat-sem pt = >>=-sem token-sem (<$>-sem (if-true-sem pt))
 
-single-space-sem : (' ' ∷ []) ∈ whitespace+ ∙ str " "
+single-space-sem : (' ' ∷ []) ∈ whitespace+ ∙ String.toList " "
 single-space-sem = +-sem (∣-left-sem tok-sem) ⋆-[]-sem
 
 string-sem : ∀ {s} → s ∈ string s ∙ s

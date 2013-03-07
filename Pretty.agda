@@ -14,7 +14,7 @@ open import Data.List.Properties using (module List-solver)
 open import Data.Maybe
 open import Data.Nat
 open import Data.Product
-open import Data.String using () renaming (toList to str)
+import Data.String as String
 open import Data.Unit
 open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
@@ -320,7 +320,7 @@ ugly-renderer = record
     render nil            = []
     render (text {s = s}) = s
     render (d₁ · d₂)      = render d₁ ++ render d₂
-    render line           = str " "
+    render line           = String.toList " "
     render (group d)      = render d
     render (nest _ d)     = render d
     render (embed _ d)    = render d
@@ -433,7 +433,7 @@ wadler's-renderer w = record
   space = embed lemma (<$-docU text)
     where
     lemma : ∀ {s} →
-            tt ∈ tt <$ string (str " ") ∙ s →
+            tt ∈ tt <$ string′ " " ∙ s →
             tt ∈ tt <$ whitespace+ ∙ s
     lemma (<⊛-sem return-sem (⊛-sem (<$>-sem tok-sem) return-sem)) =
       <$-sem single-space-sem

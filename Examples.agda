@@ -13,8 +13,7 @@ open import Data.List as List hiding ([_])
 open import Data.List.NonEmpty as List⁺ using (List⁺; _∷_)
 open import Data.Nat
 open import Data.Product
-open import Data.String as String
-  using (String) renaming (toList to str)
+open import Data.String as String using (String)
 open import Data.Unit
 open import Function
 open import Function.Equality using (_⟨$⟩_)
@@ -42,9 +41,9 @@ render w d = String.fromList (Renderer.render (wadler's-renderer w) d)
 from-string :
   {p : Char → Bool}
   (s : String)
-  {ok : T (all p $ str s)} →
+  {ok : T (all p $ String.toList s)} →
   List (∃ (T ∘ p))
-from-string {p} s {ok} = from-string′ (str s) {ok}
+from-string {p} s {ok} = from-string′ (String.toList s) {ok}
   where
   from-string′ : (s : List Char) {ok : T (all p s)} → List (∃ (T ∘ p))
   from-string′ []            = []
@@ -61,8 +60,8 @@ module Bit where
     [0] [1] : Bit
 
   bit : Grammar Bit
-  bit = ♯ ([0] <$ symbol (str "0"))
-      ∣ ♯ ([1] <$ symbol (str "1"))
+  bit = ♯ ([0] <$ symbol′ "0")
+      ∣ ♯ ([1] <$ symbol′ "1")
 
   bit-printer : Pretty-printer bit
   bit-printer [0] = ∣-left-doc  (<$-doc symbol-doc)
@@ -169,11 +168,11 @@ module Name-list where
   name-list-body : Grammar (List Name)
   name-list-body =
       ♯ return []
-    ∣ ♯ (List⁺.toList <$> ♯ (name-w sep-by symbol (str ",")))
+    ∣ ♯ (List⁺.toList <$> ♯ (name-w sep-by symbol′ ","))
 
   name-list : Grammar (List Name)
   name-list =
-    ♯ (♯ symbol (str "[") ⊛> ♯ name-list-body) <⊛ ♯ symbol (str "]")
+    ♯ (♯ symbol′ "[" ⊛> ♯ name-list-body) <⊛ ♯ symbol′ "]"
 
   name-list-printer : Pretty-printer name-list
   name-list-printer ns = symbol-doc ⊛>-doc body ns <⊛-doc symbol-doc
@@ -226,13 +225,13 @@ module Tree where
     brackets =
         ♯ return []
       ∣ ♯ (List⁺.toList <$>
-           ♯ (♯ (♯ symbol (str "[") ⊛> ♯ trees) <⊛ ♯ symbol (str "]")))
+           ♯ (♯ (♯ symbol′ "[" ⊛> ♯ trees) <⊛ ♯ symbol′ "]"))
 
     trees : Grammar (List⁺ Tree)
     trees = ♯ (_∷_ <$> ♯ tree) ⊛ ♯ commas-and-trees
 
     commas-and-trees : Grammar (List Tree)
-    commas-and-trees = ♯ (♯ symbol (str ",") ⊛> ♯ tree) ⋆
+    commas-and-trees = ♯ (♯ symbol′ "," ⊛> ♯ tree) ⋆
 
   -- Wadler presents two pretty-printers for trees in his final code
   -- listing (§11.7). I've included corresponding, but not quite
@@ -386,17 +385,17 @@ module XML where
     xml : Grammar XML
     xml = ♯ (♯ (♯ start-of-element >>= λ { (t , atts) →
                 ♯ (elt t atts <$> ♯ (
-                       ♯ ([] <$ string (str "/"))
-                     ∣ ♯ (♯ (♯ (♯ string (str ">")
+                       ♯ ([] <$ string′ "/")
+                     ∣ ♯ (♯ (♯ (♯ string′ ">"
                              ⊛> ♯ w-xmls)
-                            <⊛  ♯ symbol (str "</"))
+                            <⊛  ♯ symbol′ "</")
                             <⊛  ♯ symbol (List.map proj₁ t))))}) <⊛
-             ♯ symbol (str ">"))
+             ♯ symbol′ ">")
         ∣ ♯ (♯ (txt <$> ♯ text-g) <⊛ ♯ whitespace⋆)
 
     start-of-element : Grammar (Name × List Att)
     start-of-element =
-      ♯ (♯ (_,_ <$ symbol (str "<")) ⊛ ♯ name) ⊛ ♯ w-attrs
+      ♯ (♯ (_,_ <$ symbol′ "<") ⊛ ♯ name) ⊛ ♯ w-attrs
 
     -- The following definition uses "tt <$" in order to make
     -- pretty-printing easier.
@@ -421,10 +420,10 @@ module XML where
 
     attr : Grammar Att
     attr = ♯ (♯ (♯ (♯ (att <$> ♯ name-w)
-                           <⊛  ♯ symbol (str "="))
-                           <⊛  ♯ string (str "\""))
+                           <⊛  ♯ symbol′ "=")
+                           <⊛  ♯ string′ "\"")
                             ⊛  ♯ name)
-                           <⊛  ♯ symbol (str "\"")
+                           <⊛  ♯ symbol′ "\""
 
   mutual
 
