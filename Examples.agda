@@ -10,7 +10,7 @@ open import Data.Bool
 open import Data.Bool.Properties using (T-∧)
 open import Data.Char
 open import Data.List as List hiding ([_])
-open import Data.List.NonEmpty as List⁺ using (List⁺; [_]; _∷_; _∷⁺_)
+open import Data.List.NonEmpty as List⁺ using (List⁺; _∷_)
 open import Data.Nat
 open import Data.Product
 open import Data.String as String
@@ -469,18 +469,12 @@ module XML where
       group
         (nest 2 line⋆
            ⊛>-doc
-         P.subst (Doc xmls) (lemma x xs)
-           (embed ⋆-+-sem
-              (final-line 5 (nest 2 (fill+ 3 (to-docs x xs))))))
+         embed ⋆-+-sem
+           (final-line 5 (nest 2 (fill+ 3 (to-docs x xs)))))
       where
-      to-docs : XML → List XML → List⁺ (∃ (Doc xml))
-      to-docs x []        = [ , xml-printer x ]
-      to-docs x (x′ ∷ xs) = (, xml-printer x) ∷⁺ to-docs x′ xs
-
-      lemma : ∀ x xs →
-              List⁺.toList (List⁺.map proj₁ (to-docs x xs)) ≡ x ∷ xs
-      lemma x []        = refl
-      lemma x (x′ ∷ xs) = P.cong (_∷_ x) $ lemma x′ xs
+      to-docs : ∀ x xs → Docs xml (x ∷ xs)
+      to-docs x []        = [ xml-printer x ]
+      to-docs x (x′ ∷ xs) = xml-printer x ∷ to-docs x′ xs
 
   example : XML
   example = elt (from-string "p")
