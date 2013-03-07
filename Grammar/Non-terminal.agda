@@ -28,7 +28,7 @@ private
     renaming (_<$>_ to _<$>M_; _⊛_ to _⊛M_;
               _>>=_ to _>>=M_; _∣_ to _∣M_)
 
-open import Tests
+open import Utilities
 
 ------------------------------------------------------------------------
 -- Grammars

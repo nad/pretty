@@ -14,7 +14,7 @@ open import Data.List.Properties using (module List-solver)
 open import Data.Maybe
 open import Data.Nat
 open import Data.Product
-import Data.String as String
+open import Data.String as String using (String)
 open import Data.Unit
 open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
@@ -22,7 +22,7 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 private module LM {A : Set} = Monoid (List.monoid A)
 
 open import Grammar.Infinite
-open import Tests
+open import Utilities
 
 ------------------------------------------------------------------------
 -- Pretty-printers
@@ -618,3 +618,9 @@ wadler's-renderer w = record
              (d : Doc g x) → x ∈ g ∙ render d
   parsable d = best-lemma [] (expand-groups d)
                           (cast refl (P.sym $ proj₂ LM.identity _))
+
+-- Uses wadler's-renderer to render a document using the given line
+-- width.
+
+render : ∀ {A} {g : Grammar A} {x} → ℕ → Doc g x → String
+render w d = String.fromList (Renderer.render (wadler's-renderer w) d)

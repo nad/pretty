@@ -12,9 +12,9 @@
 
 module README where
 
--- Some boolean-valued operators (equality, less than, …).
+-- Various utility functions.
 
-import Tests
+import Utilities
 
 -- Infinite grammars.
 
@@ -26,7 +26,12 @@ import Pretty
 
 -- Examples.
 
-import Examples
+import Examples.Bit
+import Examples.Name
+import Examples.Name-list
+import Examples.Expression
+import Examples.Tree
+import Examples.XML
 
 -- Abstract grammars. (Not used by the pretty-printer.)
 
