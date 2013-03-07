@@ -207,6 +207,11 @@ symbol-doc = text <⊛-doc []-doc
 symbol-line-doc : ∀ {s} → Doc (symbol s) s
 symbol-line-doc = final-line 0 1 symbol-doc
 
+-- A document for the given symbol plus a space character.
+
+symbol-space-doc : ∀ {s} → Doc (symbol s) s
+symbol-space-doc = text <⊛-doc space-doc
+
 -- A combinator for bracketed output, based on one in Wadler's "A
 -- prettier printer".
 
