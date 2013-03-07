@@ -40,18 +40,17 @@ render w d = String.fromList (Renderer.render (wadler's-renderer w) d)
 
 -- Converts strings satisfying a given predicate to annotated lists.
 
-from-string :
-  {p : Char → Bool}
-  (s : String)
-  {ok : T (all p $ String.toList s)} →
-  List (∃ (T ∘ p))
-from-string {p} s {ok} = from-string′ (String.toList s) {ok}
+str : {p : Char → Bool}
+      (s : String)
+      {ok : T (all p $ String.toList s)} →
+      List (∃ (T ∘ p))
+str {p} s {ok} = str′ (String.toList s) {ok}
   where
-  from-string′ : (s : List Char) {ok : T (all p s)} → List (∃ (T ∘ p))
-  from-string′ []            = []
-  from-string′ (t ∷ ts) {ok} =
+  str′ : (s : List Char) {ok : T (all p s)} → List (∃ (T ∘ p))
+  str′ []            = []
+  str′ (t ∷ ts) {ok} =
     let (ok₁ , ok₂) = Eq.to T-∧ ⟨$⟩ ok in
-    (t , ok₁) ∷ from-string′ ts {ok₂}
+    (t , ok₁) ∷ str′ ts {ok₂}
 
 ------------------------------------------------------------------------
 -- Bits
@@ -127,34 +126,7 @@ module Name where
   name-w-printer : Pretty-printer name-w
   name-w-printer n = name-printer n <⊛-doc []-doc
 
-  as : Name
-  as = from-string "aaa"
-
-  bs : Name
-  bs = from-string "bbbbb"
-
-  cs : Name
-  cs = from-string "ccc"
-
-  ds : Name
-  ds = from-string "dd"
-
-  es : Name
-  es = from-string "eee"
-
-  fs : Name
-  fs = from-string "ffff"
-
-  gs : Name
-  gs = from-string "gg"
-
-  hs : Name
-  hs = from-string "hhh"
-
-  is : Name
-  is = from-string "ii"
-
-  test : render 80 (name-w-printer as) ≡ "aaa"
+  test : render 80 (name-w-printer (str "aaa")) ≡ "aaa"
   test = refl
 
 ------------------------------------------------------------------------
@@ -192,7 +164,8 @@ module Name-list where
                      ns))
 
   names : List Name
-  names = as ∷ bs ∷ cs ∷ ds ∷ es ∷ []
+  names = str "aaa" ∷ str "bbbbb" ∷ str "ccc" ∷
+          str "dd" ∷ str "eee" ∷ []
 
   test₁ : render 80 (name-list-printer names) ≡
           "[aaa, bbbbb, ccc, dd, eee]"
@@ -310,16 +283,16 @@ module Tree where
         commas-and-trees-printer ts
 
   t : Tree
-  t = node as
-        (node bs
-           (node cs [] ∷
-            node ds [] ∷
+  t = node (str "aaa")
+        (node (str "bbbbb")
+           (node (str "ccc") [] ∷
+            node (str "dd") [] ∷
             []) ∷
-         node es [] ∷
-         node fs
-           (node gs [] ∷
-            node hs [] ∷
-            node is [] ∷
+         node (str "eee") [] ∷
+         node (str "ffff")
+           (node (str "gg") [] ∷
+            node (str "hhh") [] ∷
+            node (str "ii") [] ∷
             []) ∷
          [])
 
@@ -487,21 +460,20 @@ module XML where
       to-docs x (x′ ∷ xs) = xml-printer x ∷ to-docs x′ xs
 
   example : XML
-  example = elt (from-string "p")
-                (att (from-string "color") (from-string "red") ∷
-                 att (from-string "font") (from-string "Times") ∷
-                 att (from-string "size") (from-string "10") ∷ [])
-                (txt (from-string "Here is some") ∷
-                 elt (from-string "em")
+  example = elt (str "p")
+                (att (str "color") (str "red") ∷
+                 att (str "font") (str "Times") ∷
+                 att (str "size") (str "10") ∷ [])
+                (txt (str "Here is some") ∷
+                 elt (str "em")
                      []
-                     (txt (from-string "emphasized") ∷ []) ∷
-                 txt (from-string "text.") ∷
-                 txt (from-string "Here is a") ∷
-                 elt (from-string "a")
-                     (att (from-string "href")
-                          (from-string "http://www.eg.com/") ∷ [])
-                     (txt (from-string "link") ∷ []) ∷
-                 txt (from-string "elsewhere.") ∷ [])
+                     (txt (str "emphasized") ∷ []) ∷
+                 txt (str "text.") ∷
+                 txt (str "Here is a") ∷
+                 elt (str "a")
+                     (att (str "href") (str "http://www.eg.com/") ∷ [])
+                     (txt (str "link") ∷ []) ∷
+                 txt (str "elsewhere.") ∷ [])
 
   test₁ : render 30 (xml-printer example) ≡
           "<p\n  color=\"red\" font=\"Times\"\n  size=\"10\"\n>\n  Here is some\n  <em> emphasized </em> text.\n  Here is a\n  <a\n    href=\"http://www.eg.com/\"\n  > link </a>\n  elsewhere.\n</p>"
