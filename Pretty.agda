@@ -32,6 +32,11 @@ mutual
   -- Pretty-printer documents. If p : Doc g x, then p is a decorated
   -- parse tree (with respect to the grammar g) for the value x.
 
+  -- Note that I do /not/ enforce Wadler's convention that the string
+  -- given to text does not contain newline characters. The
+  -- correctness property proved below does not rely on this
+  -- convention.
+
   -- One could introduce a smart wrapper for embed, to avoid long
   -- chains of embed constructors. I tried this, and it didn't seem to
   -- have a large impact on the time needed to typecheck the code
