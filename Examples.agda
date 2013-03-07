@@ -53,11 +53,9 @@ from-string {p} s {ok} = from-string′ (str s) {ok}
     (t , ok₁) ∷ from-string′ ts {ok₂}
 
 ------------------------------------------------------------------------
--- Examples
+-- Bits
 
 module Bit where
-
-  -- Bits.
 
   data Bit : Set where
     [0] [1] : Bit
@@ -75,6 +73,9 @@ module Bit where
 
   test₂ : render 0 (bit-printer [1]) ≡ "1"
   test₂ = refl
+
+------------------------------------------------------------------------
+-- "Names"
 
 module Name where
 
@@ -155,12 +156,15 @@ module Name where
   test : render 80 (name-w-printer as) ≡ "aaa"
   test = refl
 
+------------------------------------------------------------------------
+-- Lists of names
+
+-- This example is based on one in Swierstra and Chitil's "Linear,
+-- bounded, functional pretty-printing".
+
 module Name-list where
 
   open Name
-
-  -- Lists of names. This example is based on one in Swierstra and
-  -- Chitil's "Linear, bounded, functional pretty-printing".
 
   name-list-body : Grammar (List Name)
   name-list-body =
@@ -201,12 +205,14 @@ module Name-list where
           "[aaa,\nbbbbb,\nccc, dd,\neee]"
   test₃ = refl
 
+------------------------------------------------------------------------
+-- Trees
+
+-- This example is based on one in Wadler's "A prettier printer".
+
 module Tree where
 
   open Name
-
-  -- Trees. This example is based on one in Wadler's "A prettier
-  -- printer".
 
   data Tree : Set where
     node : Name → List Tree → Tree
@@ -332,12 +338,15 @@ module Tree where
           "aaa[ bbbbb[ ccc, dd ], eee, ffff[ gg, hhh, ii ] ]"
   test₄ = refl
 
+------------------------------------------------------------------------
+-- Simplified XML documents
+
+-- This example is based on (but not identical to) one in Wadler's "A
+-- prettier printer".
+
 module XML where
 
   open Name
-
-  -- Simplified XML documents. This example is based on (but not
-  -- identical to) one in Wadler's "A prettier printer".
 
   -- Text.
 
