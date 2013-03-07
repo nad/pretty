@@ -11,6 +11,8 @@ open import Data.Bool.Properties using (T-∧)
 open import Data.Char
 open import Data.List as List hiding ([_])
 open import Data.List.NonEmpty as List⁺ using (List⁺; _∷_)
+open import Data.List.Properties using (module List-solver)
+open import Data.Maybe
 open import Data.Nat
 open import Data.Product
 open import Data.String as String using (String)
@@ -508,3 +510,119 @@ module XML where
   test₂ : render 60 (xml-printer example) ≡
           "<p color=\"red\" font=\"Times\" size=\"10\" >\n  Here is some <em> emphasized </em> text. Here is a\n  <a href=\"http://www.eg.com/\" > link </a> elsewhere.\n</p>"
   test₂ = refl
+
+------------------------------------------------------------------------
+-- Simple expressions
+
+-- This example is based on one in Matsuda and Wang's "FliPpr: A
+-- Prettier Invertible Printing System".
+
+module Expression₁ where
+
+  data E : Set where
+    one : E
+    sub : E → E → E
+
+  -- Note the use of "tt <$".
+
+  expr : Grammar E
+  expr = ♯ (♯ (one <$ string′ "1")
+       ∣ ♯ (♯ (sub <$> ♯ expr)
+                   ⊛ ♯ (♯ (♯ (
+                      ♯ (tt <$ whitespace⋆)
+                   ⊛> ♯ string′ "-")
+                   ⊛> ♯ whitespace⋆)
+                   ⊛> ♯ expr)))
+       ∣ ♯ (♯ (♯ (♯ (♯ string′ "("
+                  ⊛> ♯ whitespace⋆)
+                  ⊛> ♯ expr)
+                  <⊛ ♯ whitespace⋆)
+                  <⊛ ♯ string′ ")")
+
+  mutual
+
+    ppr : Pretty-printer expr
+    ppr one         = ∣-left-doc (∣-left-doc (<$-doc text))
+    ppr (sub e₁ e₂) =
+      ∣-left-doc
+        (∣-right-doc
+           (group (<$>-doc (ppr e₁) ⊛-doc
+                   nest 2 (line⋆ ⊛>-doc text ⊛>-doc space-doc
+                                 ⊛>-doc pprP e₂))))
+
+    pprP : Pretty-printer expr
+    pprP one = ppr one
+    pprP e   =
+      ∣-right-doc
+        (text ⊛>-doc []-doc ⊛>-doc ppr e <⊛-doc []-doc <⊛-doc text)
+
+  example : E
+  example = sub (sub one one) (sub one one)
+
+  test₁ : render 80 (ppr example) ≡ "1 - 1 - (1 - 1)"
+  test₁ = refl
+
+  test₂ : render 11 (ppr example) ≡ "1 - 1\n  - (1 - 1)"
+  test₂ = refl
+
+  test₃ : render 8 (ppr example) ≡ "1 - 1\n  - (1\n    - 1)"
+  test₃ = refl
+
+-- Expression.expr does not accept final whitespace. The grammar below
+-- does. Unfortunately final-whitespace? doesn't succeed for expr.
+-- However, one could probably make final-whitespace? succeed by
+-- representing grammars in a different way.
+
+module Expression₂ where
+
+  open Expression₁ using (E; one; sub; example)
+
+  right-paren : ∞ (Grammar (List Char))
+  right-paren = ♯ symbol′ ")"
+
+  expr : Grammar E
+  expr = ♯ (♯ (one <$ symbol′ "1")
+       ∣ ♯ (♯ (sub <$> ♯ expr) ⊛ ♯ (♯ symbol′ "-" ⊛> ♯ expr)))
+       ∣ ♯ (♯ (♯ symbol′ "(" ⊛> ♯ expr) <⊛ right-paren)
+
+  -- A lemma that could have been avoided if final-whitespace? had
+  -- succeeded for expr.
+
+  final : Final-whitespace expr
+  final (∣-left-sem (∣-left-sem 1∈)) w =
+    ∣-left-sem (∣-left-sem
+      (from-just (final-whitespace? 2 (_ <$ symbol′ "1")) 1∈ w))
+  final (∣-right-sem e∈) w =
+    ∣-right-sem
+      (from-just (final-whitespace? 2 (_ <⊛ right-paren)) e∈ w)
+  final (∣-left-sem (∣-right-sem
+           (⊛-sem {s₁ = s₁} e₁∈ (⊛>-sem {s₁ = s₂} -∈ e₂∈)))) w =
+    cast refl lemma
+      (∣-left-sem (∣-right-sem (⊛-sem e₁∈ (⊛>-sem -∈ (final e₂∈ w)))))
+    where
+    open List-solver
+    lemma = solve 4 (λ a b c d → a ⊕ b ⊕ c ⊕ d ⊜ (a ⊕ b ⊕ c) ⊕ d) refl
+                  s₁ s₂ _ _
+
+  mutual
+
+    ppr : Pretty-printer expr
+    ppr one         = ∣-left-doc (∣-left-doc (<$-doc symbol-doc))
+    ppr (sub e₁ e₂) =
+      ∣-left-doc
+        (∣-right-doc
+           (group (<$>-doc (final-line′ 2 final (ppr e₁)) ⊛-doc
+                   nest 2 (symbol-space-doc ⊛>-doc pprP e₂))))
+
+    pprP : Pretty-printer expr
+    pprP one = ppr one
+    pprP e   = ∣-right-doc (symbol-doc ⊛>-doc ppr e <⊛-doc symbol-doc)
+
+  test₁ : render 80 (ppr example) ≡ "1 - 1 - (1 - 1)"
+  test₁ = refl
+
+  test₂ : render 11 (ppr example) ≡ "1 - 1\n  - (1 - 1)"
+  test₂ = refl
+
+  test₃ : render 8 (ppr example) ≡ "1 - 1\n  - (1\n    - 1)"
+  test₃ = refl
