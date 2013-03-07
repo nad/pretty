@@ -2,6 +2,9 @@
 -- Simple expressions
 ------------------------------------------------------------------------
 
+-- Several examples based on Matsuda and Wang's "FliPpr: A Prettier
+-- Invertible Printing System".
+
 module Examples.Expression where
 
 open import Coinduction
@@ -14,8 +17,7 @@ open import Grammar.Infinite
 open import Pretty
 open import Utilities
 
--- This example is based on one in Matsuda and Wang's "FliPpr: A
--- Prettier Invertible Printing System".
+-- Very simple expressions.
 
 module Expression₁ where
 
@@ -75,8 +77,8 @@ module Expression₁ where
   test₃ : render 8 (ppr example) ≡ "1 - 1\n  - (1\n    - 1)"
   test₃ = refl
 
--- Expression.expr does not accept final whitespace. The grammar below
--- does.
+-- Expression₁.expr does not accept final whitespace. The grammar
+-- below does.
 
 module Expression₂ where
 
@@ -117,8 +119,7 @@ module Expression₂ where
   test₃ : render 8 (ppr example) ≡ "1 - 1\n  - (1\n    - 1)"
   test₃ = refl
 
--- A somewhat larger expression example, based on one in Matsuda and
--- Wang's "FliPpr: A Prettier Invertible Printing System".
+-- A somewhat larger expression example.
 
 module Expression₃ where
 
