@@ -460,7 +460,7 @@ module XML where
         (nest 2 line⋆
            ⊛>-doc
          embed ⋆-+-sem
-           (final-line 4
+           (final-line 0 4
               (nest 2 (map+-fill-doc 2 attr-printer (a ∷ as)))))
 
     attr-printer : Pretty-printer attr
@@ -478,7 +478,7 @@ module XML where
         (nest 2 line⋆
            ⊛>-doc
          embed ⋆-+-sem
-           (final-line 5 (nest 2 (fill+ 3 (to-docs x xs)))))
+           (final-line 0 5 (nest 2 (fill+ 3 (to-docs x xs)))))
       where
       to-docs : ∀ x xs → Docs xml (x ∷ xs)
       to-docs x []        = [ xml-printer x ]

@@ -185,13 +185,13 @@ line⋆ = embed lemma line
           tt ∈ tt <$ whitespace⋆ ∙ s
   lemma (<⊛-sem return-sem w+) = <⊛-sem return-sem (⋆-+-sem w+)
 
--- Adds a final "line" combinator to the document. (The grammar has to
--- satisfy a certain predicate.)
+-- Adds a final "line" combinator to the document, nested i steps.
+-- (The grammar has to satisfy a certain predicate.)
 
-final-line : ∀ {A} {g : Grammar A} {x} (n : ℕ)
+final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
              {final : IsJust (final-whitespace? n g)} →
              Doc g x → Doc g x
-final-line {g = g} n {final} d = embed lemma (d <⊛-doc line⋆)
+final-line {g = g} i n {final} d = embed lemma (d <⊛-doc nest i line⋆)
   where
   lemma : ∀ {x s} → x ∈ g <⊛′ tt <$ whitespace⋆ ∙ s → x ∈ g ∙ s
   lemma (<⊛-sem x∈ (<⊛-sem return-sem white)) =
@@ -205,7 +205,7 @@ symbol-doc = text <⊛-doc []-doc
 -- A document for the given symbol plus a "line".
 
 symbol-line-doc : ∀ {s} → Doc (symbol s) s
-symbol-line-doc = final-line 1 symbol-doc
+symbol-line-doc = final-line 0 1 symbol-doc
 
 -- A combinator for bracketed output, based on one in Wadler's "A
 -- prettier printer".
@@ -221,7 +221,7 @@ bracket {g₂ = g₂} {g₃} {g₁₂} {s₁} {s₂} n eq₁ eq₂ eq₃ {final}
     (embed lemma₁
        (nest 2 symbol-line-doc
           ⊛>-doc
-        final-line n {final = final} (nest 2 d))
+        final-line 0 n {final = final} (nest 2 d))
        <⊛-doc
      embed lemma₂ symbol-doc)
   where
