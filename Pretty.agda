@@ -165,6 +165,16 @@ sat-doc : ∀ {p : Char → Bool} {t pt} →
           Doc (sat p) (t , pt)
 sat-doc = token-doc · <$>-doc if-true-doc
 
+-- A single space character.
+
+space-doc : Doc whitespace⋆ (' ' ∷ [])
+space-doc = embed lemma tok-doc
+  where
+  lemma : ∀ {s} →
+          ' ' ∈ tok ' ' ∙ s →
+          (' ' ∷ []) ∈ whitespace⋆ ∙ s
+  lemma tok-sem = ⋆-+-sem single-space-sem
+
 -- A variant of line (with _⋆ instead of _+ in the grammar).
 
 line⋆ : Doc (tt <$ whitespace⋆) tt
