@@ -80,7 +80,8 @@ token-doc {t} = embed lemma text
   where
   lemma′ : ∀ {x s} → x ∈ string (t ∷ []) ∙ s → x ≡ t ∷ [] →
            t ∈ token ∙ s
-  lemma′ (⊛-sem (<$>-sem tok-sem) return-sem) P.refl = token-sem
+  lemma′ (<$>-sem (⊛-sem (<$>-sem tok-sem) return-sem)) P.refl =
+    token-sem
 
   lemma : ∀ {s} → t ∷ [] ∈ string (t ∷ []) ∙ s → t ∈ token ∙ s
   lemma t∈ = lemma′ t∈ P.refl
@@ -252,8 +253,8 @@ bracket {g₂ = g₂} {g₃} {g₁₂} {s₁} {s₂} n eq₁ eq₂ eq₃ {final}
 
 mutual
 
-  -- Converts pretty-printers for elements into pretty-printers for
-  -- lists.
+  -- Conversion of pretty-printers for elements into pretty-printers
+  -- for lists.
 
   map⋆-doc : {A : Set} {g : ∞ (Grammar A)} →
             Pretty-printer (♭ g) → Pretty-printer (g ⋆)
@@ -263,6 +264,22 @@ mutual
   map+-doc : {A : Set} {g : ∞ (Grammar A)} →
              Pretty-printer (♭ g) → Pretty-printer (g +)
   map+-doc p (x ∷ xs) = p x +-∷-⋆-doc map⋆-doc p xs
+
+mutual
+
+  -- Conversion of pretty-printers for specific elements into
+  -- pretty-printers for specific lists.
+
+  list-doc : ∀ {A} {elem : A → Grammar A} →
+             (∀ x → Doc (elem x) x) →
+             ∀ xs → Doc (list elem xs) xs
+  list-doc e []       = nil
+  list-doc e (x ∷ xs) = <$>-doc (list⁺-doc e (x ∷ xs))
+
+  list⁺-doc : ∀ {A} {elem : A → Grammar A} →
+              (∀ x → Doc (elem x) x) →
+              ∀ xs → Doc (list⁺ elem xs) xs
+  list⁺-doc e (x ∷ xs) = <$>-doc (e x) ⊛-doc list-doc e xs
 
 -- A variant of fill. (The grammar has to satisfy a certain
 -- predicate.)
@@ -463,7 +480,8 @@ wadler's-renderer w = record
     lemma : ∀ {s} →
             tt ∈ tt <$ string′ " " ∙ s →
             tt ∈ tt <$ whitespace+ ∙ s
-    lemma (<⊛-sem return-sem (⊛-sem (<$>-sem tok-sem) return-sem)) =
+    lemma (<⊛-sem return-sem
+                  (<$>-sem (⊛-sem (<$>-sem tok-sem) return-sem))) =
       <$-sem single-space-sem
 
   mutual

@@ -10,8 +10,8 @@ open import Coinduction
 open import Data.Bool
 open import Data.Char
 open import Data.List as List
-open import Data.List.NonEmpty using (List⁺; _∷_; _∷⁺_)
-open import Data.List.Properties using (module List-solver)
+open import Data.List.NonEmpty as List⁺ using (List⁺; _∷_; _∷⁺_)
+open import Data.List.Properties as List-prop using (module List-solver)
 open import Data.Maybe as Maybe
 open import Data.Nat
 open import Data.Product
@@ -102,6 +102,18 @@ sat p = ♯ token >>= λ t → ♯ (_,_ t <$> ♯ if-true (p t))
 tok-sat : (p : Char → Bool) → ∃ (T ∘ p) → Grammar (∃ (T ∘ p))
 tok-sat p (t , pt) = (t , pt) <$ tok t
 
+mutual
+
+  -- Combinators that transform families of grammars for certain
+  -- elements to families of grammars for certain lists.
+
+  list : ∀ {A} → (A → Grammar A) → List A → Grammar (List A)
+  list elem []       = return []
+  list elem (x ∷ xs) = List⁺.toList <$> ♯ list⁺ elem (x ∷ xs)
+
+  list⁺ : ∀ {A} → (A → Grammar A) → List⁺ A → Grammar (List⁺ A)
+  list⁺ elem (x ∷ xs) = ♯ (_∷_ <$> ♯ elem x) ⊛ ♯ list elem xs
+
 -- Grammars for whitespace.
 
 whitespace : Grammar Char
@@ -119,8 +131,7 @@ whitespace+ = ♯whitespace +
 -- A grammar for the given string.
 
 string : List Char → Grammar (List Char)
-string []      = return []
-string (t ∷ s) = ♯ (_∷_ <$> ♯ tok t) ⊛ ♯ string s
+string = list tok
 
 string′ : String → Grammar (List Char)
 string′ = string ∘ String.toList
@@ -258,12 +269,29 @@ tok-sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
               (t , pt) ∈ tok-sat p (t , pt) ∙ [ t ]
 tok-sat-sem _ = <$-sem tok-sem
 
+mutual
+
+  list-sem : ∀ {A} {g : A → Grammar A} {s : A → List Char} →
+             (∀ x → x ∈ g x ∙ s x) →
+             ∀ xs → xs ∈ list g xs ∙ concat (List.map s xs)
+  list-sem elem []       = return-sem
+  list-sem elem (x ∷ xs) = <$>-sem (list⁺-sem elem (x ∷ xs))
+
+  list⁺-sem :
+    ∀ {A} {g : A → Grammar A} {s : A → List Char} →
+    (∀ x → x ∈ g x ∙ s x) →
+    ∀ xs → xs ∈ list⁺ g xs ∙ concat (List.map s (List⁺.toList xs))
+  list⁺-sem elem (x ∷ xs) = ⊛-sem (<$>-sem (elem x)) (list-sem elem xs)
+
+list-sem-lemma : ∀ {A} {x : A} {g s} →
+                 x ∈ g ∙ concat (List.map [_] s) → x ∈ g ∙ s
+list-sem-lemma = cast refl (List-prop.Monad.right-identity _)
+
 single-space-sem : (' ' ∷ []) ∈ whitespace+ ∙ String.toList " "
 single-space-sem = +-sem (∣-left-sem tok-sem) ⋆-[]-sem
 
 string-sem : ∀ {s} → s ∈ string s ∙ s
-string-sem {s = []}    = return-sem
-string-sem {s = t ∷ s} = ⊛-sem (<$>-sem tok-sem) string-sem
+string-sem = list-sem-lemma (list-sem (λ _ → tok-sem) _)
 
 ------------------------------------------------------------------------
 -- Detecting the whitespace combinator
