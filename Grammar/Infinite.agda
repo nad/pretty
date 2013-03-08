@@ -97,6 +97,11 @@ if-true false = fail
 sat : (p : Char → Bool) → Grammar (∃ λ t → T (p t))
 sat p = ♯ token >>= λ t → ♯ (_,_ t <$> ♯ if-true (p t))
 
+-- A grammar for a given token satisfying a given predicate.
+
+tok-sat : (p : Char → Bool) → ∃ (T ∘ p) → Grammar (∃ (T ∘ p))
+tok-sat p (t , pt) = (t , pt) <$ tok t
+
 -- Grammars for whitespace.
 
 whitespace : Grammar Char
@@ -248,6 +253,10 @@ if-true-sem {b = false} ()
 sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
           (t , pt) ∈ sat p ∙ [ t ]
 sat-sem pt = >>=-sem token-sem (<$>-sem (if-true-sem pt))
+
+tok-sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
+              (t , pt) ∈ tok-sat p (t , pt) ∙ [ t ]
+tok-sat-sem _ = <$-sem tok-sem
 
 single-space-sem : (' ' ∷ []) ∈ whitespace+ ∙ String.toList " "
 single-space-sem = +-sem (∣-left-sem tok-sem) ⋆-[]-sem

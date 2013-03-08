@@ -164,11 +164,15 @@ if-true-doc : ∀ {b} {t : T b} → Doc (if-true b) t
 if-true-doc {true}     = nil
 if-true-doc {false} {}
 
--- A document for the given character.
+-- Documents for the given character.
 
 sat-doc : ∀ {p : Char → Bool} {t pt} →
           Doc (sat p) (t , pt)
 sat-doc = token-doc · <$>-doc if-true-doc
+
+tok-sat-doc : ∀ {p : Char → Bool} {t} →
+              Doc (tok-sat p t) t
+tok-sat-doc = <$-doc tok-doc
 
 -- A single space character.
 
