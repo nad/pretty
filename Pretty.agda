@@ -80,8 +80,7 @@ token-doc {t} = embed lemma text
   where
   lemma′ : ∀ {x s} → x ∈ string (t ∷ []) ∙ s → x ≡ t ∷ [] →
            t ∈ token ∙ s
-  lemma′ (<$>-sem (⊛-sem (<$>-sem tok-sem) return-sem)) P.refl =
-    token-sem
+  lemma′ (⊛-sem (<$>-sem tok-sem) return-sem) P.refl = token-sem
 
   lemma : ∀ {s} → t ∷ [] ∈ string (t ∷ []) ∙ s → t ∈ token ∙ s
   lemma t∈ = lemma′ t∈ P.refl
@@ -480,8 +479,7 @@ wadler's-renderer w = record
     lemma : ∀ {s} →
             tt ∈ tt <$ string′ " " ∙ s →
             tt ∈ tt <$ whitespace+ ∙ s
-    lemma (<⊛-sem return-sem
-                  (<$>-sem (⊛-sem (<$>-sem tok-sem) return-sem))) =
+    lemma (<⊛-sem return-sem (⊛-sem (<$>-sem tok-sem) return-sem)) =
       <$-sem single-space-sem
 
   mutual

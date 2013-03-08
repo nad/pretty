@@ -131,7 +131,8 @@ whitespace+ = ♯whitespace +
 -- A grammar for the given string.
 
 string : List Char → Grammar (List Char)
-string = list tok
+string []      = return []
+string (t ∷ s) = ♯ (_∷_ <$> ♯ tok t) ⊛ ♯ string s
 
 string′ : String → Grammar (List Char)
 string′ = string ∘ String.toList
@@ -291,7 +292,8 @@ single-space-sem : (' ' ∷ []) ∈ whitespace+ ∙ String.toList " "
 single-space-sem = +-sem (∣-left-sem tok-sem) ⋆-[]-sem
 
 string-sem : ∀ {s} → s ∈ string s ∙ s
-string-sem = list-sem-lemma (list-sem (λ _ → tok-sem) _)
+string-sem {s = []}    = return-sem
+string-sem {s = t ∷ s} = ⊛-sem (<$>-sem tok-sem) string-sem
 
 ------------------------------------------------------------------------
 -- Detecting the whitespace combinator
