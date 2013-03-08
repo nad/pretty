@@ -10,11 +10,12 @@ open import Coinduction
 open import Data.Bool
 open import Data.Char
 open import Data.List as List
-open import Data.List.NonEmpty as List⁺ using (List⁺; _∷_; _∷⁺_)
+open import Data.List.NonEmpty as List⁺
+  using (List⁺; _∷_; _∷⁺_; head; tail)
 open import Data.List.Properties as List-prop using (module List-solver)
 open import Data.Maybe as Maybe
 open import Data.Nat
-open import Data.Product
+open import Data.Product as Prod
 open import Data.String as String using (String)
 open import Data.Unit
 open import Function
@@ -57,6 +58,11 @@ data Grammar : Set → Set₁ where
   _∣_    : ∀ {A} → ∞ (Grammar A) → ∞ (Grammar A) → Grammar A
   _⋆     : ∀ {A} → ∞ (Grammar A) → Grammar (List A)
 
+-- Families of grammars for specific values.
+
+Grammar-for : Set → Set₁
+Grammar-for A = (x : A) → Grammar (∃ λ x′ → x′ ≡ x)
+
 ------------------------------------------------------------------------
 -- Grammar combinators
 
@@ -73,6 +79,22 @@ infix 30 _+
 
 _+ : ∀ {A} → ∞ (Grammar A) → Grammar (List⁺ A)
 p + = ♯ (_∷_ <$> p) ⊛ ♯ (p ⋆)
+
+mutual
+
+  -- Combinators that transform families of grammars for certain
+  -- elements to families of grammars for certain lists.
+
+  list : ∀ {A} → Grammar-for A → Grammar-for (List A)
+  list elem []       = return ([] , refl)
+  list elem (x ∷ xs) =
+    Prod.map List⁺.toList
+             (λ eq → P.cong₂ _∷_ (P.cong head eq) (P.cong tail eq)) <$>
+      ♯ list⁺ elem (x ∷ xs)
+
+  list⁺ : ∀ {A} → Grammar-for A → Grammar-for (List⁺ A)
+  list⁺ elem (x ∷ xs) =
+    ♯ (Prod.zip _∷_ (P.cong₂ _∷_) <$> ♯ elem x) ⊛ ♯ list elem xs
 
 -- Elements preceded by something.
 
@@ -99,20 +121,8 @@ sat p = ♯ token >>= λ t → ♯ (_,_ t <$> ♯ if-true (p t))
 
 -- A grammar for a given token satisfying a given predicate.
 
-tok-sat : (p : Char → Bool) → ∃ (T ∘ p) → Grammar (∃ (T ∘ p))
-tok-sat p (t , pt) = (t , pt) <$ tok t
-
-mutual
-
-  -- Combinators that transform families of grammars for certain
-  -- elements to families of grammars for certain lists.
-
-  list : ∀ {A} → (A → Grammar A) → List A → Grammar (List A)
-  list elem []       = return []
-  list elem (x ∷ xs) = List⁺.toList <$> ♯ list⁺ elem (x ∷ xs)
-
-  list⁺ : ∀ {A} → (A → Grammar A) → List⁺ A → Grammar (List⁺ A)
-  list⁺ elem (x ∷ xs) = ♯ (_∷_ <$> ♯ elem x) ⊛ ♯ list elem xs
+tok-sat : (p : Char → Bool) → Grammar-for (∃ (T ∘ p))
+tok-sat p (t , pt) = ((t , pt) , refl) <$ tok t
 
 -- Grammars for whitespace.
 
@@ -242,6 +252,21 @@ cast refl refl = id
           x ∈ ♭ g ∙ s₁ → xs ∈ g + ∙ s₂ → x ∷⁺ xs ∈ g + ∙ s₁ ++ s₂
 +-∷-sem x∈ xs∈ = +-sem x∈ (⋆-+-sem xs∈)
 
+mutual
+
+  list-sem : ∀ {A} {g : Grammar-for A} {s : A → List Char} →
+             (∀ x → (x , refl) ∈ g x ∙ s x) →
+             ∀ xs → (xs , refl) ∈ list g xs ∙ concat (List.map s xs)
+  list-sem elem []       = return-sem
+  list-sem elem (x ∷ xs) = <$>-sem (list⁺-sem elem (x ∷ xs))
+
+  list⁺-sem :
+    ∀ {A} {g : Grammar-for A} {s : A → List Char} →
+    (∀ x → (x , refl) ∈ g x ∙ s x) →
+    ∀ xs → (xs , refl) ∈ list⁺ g xs ∙
+           concat (List.map s (List⁺.toList xs))
+  list⁺-sem elem (x ∷ xs) = ⊛-sem (<$>-sem (elem x)) (list-sem elem xs)
+
 sep-by-sem-singleton :
   ∀ {A B} {g : Grammar A} {sep : Grammar B} {x s} →
   x ∈ g ∙ s → x ∷ [] ∈ g sep-by sep ∙ s
@@ -267,22 +292,8 @@ sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
 sat-sem pt = >>=-sem token-sem (<$>-sem (if-true-sem pt))
 
 tok-sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
-              (t , pt) ∈ tok-sat p (t , pt) ∙ [ t ]
+              ((t , pt) , refl) ∈ tok-sat p (t , pt) ∙ [ t ]
 tok-sat-sem _ = <$-sem tok-sem
-
-mutual
-
-  list-sem : ∀ {A} {g : A → Grammar A} {s : A → List Char} →
-             (∀ x → x ∈ g x ∙ s x) →
-             ∀ xs → xs ∈ list g xs ∙ concat (List.map s xs)
-  list-sem elem []       = return-sem
-  list-sem elem (x ∷ xs) = <$>-sem (list⁺-sem elem (x ∷ xs))
-
-  list⁺-sem :
-    ∀ {A} {g : A → Grammar A} {s : A → List Char} →
-    (∀ x → x ∈ g x ∙ s x) →
-    ∀ xs → xs ∈ list⁺ g xs ∙ concat (List.map s (List⁺.toList xs))
-  list⁺-sem elem (x ∷ xs) = ⊛-sem (<$>-sem (elem x)) (list-sem elem xs)
 
 list-sem-lemma : ∀ {A} {x : A} {g s} →
                  x ∈ g ∙ concat (List.map [_] s) → x ∈ g ∙ s

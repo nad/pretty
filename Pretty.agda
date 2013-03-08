@@ -70,6 +70,9 @@ mutual
 Pretty-printer : {A : Set} → Grammar A → Set₁
 Pretty-printer g = ∀ x → Doc g x
 
+Pretty-printer-for : {A : Set} → Grammar-for A → Set₁
+Pretty-printer-for g = ∀ x → Doc (g x) (x , refl)
+
 ------------------------------------------------------------------------
 -- Derived document combinators
 
@@ -170,9 +173,8 @@ sat-doc : ∀ {p : Char → Bool} {t pt} →
           Doc (sat p) (t , pt)
 sat-doc = token-doc · <$>-doc if-true-doc
 
-tok-sat-doc : ∀ {p : Char → Bool} {t} →
-              Doc (tok-sat p t) t
-tok-sat-doc = <$-doc tok-doc
+tok-sat-doc : ∀ {p : Char → Bool} → Pretty-printer-for (tok-sat p)
+tok-sat-doc _ = <$-doc tok-doc
 
 -- A single space character.
 
@@ -269,15 +271,15 @@ mutual
   -- Conversion of pretty-printers for specific elements into
   -- pretty-printers for specific lists.
 
-  list-doc : ∀ {A} {elem : A → Grammar A} →
-             (∀ x → Doc (elem x) x) →
-             ∀ xs → Doc (list elem xs) xs
+  list-doc : ∀ {A} {elem : Grammar-for A} →
+             Pretty-printer-for elem →
+             Pretty-printer-for (list elem)
   list-doc e []       = nil
   list-doc e (x ∷ xs) = <$>-doc (list⁺-doc e (x ∷ xs))
 
-  list⁺-doc : ∀ {A} {elem : A → Grammar A} →
-              (∀ x → Doc (elem x) x) →
-              ∀ xs → Doc (list⁺ elem xs) xs
+  list⁺-doc : ∀ {A} {elem : Grammar-for A} →
+              Pretty-printer-for elem →
+              Pretty-printer-for (list⁺ elem)
   list⁺-doc e (x ∷ xs) = <$>-doc (e x) ⊛-doc list-doc e xs
 
 -- A variant of fill. (The grammar has to satisfy a certain
