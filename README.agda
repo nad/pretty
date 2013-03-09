@@ -30,6 +30,7 @@ import Examples.Bit
 import Examples.Name
 import Examples.Name-list
 import Examples.Expression
+import Examples.Precedence
 import Examples.Tree
 import Examples.XML
 
