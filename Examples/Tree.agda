@@ -7,7 +7,7 @@
 module Examples.Tree where
 
 open import Coinduction
-open import Data.List
+open import Data.List as List
 open import Data.List.NonEmpty as List⁺
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
@@ -54,7 +54,7 @@ module Printer₁ where
       group
         (<$>-doc (name-w-printer s)
            ⊛-doc
-         nest (length s) (brackets-printer ts))
+         nest (List.length s) (brackets-printer ts))
 
     brackets-printer : Pretty-printer brackets
     brackets-printer []       = ∣-left-doc nil
