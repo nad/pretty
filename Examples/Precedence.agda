@@ -274,11 +274,15 @@ module Expr (g : Precedence-graph) where
     -- Grammar for a given list of precedence levels.
 
     precs : (ps : List Precedence) → Grammar (Expr ps)
-    precs [] = paren <$ string′ "(" ⊛ ♯ expr <⊛ string′ ")"
+    precs ps = paren <$ string′ "(" ⊛ ♯ expr <⊛ string′ ")"
              ∣ var <$> Name.name
-    precs (p ∷ ps) =
+             ∣ precs′ ps
+
+    precs′ : (ps : List Precedence) → Grammar (Expr ps)
+    precs′ []       = fail
+    precs′ (p ∷ ps) =
         (λ { (_ , e) → here P.refl ∙ e }) <$> ♯ prec p
-      ∣ weaken                            <$> precs ps
+      ∣ weaken                            <$> precs′ ps
 
     -- Grammar for a given precedence level.
 
@@ -345,19 +349,19 @@ module Expr (g : Precedence-graph) where
     precs-printer e = group (precs-printer′ e)
       where
       precs-printer′ : ∀ {ps} → Pretty-printer (precs ps)
-      precs-printer′ (here P.refl ∙ e) = ∣-left-doc (<$>-doc (prec-printer _ e))
-      precs-printer′ (there p∈ps  ∙ e) = ∣-right-doc (<$>-doc (precs-printer′ (p∈ps ∙ e)))
-      precs-printer′ (paren e)         = paren-printer e
-      precs-printer′ (var x)           = var-printer x
+      precs-printer′ (p∈ps ∙ e) = ∣-right-doc (precs′-printer p∈ps e)
+      precs-printer′ (paren e)  = ∣-left-doc (∣-left-doc
+                                    (<$-doc text ⊛-doc
+                                     nest 1 (expr-printer e) <⊛-doc
+                                     text))
+      precs-printer′ (var x)    = ∣-left-doc (∣-right-doc
+                                      (<$>-doc (name-printer x)))
 
-    paren-printer : ∀ {ps} e → Doc (precs ps) (paren e)
-    paren-printer {_ ∷ _} e = ∣-right-doc (<$>-doc (paren-printer e))
-    paren-printer {[]}    e =
-      ∣-left-doc (<$-doc text ⊛-doc nest 1 (expr-printer e) <⊛-doc text)
-
-    var-printer : ∀ {ps} x → Doc (precs ps) (var x)
-    var-printer {_ ∷ _} x = ∣-right-doc (<$>-doc (var-printer x))
-    var-printer {[]}    x = ∣-right-doc (<$>-doc (name-printer x))
+    precs′-printer :
+       ∀ {assoc p ps}
+       (p∈ : p ∈ ps) (e : Expr-in p assoc) → Doc (precs′ ps) (p∈ ∙ e)
+    precs′-printer (here P.refl) e = ∣-left-doc (<$>-doc (prec-printer _ e))
+    precs′-printer (there p∈ps)  e = ∣-right-doc (<$>-doc (precs′-printer p∈ps e))
 
     prec-printer : ∀ {p} assoc (e : Expr-in p assoc) →
                    Doc (prec p) (assoc , e)
