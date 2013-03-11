@@ -87,10 +87,11 @@ module Printer₂ where
       <$>-doc (name-w-printer s) ⊛-doc brackets-printer ts
 
     -- Note that this printer is not defined in exactly the same way
-    -- as Wadler's: Wadler used "nest 2" once, here it is used
-    -- twice. Why? His one nest spanned over two parts of the
-    -- grammar (the opening bracket and the trees, respectively),
-    -- but not all of the second part (not the "line" combinator).
+    -- as Wadler's: Wadler used "nest 2" once, here it is used twice
+    -- (in the bracket combinator). Why? His one nest spanned over two
+    -- parts of the grammar (the opening bracket and the trees,
+    -- respectively), but not all of the second part (not the "line"
+    -- combinator).
 
     brackets-printer : Pretty-printer brackets
     brackets-printer []       = ∣-left-doc nil
