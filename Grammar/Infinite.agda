@@ -34,7 +34,7 @@ private
 -- These grammars are very general. Every language that can be
 -- recursively enumerated (using an Agda function s : ℕ → List Char)
 -- can be expressed using one of these grammars:
--- ♯ s 0 ∣ ♯ (♯ s 1 ∣ …).
+-- ♯ string (s 0) ∣ ♯ (♯ string (s 1) ∣ …).
 --
 -- In practice one may want to restrict attention to, say, recursive
 -- languages. I use general grammars to illustrate that this approach
@@ -46,16 +46,22 @@ infixl 15 _>>=_
 infixl 10 _∣_
 
 data Grammar : Set → Set₁ where
-  fail   : ∀ {A} → Grammar A
   return : ∀ {A} → A → Grammar A
   token  : Grammar Char
+  _>>=_  : ∀ {A B} → ∞ (Grammar A) → (A → ∞ (Grammar B)) → Grammar B
+  _∣_    : ∀ {A} → ∞ (Grammar A) → ∞ (Grammar A) → Grammar A
+
+  -- Combinators that could be defined using the ones above. They are
+  -- primitive in order to support algorithmic analysis of grammars
+  -- (see final-whitespace? below) and/or to make it easier to define
+  -- grammars using guarded corecursion.
+
+  fail   : ∀ {A} → Grammar A
   tok    : Char → Grammar Char
   _<$>_  : ∀ {A B} → (A → B) → ∞ (Grammar A) → Grammar B
   _⊛_    : ∀ {A B} → ∞ (Grammar (A → B)) → ∞ (Grammar A) → Grammar B
   _<⊛_   : ∀ {A B} → ∞ (Grammar A) → ∞ (Grammar B) → Grammar A
   _⊛>_   : ∀ {A B} → ∞ (Grammar A) → ∞ (Grammar B) → Grammar B
-  _>>=_  : ∀ {A B} → ∞ (Grammar A) → (A → ∞ (Grammar B)) → Grammar B
-  _∣_    : ∀ {A} → ∞ (Grammar A) → ∞ (Grammar A) → Grammar A
   _⋆     : ∀ {A} → ∞ (Grammar A) → Grammar (List A)
 
 -- Families of grammars for specific values.
