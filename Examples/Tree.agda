@@ -22,19 +22,17 @@ data Tree : Set where
 mutual
 
   tree : Grammar Tree
-  tree = ♯ (node <$> ♯ name-w) ⊛ ♯ brackets
+  tree = node <$> name-w ⊛ brackets
 
   brackets : Grammar (List Tree)
-  brackets =
-      ♯ return []
-    ∣ ♯ (List⁺.toList <$>
-         ♯ (♯ (♯ symbol′ "[" ⊛> ♯ trees) <⊛ ♯ symbol′ "]"))
+  brackets = return []
+           ∣ List⁺.toList <$> (symbol′ "[" ⊛> ♯ trees <⊛ symbol′ "]")
 
   trees : Grammar (List⁺ Tree)
-  trees = ♯ (_∷_ <$> ♯ tree) ⊛ ♯ commas-and-trees
+  trees = _∷_ <$> tree ⊛ commas-and-trees
 
   commas-and-trees : Grammar (List Tree)
-  commas-and-trees = ♯ (♯ symbol′ "," ⊛> ♯ tree) ⋆
+  commas-and-trees = (symbol′ "," ⊛> tree) ⋆
 
 -- Wadler presents two pretty-printers for trees in his final code
 -- listing (§11.7). I've included corresponding, but not quite
@@ -96,9 +94,7 @@ module Printer₂ where
     brackets-printer : Pretty-printer brackets
     brackets-printer []       = ∣-left-doc nil
     brackets-printer (t ∷ ts) =
-      ∣-right-doc
-        (<$>-doc
-           (bracket 7 refl refl refl (trees-printer (t ∷ ts))))
+      ∣-right-doc (<$>-doc (bracket 7 (trees-printer (t ∷ ts))))
 
     trees-printer : Pretty-printer trees
     trees-printer (t ∷ ts) =

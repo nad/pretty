@@ -19,12 +19,11 @@ open import Utilities
 
 name-list-body : Grammar (List Name)
 name-list-body =
-    ♯ return []
-  ∣ ♯ (List⁺.toList <$> ♯ (name-w sep-by symbol′ ","))
+    return []
+  ∣ List⁺.toList <$> (name-w sep-by symbol′ ",")
 
 name-list : Grammar (List Name)
-name-list =
-  ♯ (♯ symbol′ "[" ⊛> ♯ name-list-body) <⊛ ♯ symbol′ "]"
+name-list = symbol′ "[" ⊛> name-list-body <⊛ symbol′ "]"
 
 name-list-printer : Pretty-printer name-list
 name-list-printer ns = symbol-doc ⊛>-doc body ns <⊛-doc symbol-doc

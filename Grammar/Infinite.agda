@@ -102,9 +102,9 @@ module Basic where
   fail : ∀ {A} → Grammar A
   fail = ♯ fail ∣ ♯ fail
 
-  fail-sem : ∀ {A} {x : A} {s} → ¬ (x ∈ fail {A = A} ∙ s)
-  fail-sem (∣-left-sem  ∈fail) = fail-sem ∈fail
-  fail-sem (∣-right-sem ∈fail) = fail-sem ∈fail
+  fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail {A = A} ∙ s)
+  fail-sem⁻¹ (∣-left-sem  ∈fail) = fail-sem⁻¹ ∈fail
+  fail-sem⁻¹ (∣-right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
   -- Map.
 
@@ -128,6 +128,10 @@ module Basic where
   if-true-sem : tt ∈ if-true true ∙ []
   if-true-sem = return-sem
 
+  if-true-sem⁻¹ : ∀ {b s} → tt ∈ if-true b ∙ s → T b × s ≡ []
+  if-true-sem⁻¹ {true}  return-sem = _ , refl
+  if-true-sem⁻¹ {false} ∈fail      = ⊥-elim (fail-sem⁻¹ ∈fail)
+
   -- A token satisfying a given predicate.
 
   sat : (p : Char → Bool) → Grammar Char
@@ -149,6 +153,16 @@ module Basic where
 
   tok-sem : ∀ {t} → t ∈ tok t ∙ [ t ]
   tok-sem = sat-sem ≟C-refl
+
+  tok-sem⁻¹ : ∀ {t t′ s} → t′ ∈ tok t ∙ s → t ≡ t′ × s ≡ [ t ]
+  tok-sem⁻¹ (>>=-sem token-sem (>>=-sem t∈ return-sem)) =
+    helper (Prod.map ≟C⇒≡ id (if-true-sem⁻¹ t∈))
+    where
+    helper : ∀ {t t′ s} →
+             t ≡ t′ × s ≡ [] → t ≡ t′ × t′ ∷ s ++ [] ≡ [ t ]
+    helper (refl , refl) = (refl , refl)
+
+open Basic._∈_∙_
 
 ------------------------------------------------------------------------
 -- A less minimal grammar language
@@ -217,6 +231,9 @@ mutual
     _⋆     : ∀ {c A} → ∞Grammar c A → Grammar (List A)
 
   -- Coinductive if the argument is true.
+  --
+  -- Conditional coinduction is used to avoid having to write the
+  -- delay operator (♯_) all the time.
 
   ∞Grammar : Bool → Set → Set₁
   ∞Grammar true  A = ∞ (Grammar A)
@@ -258,11 +275,6 @@ Grammar-for A = (x : A) → Grammar (∃ λ x′ → x′ ≡ x)
                   ♯ (♯ ⟦ ♭? g ⟧ Basic.>>= λ x →
                   ♯ (♯ ⟦ g ⋆  ⟧ Basic.>>= λ xs →
                      ♯ Basic.return (x ∷ xs)))
-
-infix 4 _∈_∙_
-
-_∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁
-x ∈ g ∙ s = x Basic.∈ ⟦ g ⟧ ∙ s
 
 ------------------------------------------------------------------------
 -- Grammar combinators
@@ -350,57 +362,126 @@ symbol′ : String → Grammar (List Char)
 symbol′ = symbol ∘ String.toList
 
 ------------------------------------------------------------------------
+-- Alternative definition of the semantics
+
+-- Pattern matching on values of type x Basic.∈ ⟦ g₁ ⊛ g₂ ⟧ ∙ s (say)
+-- is somewhat inconvenient: the patterns have the form
+-- (Basic.>>=-sem _ (Basic.>>=-sem _ Basic.return-sem)). The
+-- following, direct definition of the semantics may be easier to use.
+
+infix 4 _∈_∙_
+
+data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
+  return-sem  : ∀ {A} {x : A} → x ∈ return x ∙ []
+  token-sem   : ∀ {t} → t ∈ token ∙ [ t ]
+  >>=-sem     : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A}
+                  {g₂ : A → ∞Grammar c₂ B} {x y s₁ s₂} →
+                x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? (g₂ x) ∙ s₂ →
+                y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
+  ∣-left-sem  : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A}
+                  {x s} →
+                x ∈ ♭? g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  ∣-right-sem : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A}
+                  {x s} →
+                x ∈ ♭? g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  tok-sem     : ∀ {t} → t ∈ tok t ∙ [ t ]
+  <$>-sem     : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} {x s} →
+                x ∈ ♭? g ∙ s → f x ∈ f <$> g ∙ s
+  ⊛-sem       : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ (A → B)}
+                  {g₂ : ∞Grammar c₂ A} {f x s₁ s₂} →
+                f ∈ ♭? g₁ ∙ s₁ → x ∈ ♭? g₂ ∙ s₂ →
+                f x ∈ g₁ ⊛ g₂ ∙ s₁ ++ s₂
+  <⊛-sem      : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
+                  {x y s₁ s₂} →
+                x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ →
+                x ∈ g₁ <⊛ g₂ ∙ s₁ ++ s₂
+  ⊛>-sem      : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
+                  {x y s₁ s₂} →
+                x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ →
+                y ∈ g₁ ⊛> g₂ ∙ s₁ ++ s₂
+  ⋆-[]-sem    : ∀ {c A} {g : ∞Grammar c A} →
+                [] ∈ g ⋆ ∙ []
+  ⋆-+-sem     : ∀ {c A} {g : ∞Grammar c A} {x xs s} →
+                (x ∷ xs) ∈ g + ∙ s → x ∷ xs ∈ g ⋆ ∙ s
+
+-- Cast lemma.
+
+cast : ∀ {A} {g : Grammar A} {x s₁ s₂} →
+       s₁ ≡ s₂ → x ∈ g ∙ s₁ → x ∈ g ∙ s₂
+cast refl = id
+
+-- The alternative semantics is sound with respect to the one above.
+
+sound : ∀ {A x s} {g : Grammar A} → x ∈ g ∙ s → x Basic.∈ ⟦ g ⟧ ∙ s
+sound return-sem       = return-sem
+sound token-sem        = token-sem
+sound (>>=-sem x∈ y∈)  = >>=-sem (sound x∈) (sound y∈)
+sound (∣-left-sem x∈)  = ∣-left-sem (sound x∈)
+sound (∣-right-sem x∈) = ∣-right-sem (sound x∈)
+sound tok-sem          = Basic.tok-sem
+sound (<$>-sem x∈)     = Basic.cast (proj₂ LM.identity _)
+                           (>>=-sem (sound x∈) return-sem)
+sound (⊛-sem f∈ x∈)    = >>=-sem
+                           (sound f∈)
+                           (Basic.cast (proj₂ LM.identity _)
+                              (>>=-sem (sound x∈)
+                                             return-sem))
+sound (<⊛-sem x∈ y∈)   = >>=-sem
+                           (sound x∈)
+                           (Basic.cast (proj₂ LM.identity _)
+                              (>>=-sem (sound y∈)
+                                             return-sem))
+sound (⊛>-sem x∈ y∈)   = >>=-sem
+                           (sound x∈)
+                           (Basic.cast (proj₂ LM.identity _)
+                              (>>=-sem (sound y∈)
+                                             return-sem))
+sound ⋆-[]-sem         = ∣-left-sem return-sem
+sound (⋆-+-sem xs∈)    with sound xs∈
+... | >>=-sem (>>=-sem x∈ return-sem)
+                    (>>=-sem xs∈′ return-sem) =
+  ∣-right-sem
+    (>>=-sem (Basic.cast (P.sym $ proj₂ LM.identity _) x∈)
+                   (>>=-sem xs∈′ return-sem))
+
+-- The alternative semantics is complete with respect to the one above.
+
+complete : ∀ {A x s} {g : Grammar A} → x Basic.∈ ⟦ g ⟧ ∙ s → x ∈ g ∙ s
+complete {g = return x}  return-sem       = return-sem
+complete {g = token}     token-sem        = token-sem
+complete {g = g₁ >>= g₂} (>>=-sem x∈ y∈)  = >>=-sem (complete x∈)
+                                                    (complete y∈)
+complete {g = g₁ ∣ g₂}   (∣-left-sem x∈)  = ∣-left-sem (complete x∈)
+complete {g = g₁ ∣ g₂}   (∣-right-sem x∈) = ∣-right-sem (complete x∈)
+
+complete {g = fail}  ∈fail = ⊥-elim (Basic.fail-sem⁻¹ ∈fail)
+complete {g = tok t} t∈    with Basic.tok-sem⁻¹ t∈
+... | (refl , refl) = tok-sem
+
+complete {g = f <$> g} (>>=-sem x∈ return-sem) =
+  cast (P.sym $ proj₂ LM.identity _)
+       (<$>-sem (complete x∈))
+complete {g = g₁ ⊛ g₂} (>>=-sem {s₁ = s₁} f∈ (>>=-sem x∈ return-sem)) =
+  cast (P.sym $ P.cong (_++_ s₁) $ proj₂ LM.identity _)
+       (⊛-sem (complete f∈) (complete x∈))
+complete {g = g₁ <⊛ g₂} (>>=-sem {s₁ = s₁} x∈ (>>=-sem y∈ return-sem)) =
+  cast (P.sym $ P.cong (_++_ s₁) $ proj₂ LM.identity _)
+       (<⊛-sem (complete x∈) (complete y∈))
+complete {g = g₁ ⊛> g₂} (>>=-sem {s₁ = s₁} x∈ (>>=-sem y∈ return-sem)) =
+  cast (P.sym $ P.cong (_++_ s₁) $ proj₂ LM.identity _)
+       (⊛>-sem (complete x∈) (complete y∈))
+
+complete {g = g ⋆} (∣-left-sem return-sem) = ⋆-[]-sem
+complete {g = g ⋆} (∣-right-sem (>>=-sem x∈ (>>=-sem xs∈ return-sem))) =
+  ⋆-+-sem (⊛-sem (<$>-sem (complete x∈))
+                 (cast (P.sym $ proj₂ LM.identity _) (complete xs∈)))
+
+------------------------------------------------------------------------
 -- Semantics combinators
-
-open Basic public
-  using (cast; return-sem; token-sem; >>=-sem;
-         ∣-left-sem; ∣-right-sem; fail-sem; tok-sem)
-
-<$>-sem : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} {x s} →
-          x ∈ ♭? g ∙ s → f x ∈ f <$> g ∙ s
-<$>-sem x∈ =
-  cast (proj₂ LM.identity _)
-       (>>=-sem x∈ return-sem)
-
-⊛-sem : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A}
-          {f x s₁ s₂} →
-        f ∈ ♭? g₁ ∙ s₁ → x ∈ ♭? g₂ ∙ s₂ → f x ∈ g₁ ⊛ g₂ ∙ s₁ ++ s₂
-⊛-sem {s₁ = s₁} f∈ x∈ =
-  cast (solve 2 (λ a b → a ⊕ b ⊕ nil ⊜ a ⊕ b) refl s₁ _)
-             (>>=-sem f∈ (>>=-sem x∈ return-sem))
-  where open List-solver
-
-<⊛-sem : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
-           {x y s₁ s₂} →
-         x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ → x ∈ g₁ <⊛ g₂ ∙ s₁ ++ s₂
-<⊛-sem {s₁ = s₁} x∈ y∈ =
-  cast (solve 2 (λ a b → a ⊕ b ⊕ nil ⊜ a ⊕ b) refl s₁ _)
-             (>>=-sem x∈ (>>=-sem y∈ return-sem))
-  where open List-solver
-
-⊛>-sem : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
-           {x y s₁ s₂} →
-         x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ → y ∈ g₁ ⊛> g₂ ∙ s₁ ++ s₂
-⊛>-sem {s₁ = s₁} x∈ y∈ =
-  cast (solve 2 (λ a b → a ⊕ b ⊕ nil ⊜ a ⊕ b) refl s₁ _)
-             (>>=-sem x∈ (>>=-sem y∈ return-sem))
-  where open List-solver
 
 <$-sem : ∀ {A B} {x : A} {y : B} {g s} →
          y ∈ g ∙ s → x ∈ x <$ g ∙ s
 <$-sem y∈ = <⊛-sem return-sem y∈
-
-⋆-[]-sem : ∀ {c A} {g : ∞Grammar c A} →
-           [] ∈ g ⋆ ∙ []
-⋆-[]-sem = ∣-left-sem return-sem
-
-⋆-+-sem : ∀ {c A} {g : ∞Grammar c A} {x xs s} →
-          (x ∷ xs) ∈ g + ∙ s → x ∷ xs ∈ g ⋆ ∙ s
-⋆-+-sem (>>=-sem (>>=-sem x∈ return-sem)
-                       (>>=-sem xs∈ return-sem)) =
-  ∣-right-sem
-    (>>=-sem (cast (P.sym $ proj₂ LM.identity _) x∈)
-                   (>>=-sem xs∈ return-sem))
 
 +-sem : ∀ {c A} {g : ∞Grammar c A} {x xs s₁ s₂} →
         x ∈ ♭? g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → (x ∷ xs) ∈ g + ∙ s₁ ++ s₂
@@ -412,13 +493,10 @@ open Basic public
 
 ⋆-⋆-sem : ∀ {c A} {g : ∞Grammar c A} {xs₁ xs₂ s₁ s₂} →
           xs₁ ∈ g ⋆ ∙ s₁ → xs₂ ∈ g ⋆ ∙ s₂ → xs₁ ++ xs₂ ∈ g ⋆ ∙ s₁ ++ s₂
-⋆-⋆-sem (∣-left-sem return-sem)                      xs₂∈ = xs₂∈
-⋆-⋆-sem (∣-right-sem (>>=-sem {s₁ = s₁} x∈
-                              (>>=-sem {s₁ = s₂} xs₁∈
-                                       return-sem))) xs₂∈ =
-  cast (solve 3 (λ a b c → a ⊕ b ⊕ c ⊜ (a ⊕ b ⊕ nil) ⊕ c) refl s₁ s₂ _)
+⋆-⋆-sem ⋆-[]-sem xs₂∈ = xs₂∈
+⋆-⋆-sem (⋆-+-sem (⊛-sem (<$>-sem {s = s₁} x∈) xs₁∈)) xs₂∈ =
+  cast (P.sym $ LM.assoc s₁ _ _)
        (⋆-∷-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
-  where open List-solver
 
 +-∷-sem : ∀ {c A} {g : ∞Grammar c A} {x xs s₁ s₂} →
           x ∈ ♭? g ∙ s₁ → xs ∈ g + ∙ s₂ → x ∷⁺ xs ∈ g + ∙ s₁ ++ s₂
@@ -429,16 +507,15 @@ mutual
   list-sem : ∀ {A} {g : Grammar-for A} {s : A → List Char} →
              (∀ x → (x , refl) ∈ g x ∙ s x) →
              ∀ xs → (xs , refl) ∈ list g xs ∙ concat (List.map s xs)
-  list-sem         elem []       = return-sem
-  list-sem {g = g} elem (x ∷ xs) = <$>-sem (list⁺-sem g elem (x ∷ xs))
+  list-sem elem []       = return-sem
+  list-sem elem (x ∷ xs) = <$>-sem (list⁺-sem elem (x ∷ xs))
 
   list⁺-sem :
-    ∀ {A} (g : Grammar-for A) {s : A → List Char} →
+    ∀ {A} {g : Grammar-for A} {s : A → List Char} →
     (∀ x → (x , refl) ∈ g x ∙ s x) →
     ∀ xs → (xs , refl) ∈ list⁺ g xs ∙
            concat (List.map s (List⁺.toList xs))
-  list⁺-sem _ elem (x ∷ xs) =
-    ⊛-sem (<$>-sem (elem x)) (list-sem elem xs)
+  list⁺-sem elem (x ∷ xs) = ⊛-sem (<$>-sem (elem x)) (list-sem elem xs)
 
 sep-by-sem-singleton :
   ∀ {A B} {g : Grammar A} {sep : Grammar B} {x s} →
@@ -451,14 +528,10 @@ sep-by-sem-∷ :
   ∀ {A B} {g : Grammar A} {sep : Grammar B} {x y xs s₁ s₂ s₃} →
   x ∈ g ∙ s₁ → y ∈ sep ∙ s₂ → xs ∈ g sep-by sep ∙ s₃ →
   x ∷⁺ xs ∈ g sep-by sep ∙ s₁ ++ s₂ ++ s₃
-sep-by-sem-∷
-  {s₁ = s₁} {s₂} x∈ y∈
-  (>>=-sem (>>=-sem x′∈ return-sem) (>>=-sem xs∈ return-sem)) =
-  cast (solve 4 (λ a b c d → a ⊕ (b ⊕ c) ⊕ d ⊜
-                             a ⊕ b ⊕ (c ⊕ nil) ⊕ d ⊕ nil)
-                refl s₁ s₂ _ _)
-       (⊛-sem (<$>-sem x∈) (⋆-∷-sem (⊛>-sem y∈ x′∈) xs∈))
-  where open List-solver
+sep-by-sem-∷ {s₂ = s₂} x∈ y∈ (⊛-sem (<$>-sem x′∈) xs∈) =
+  ⊛-sem (<$>-sem x∈)
+        (cast (LM.assoc s₂ _ _)
+              (⋆-∷-sem (⊛>-sem y∈ x′∈) xs∈))
 
 if-true-sem : ∀ {b} (t : T b) → t ∈ if-true b ∙ []
 if-true-sem {b = true}  _  = return-sem
@@ -532,40 +605,31 @@ final-whitespace′? : ∀ (n : ℕ) {A} (g : Grammar A) →
                      Maybe (Final-whitespace′ g)
 final-whitespace′? = final?
   where
-  open List-solver
-
-  ++-lemma = solve 3 (λ a b c → a ⊕ b ⊕ c ⊜ (a ⊕ b ⊕ nil) ⊕ c) refl
-
   <$>-lemma : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} →
               Final-whitespace′ (♭? g) →
               Final-whitespace′ (f <$> g)
-  <$>-lemma f (>>=-sem {s₁ = s₁} x∈ return-sem) w =
-    , cast (solve 2 (λ a b → a ⊕ b ⊜ (a ⊕ nil) ⊕ b) refl s₁ _)
-           (<$>-sem (proj₂ $ f x∈ w))
+  <$>-lemma f (<$>-sem x∈) w = , <$>-sem (proj₂ $ f x∈ w)
 
   ⊛-lemma : ∀ {c₁ c₂ A B}
               {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A} →
             Final-whitespace′ (♭? g₂) →
             Final-whitespace′ (g₁ ⊛ g₂)
-  ⊛-lemma f₂ (>>=-sem {s₁ = s₁} f∈
-                      (>>=-sem {s₁ = s₂} x∈ return-sem)) w =
-    , cast (++-lemma s₁ s₂ _)
+  ⊛-lemma f₂ (⊛-sem {s₁ = s₁} f∈ x∈) w =
+    , cast (P.sym $ LM.assoc s₁ _ _)
            (⊛-sem f∈ (proj₂ $ f₂ x∈ w))
 
   <⊛-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
              Final-whitespace′ (♭? g₂) →
              Final-whitespace′ (g₁ <⊛ g₂)
-  <⊛-lemma f₂ (>>=-sem {s₁ = s₁} x∈
-                       (>>=-sem {s₁ = s₂} y∈ return-sem)) w =
-    , cast (++-lemma s₁ s₂ _)
+  <⊛-lemma f₂ (<⊛-sem {s₁ = s₁} x∈ y∈) w =
+    , cast (P.sym $ LM.assoc s₁ _ _)
            (<⊛-sem x∈ (proj₂ $ f₂ y∈ w))
 
   ⊛>-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
              Final-whitespace′ (♭? g₂) →
              Final-whitespace′ (g₁ ⊛> g₂)
-  ⊛>-lemma f₂ (>>=-sem {s₁ = s₁} x∈
-                       (>>=-sem {s₁ = s₂} y∈ return-sem)) w =
-    , cast (++-lemma s₁ s₂ _)
+  ⊛>-lemma f₂ (⊛>-sem {s₁ = s₁} x∈ y∈) w =
+    , cast (P.sym $ LM.assoc s₁ _ _)
            (⊛>-sem x∈ (proj₂ $ f₂ y∈ w))
 
   ∣-lemma : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
@@ -582,7 +646,7 @@ final-whitespace′? = final?
   whitespace⋆-lemma is-whitespace xs∈ w = , ⋆-⋆-sem xs∈ w
 
   final? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Final-whitespace′ g)
-  final? (suc n) fail               = just (⊥-elim ∘ fail-sem)
+  final? (suc n) fail               = just (λ ())
   final? (suc n) (f <$> g)          = <$>-lemma <$>M final? n (♭? g)
   final? (suc n) (g₁ ⊛ g₂)          = ⊛-lemma   <$>M final? n (♭? g₂)
   final? (suc n) (g₁ <⊛ g₂)         = <⊛-lemma  <$>M final? n (♭? g₂)
@@ -603,64 +667,44 @@ final-whitespace? : ∀ (n : ℕ) {A} (g : Grammar A) →
                     Maybe (Final-whitespace g)
 final-whitespace? = final?
   where
-  open List-solver
-
-  ++-lemma  = solve 3 (λ a b c → a ⊕ b ⊕ c ⊜ (a ⊕ b ⊕ nil) ⊕ c) refl
-  ++-lemma₁ = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) refl
-  ++-lemma₂ = solve 3 (λ a b c → (a ⊕ b ⊕ nil) ⊕ c ⊜ (a ⊕ b) ⊕ c) refl
-  ++-lemma₃ = solve 2 (λ a b → a ⊕ b ⊜ a ⊕ b ⊕ nil) refl
+  ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) refl
+    where open List-solver
 
   <$>-lemma : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} →
               Final-whitespace (♭? g) →
               Final-whitespace (f <$> g)
-  <$>-lemma f (>>=-sem {s₁ = s₁} x∈ return-sem) w =
-    cast (solve 2 (λ a b → a ⊕ b ⊜ (a ⊕ nil) ⊕ b) refl s₁ _)
-         (<$>-sem (f x∈ w))
+  <$>-lemma f (<$>-sem x∈) w = <$>-sem (f x∈ w)
 
   ⊛-return-lemma :
     ∀ {c A B} {g : ∞Grammar c (A → B)} {x} →
     Final-whitespace (♭? g) →
     Final-whitespace (g ⊛ return x)
-  ⊛-return-lemma f (>>=-sem {s₁ = s₁}
-                            f∈ (>>=-sem return-sem return-sem)) w =
-    cast (++-lemma₁ s₁ _)
+  ⊛-return-lemma f (⊛-sem {s₁ = s₁} f∈ return-sem) w =
+    cast (++-lemma s₁ _)
          (⊛-sem (f f∈ w) return-sem)
 
   +-lemma :
     ∀ {c A} {g : ∞Grammar c A} →
     Final-whitespace (♭? g) →
-    ∀ {x xs s₁ s₂ s₃ s} →
-    x ∈ ♭? g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → s ∈ whitespace ⋆ ∙ s₃ →
-    x ∷ xs ∈ g ⋆ ∙ s₁ ++ s₂ ++ s₃
-  +-lemma f x∈ (∣-left-sem return-sem) w =
-    cast (proj₂ LM.identity _)
-         (⋆-∷-sem (f x∈ w) ⋆-[]-sem)
-  +-lemma f {s₁ = s₁} x∈
-          (∣-right-sem (>>=-sem {s₁ = s₂} x′∈
-                                (>>=-sem {s₁ = s₃} xs∈ return-sem))) w =
-    cast (solve 4 (λ a b c d → a ⊕ b ⊕ c ⊕ d ⊜ a ⊕ (b ⊕ c ⊕ nil) ⊕ d)
-                  refl s₁ s₂ s₃ _)
-         (⋆-∷-sem x∈ (+-lemma f x′∈ xs∈ w))
+    Final-whitespace (g +)
+  +-lemma f (⊛-sem {s₁ = s₁} (<$>-sem x∈) ⋆-[]-sem) w =
+    cast (++-lemma s₁ _)
+         (+-sem (f x∈ w) ⋆-[]-sem)
+  +-lemma f (⊛-sem {s₁ = s₁} (<$>-sem x∈) (⋆-+-sem xs∈)) w =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (+-∷-sem x∈ (+-lemma f xs∈ w))
 
   ⊛-⋆-lemma :
     ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ (List A → B)} {g₂ : ∞Grammar c₂ A} →
     Final-whitespace (♭? g₁) →
     Final-whitespace (♭? g₂) →
     Final-whitespace (g₁ ⊛ g₂ ⋆)
-  ⊛-⋆-lemma f₁ f₂ (>>=-sem {s₁ = s₁} f∈
-                     (>>=-sem (∣-left-sem return-sem) return-sem)) w =
-    cast (++-lemma₁ s₁ _)
+  ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) w =
+    cast (++-lemma s₁ _)
          (⊛-sem (f₁ f∈ w) ⋆-[]-sem)
-  ⊛-⋆-lemma f₁ f₂ (>>=-sem {s₁ = s₁} f∈
-                     (>>=-sem
-                        (∣-right-sem (>>=-sem {s₁ = s₂} x∈
-                                        (>>=-sem {s₁ = s₃} xs∈
-                                                 return-sem)))
-                        return-sem)) w =
-    cast (solve 4 (λ a b c d → a ⊕ b ⊕ c ⊕ d ⊜
-                               (a ⊕ (b ⊕ c ⊕ nil) ⊕ nil) ⊕ d)
-                  refl s₁ s₂ s₃ _)
-         (⊛-sem f∈ (+-lemma f₂ x∈ xs∈ w))
+  ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) w =
+    cast (P.sym $ LM.assoc s₁ _ _)
+         (⊛-sem f∈ (⋆-+-sem (+-lemma f₂ xs∈ w)))
 
   ⊛-∣-lemma : ∀ {c₁ c₂₁ c₂₂ A B} {g₁ : ∞Grammar c₁ (A → B)}
                 {g₂₁ : ∞Grammar c₂₁ A} {g₂₂ : ∞Grammar c₂₂ A} →
@@ -668,57 +712,44 @@ final-whitespace? = final?
               Final-whitespace (g₁ ⊛ g₂₂) →
               Final-whitespace (g₁ ⊛ (g₂₁ ∣ g₂₂))
   ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
-            (>>=-sem {x = f} {s₁ = s₁} f∈
-                     (>>=-sem {x = x} {s₁ = s₂}
-                              (∣-left-sem x∈) return-sem)) w
-    rewrite ++-lemma₂ s₁ s₂ s₃
+            (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂}
+                   f∈ (∣-left-sem x∈)) w
     with f x | (s₁ ++ s₂) ++ s₃ | f₁₂ (⊛-sem f∈ x∈) w
-  ... | ._ | ._ | >>=-sem {s₁ = s₁′} f∈′ (>>=-sem x∈′ return-sem) =
-    cast (++-lemma₃ s₁′ _)
-         (⊛-sem f∈′ (∣-left-sem x∈′))
+  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (∣-left-sem x∈′)
   ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
-            (>>=-sem {x = f} {s₁ = s₁} f∈
-                     (>>=-sem {x = x} {s₁ = s₂}
-                              (∣-right-sem x∈) return-sem)) w
-    rewrite ++-lemma₂ s₁ s₂ s₃
+            (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂}
+                   f∈ (∣-right-sem x∈)) w
     with f x | (s₁ ++ s₂) ++ s₃ | f₁₃ (⊛-sem f∈ x∈) w
-  ... | ._ | ._ | >>=-sem {s₁ = s₁′} f∈′ (>>=-sem x∈′ return-sem) =
-    cast (++-lemma₃ s₁′ _)
-         (⊛-sem f∈′ (∣-right-sem x∈′))
+  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (∣-right-sem x∈′)
 
   ⊛-lemma : ∀ {c₁ c₂ A B}
               {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A} →
             Final-whitespace (♭? g₂) →
             Final-whitespace (g₁ ⊛ g₂)
-  ⊛-lemma f₂ (>>=-sem {s₁ = s₁} f∈
-                      (>>=-sem {s₁ = s₂} x∈ return-sem)) w =
-    cast (solve 3 (λ a b c → a ⊕ b ⊕ c ⊜ (a ⊕ b ⊕ nil) ⊕ c)
-                  refl s₁ s₂ _)
+  ⊛-lemma f₂ (⊛-sem {s₁ = s₁} f∈ x∈) w =
+    cast (P.sym $ LM.assoc s₁ _ _)
          (⊛-sem f∈ (f₂ x∈ w))
 
   <⊛-return-lemma :
     ∀ {c A B} {g : ∞Grammar c A} {x : B} →
     Final-whitespace (♭? g) →
     Final-whitespace (g <⊛ return x)
-  <⊛-return-lemma f (>>=-sem {s₁ = s} y∈
-                             (>>=-sem return-sem return-sem)) w =
-    cast (solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) refl s _)
-         (<⊛-sem (f y∈ w) return-sem)
+  <⊛-return-lemma f (<⊛-sem {s₁ = s₁} f∈ return-sem) w =
+    cast (++-lemma s₁ _)
+         (<⊛-sem (f f∈ w) return-sem)
 
   <⊛-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
              Final-whitespace′ (♭? g₂) →
              Final-whitespace (g₁ <⊛ g₂)
-  <⊛-lemma f₂ (>>=-sem {s₁ = s₁} x∈
-                       (>>=-sem {s₁ = s₂} y∈ return-sem)) w =
-    cast (++-lemma s₁ s₂ _)
+  <⊛-lemma f₂ (<⊛-sem {s₁ = s₁} x∈ y∈) w =
+    cast (P.sym $ LM.assoc s₁ _ _)
          (<⊛-sem x∈ (proj₂ $ f₂ y∈ w))
 
   ⊛>-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
              Final-whitespace (♭? g₂) →
              Final-whitespace (g₁ ⊛> g₂)
-  ⊛>-lemma f₂ (>>=-sem {s₁ = s₁} x∈
-                       (>>=-sem {s₁ = s₂} y∈ return-sem)) w =
-    cast (++-lemma s₁ s₂ _)
+  ⊛>-lemma f₂ (⊛>-sem {s₁ = s₁} x∈ y∈) w =
+    cast (P.sym $ LM.assoc s₁ _ _)
          (⊛>-sem x∈ (f₂ y∈ w))
 
   ∣-lemma : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
@@ -730,7 +761,7 @@ final-whitespace? = final?
 
   final? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Final-whitespace g)
 
-  final? (suc n) fail = just (⊥-elim ∘ fail-sem)
+  final? (suc n) fail = just (λ ())
 
   final? (suc n) (f <$> g) = <$>-lemma <$>M final? n (♭? g)
 

@@ -108,7 +108,7 @@ operator-name-printer n = list⁺-doc tok-sat-doc n
 
 operator : ∀ {assoc} → Grammar-for (Operator assoc)
 operator op =
-  Prod.map ⟪_⟫ (P.cong ⟪_⟫) <$> ♯ operator-name (Operator.name op)
+  Prod.map ⟪_⟫ (P.cong ⟪_⟫) <$> operator-name (Operator.name op)
 
 -- A pretty-printer for operators.
 
@@ -269,28 +269,23 @@ module Expr (g : Precedence-graph) where
     -- Expression grammar.
 
     expr : Grammar (Expr any-precedence)
-    expr = ♯ (♯ whitespace⋆
-           ⊛> ♯ precs any-precedence)
-           <⊛ ♯ whitespace⋆
+    expr = whitespace ⋆ ⊛> precs any-precedence <⊛ whitespace ⋆
 
     -- Grammar for a given list of precedence levels.
 
     precs : (ps : List Precedence) → Grammar (Expr ps)
-    precs [] =
-        ♯ (♯ (♯ (paren <$ string′ "(")
-                        ⊛ ♯ expr)
-                       <⊛ ♯ string′ ")")
-      ∣ ♯ (var <$> ♯ Name.name)
+    precs [] = paren <$ string′ "(" ⊛ ♯ expr <⊛ string′ ")"
+             ∣ var <$> Name.name
     precs (p ∷ ps) =
-        ♯ ((λ { (_ , e) → here P.refl ∙ e }) <$> ♯ prec p)
-      ∣ ♯ (weaken                            <$> ♯ precs ps)
+        (λ { (_ , e) → here P.refl ∙ e }) <$> ♯ prec p
+      ∣ weaken                            <$> precs ps
 
     -- Grammar for a given precedence level.
 
     prec : (p : Precedence) → Grammar (∃ (Expr-in p))
-    prec p = ♯ (♯ (,_ <$> ♯ non-assoc p)
-           ∣    ♯ (,_ <$> ♯ right⁺ p))
-           ∣    ♯ (,_ <$> ♯ left⁺ p)
+    prec p = ,_ <$> non-assoc p
+           ∣ ,_ <$> right⁺ p
+           ∣ ,_ <$> left⁺ p
 
     -- Operators of higher precedence (including parenthesised
     -- expressions and variables).
@@ -301,41 +296,41 @@ module Expr (g : Precedence-graph) where
     -- Non-associative operators.
 
     non-assoc : (p : Precedence) → Grammar (Expr-in p non)
-    non-assoc p = ♯ (♯ (_⟨_⟩_ <$> ♯ precs (↑ p))
-                               ⊛  ♯ operators (ops p non))
-                               ⊛  ♯ precs (↑ p)
+    non-assoc p = _⟨_⟩_ <$> precs (↑ p)
+                         ⊛  operators (ops p non)
+                         ⊛  precs (↑ p)
 
     -- Right-associative operators.
 
     right⁺ : (p : Precedence) → Grammar (Expr-in p right)
-    right⁺ p = ♯ (♯ (_⟨_⟩ʳ_ <$> ♯ precs (↑ p))
-                             ⊛  ♯ operators (ops p right))
-                             ⊛  ♯ right⁺↑ p
+    right⁺ p = _⟨_⟩ʳ_ <$> precs (↑ p)
+                       ⊛  operators (ops p right)
+                       ⊛  right⁺↑ p
 
     right⁺↑ : (p : Precedence) → Grammar (Outer p right)
-    right⁺↑ p = ♯ (similar <$> ♯ right⁺ p)
-              ∣ ♯ (tighter <$> ♯ precs (↑ p))
+    right⁺↑ p = similar <$> ♯ right⁺ p
+              ∣ tighter <$> precs (↑ p)
 
     -- Left-associative operators.
 
     left⁺ : (p : Precedence) → Grammar (Expr-in p left)
-    left⁺ p = ♯ (♯ (_⟨_⟩ˡ_ <$> ♯ left⁺↑ p)
-                            ⊛  ♯ operators (ops p left))
-                            ⊛  ♯ precs (↑ p)
+    left⁺ p = _⟨_⟩ˡ_ <$> left⁺↑ p
+                      ⊛  operators (ops p left)
+                      ⊛  precs (↑ p)
 
     left⁺↑ : (p : Precedence) → Grammar (Outer p left)
-    left⁺↑ p = ♯ (similar <$> ♯ left⁺ p)
-             ∣ ♯ (tighter <$> ♯ precs (↑ p))
+    left⁺↑ p = similar <$> ♯ left⁺ p
+             ∣ tighter <$> precs (↑ p)
 
     -- An operator from a given list of operators.
 
     operators : ∀ {assoc} (os : List (Operator assoc)) →
                 Grammar (∃ λ op → op ∈ os)
     operators []         = fail
-    operators (op ∷ ops) = ♯ (♯ (♯ (tt <$ whitespace⋆)
-                              ⊛> ♯ (Prod.map id here <$> ♯ operator op))
-                              <⊛ ♯ (tt <$ whitespace⋆))
-                         ∣ ♯ (Prod.map id there <$> ♯ operators ops)
+    operators (op ∷ ops) =    (tt <$ whitespace ⋆)
+                           ⊛> (Prod.map id here <$> operator op)
+                           <⊛ (tt <$ whitespace ⋆)
+                         ∣ Prod.map id there <$> operators ops
 
   mutual
 

@@ -33,7 +33,7 @@ Text : Set
 Text = List (∃ λ (t : Char) → T (is-text-char t))
 
 text-g : Grammar Text
-text-g = ♯ sat _ ⋆
+text-g = sat _ ⋆
 
 text-printer : Pretty-printer text-g
 text-printer = map⋆-doc (λ _ → sat-doc)
@@ -57,25 +57,24 @@ mutual
   -- pretty-printing easier.
 
   xml : Grammar XML
-  xml = ♯ (♯ (♯ start-of-element >>= λ { (t , atts) →
-              ♯ (elt t atts <$> ♯ (
-                     ♯ ([] <$ string′ "/")
-                   ∣ ♯ (♯ (♯ (♯ string′ ">"
-                           ⊛> ♯ w-xmls)
-                          <⊛  ♯ symbol′ "</")
-                          <⊛  ♯ symbol (List.map proj₁ t))))}) <⊛
-           ♯ symbol′ ">")
-      ∣ ♯ (♯ (txt <$> ♯ text-g) <⊛ ♯ whitespace⋆)
+  xml = (start-of-element >>= λ { (t , atts) →
+         elt t atts <$> (
+             [] <$ string′ "/"
+           ∣     string′ ">"
+              ⊛> w-xmls
+             <⊛  symbol′ "</"
+             <⊛  symbol (List.map proj₁ t))}) <⊛
+        symbol′ ">"
+      ∣ txt <$> text-g <⊛ whitespace ⋆
 
   start-of-element : Grammar (Name × List Att)
-  start-of-element =
-    ♯ (♯ (_,_ <$ symbol′ "<") ⊛ ♯ name) ⊛ ♯ w-attrs
+  start-of-element = _,_ <$ symbol′ "<" ⊛ name ⊛ w-attrs
 
   -- The following definition uses "tt <$" in order to make
   -- pretty-printing easier.
 
   w-xmls : Grammar (List XML)
-  w-xmls = ♯ (tt <$ whitespace⋆) ⊛> ♯ xmls
+  w-xmls = (tt <$ whitespace ⋆) ⊛> xmls
 
   xmls : Grammar (List XML)
   xmls = ♯ xml ⋆
@@ -87,17 +86,17 @@ mutual
   -- pretty-printing easier.
 
   w-attrs : Grammar (List Att)
-  w-attrs = ♯ (tt <$ whitespace⋆) ⊛> ♯ attrs
+  w-attrs = (tt <$ whitespace ⋆) ⊛> attrs
 
   attrs : Grammar (List Att)
-  attrs = ♯ attr ⋆
+  attrs = attr ⋆
 
   attr : Grammar Att
-  attr = ♯ (♯ (♯ (♯ (att <$> ♯ name-w)
-                         <⊛  ♯ symbol′ "=")
-                         <⊛  ♯ string′ "\"")
-                          ⊛  ♯ name)
-                         <⊛  ♯ symbol′ "\""
+  attr = att <$> name-w
+             <⊛  symbol′ "="
+             <⊛  string′ "\""
+              ⊛  name
+             <⊛  symbol′ "\""
 
 mutual
 

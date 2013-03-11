@@ -14,8 +14,8 @@ data Bit : Set where
   [0] [1] : Bit
 
 bit : Grammar Bit
-bit = ♯ ([0] <$ symbol′ "0")
-    ∣ ♯ ([1] <$ symbol′ "1")
+bit = [0] <$ symbol′ "0"
+    ∣ [1] <$ symbol′ "1"
 
 bit-printer : Pretty-printer bit
 bit-printer [0] = ∣-left-doc  (<$-doc symbol-doc)

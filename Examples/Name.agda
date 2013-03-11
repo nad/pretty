@@ -49,7 +49,7 @@ Name : Set
 Name = List Name-char
 
 name : Grammar Name
-name = ♯ name-char ⋆
+name = name-char ⋆
 
 name-printer : Pretty-printer name
 name-printer = map⋆-doc name-char-printer
@@ -57,7 +57,7 @@ name-printer = map⋆-doc name-char-printer
 -- Names possibly followed by whitespace.
 
 name-w : Grammar Name
-name-w = ♯ name <⊛ ♯ (♯ whitespace ⋆)
+name-w = name <⊛ whitespace ⋆
 
 name-w-printer : Pretty-printer name-w
 name-w-printer n = name-printer n <⊛-doc []-doc

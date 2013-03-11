@@ -30,21 +30,20 @@ module Expression₁ where
     -- Note the use of "tt <$".
 
     expr : Grammar E
-    expr = ♯ atom
-         ∣ ♯ (♯ (sub <$> ♯ expr)
-                     ⊛ ♯ (♯ (♯ (
-                        ♯ (tt <$ whitespace⋆)
-                     ⊛> ♯ string′ "-")
-                     ⊛> ♯ whitespace⋆)
-                     ⊛> ♯ atom))
+    expr = atom
+         ∣ sub <$> ♯ expr ⊛ (
+                   (tt <$ whitespace ⋆)
+                ⊛> string′ "-"
+                ⊛> whitespace ⋆
+                ⊛> atom)
 
     atom : Grammar E
-    atom = ♯ (one <$ string′ "1")
-         ∣ ♯ (♯ (♯ (♯ (♯ string′ "("
-                    ⊛> ♯ whitespace⋆)
-                    ⊛> ♯ expr)
-                    <⊛ ♯ whitespace⋆)
-                    <⊛ ♯ string′ ")")
+    atom = one <$ string′ "1"
+         ∣    string′ "("
+           ⊛> whitespace ⋆
+           ⊛> ♯ expr
+           <⊛ whitespace ⋆
+           <⊛ string′ ")"
 
   one-doc : Doc atom one
   one-doc = ∣-left-doc (<$-doc text)
@@ -87,12 +86,12 @@ module Expression₂ where
   mutual
 
     expr : Grammar E
-    expr = ♯ atom
-         ∣ ♯ (♯ (sub <$> ♯ expr) ⊛ ♯ (♯ symbol′ "-" ⊛> ♯ atom))
+    expr = atom
+         ∣ sub <$> ♯ expr ⊛ (symbol′ "-" ⊛> atom)
 
     atom : Grammar E
-    atom = ♯ (one <$ symbol′ "1")
-         ∣ ♯ (♯ (♯ symbol′ "(" ⊛> ♯ expr) <⊛ ♯ symbol′ ")")
+    atom = one <$ symbol′ "1"
+         ∣ symbol′ "(" ⊛> ♯ expr <⊛ symbol′ ")"
 
   one-doc : Doc atom one
   one-doc = ∣-left-doc (<$-doc symbol-doc)
@@ -140,12 +139,12 @@ module Expression₃ where
 
   expr : Prec → Grammar E
   expr ′5 = ♯ expr ′6
-          ∣ ♯ (♯ (sub <$> ♯ expr ′5) ⊛ ♯ (♯ symbol′ "-" ⊛> ♯ expr ′6))
+          ∣ sub <$> ♯ expr ′5 ⊛ (symbol′ "-" ⊛> ♯ expr ′6)
   expr ′6 = ♯ expr ′7
-          ∣ ♯ (♯ (div <$> ♯ expr ′6) ⊛ ♯ (♯ symbol′ "/" ⊛> ♯ expr ′7))
-  expr ′7 = ♯ (♯ (one <$ symbol′ "1")
-          ∣    ♯ (var <$> ♯ name-w))
-          ∣ ♯ (♯ (♯ symbol′ "(" ⊛> ♯ expr ′5) <⊛ ♯ symbol′ ")")
+          ∣ div <$> ♯ expr ′6 ⊛ (symbol′ "/" ⊛> ♯ expr ′7)
+  expr ′7 = one <$ symbol′ "1"
+          ∣ var <$> name-w
+          ∣ symbol′ "(" ⊛> ♯ expr ′5 <⊛ symbol′ ")"
 
   -- Document for one.
 
