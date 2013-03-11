@@ -37,11 +37,6 @@ mutual
   -- correctness property proved below does not rely on this
   -- convention.
 
-  -- One could introduce a smart wrapper for embed, to avoid long
-  -- chains of embed constructors. I tried this, and it didn't seem to
-  -- have a large impact on the time needed to typecheck the code
-  -- (including the examples).
-
   infixr 20 _·_
 
   data Doc : ∀ {A} → Grammar A → A → Set₁ where
@@ -53,7 +48,7 @@ mutual
     line  : Doc (tt <$ whitespace+) tt
     group : ∀ {A} {g : Grammar A} {x} → Doc g x → Doc g x
     nest  : ∀ {A} {g : Grammar A} {x} → ℕ → Doc g x → Doc g x
-    embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
+    emb   : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
             (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
     fill  : ∀ {A} {g : Grammar A} {xs} →
             Docs g xs → Doc (g sep-by whitespace+) xs
@@ -75,6 +70,14 @@ Pretty-printer-for g = ∀ x → Doc (g x) (x , refl)
 
 ------------------------------------------------------------------------
 -- Derived document combinators
+
+-- A "smart" variant of emb. Can be used to avoid long chains of emb
+-- constructors.
+
+embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
+        (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
+embed f (emb g d) = emb (f ∘ g) d
+embed f d         = emb f d
 
 -- A document for the given character.
 
@@ -369,7 +372,7 @@ ugly-renderer = record
     render line           = String.toList " "
     render (group d)      = render d
     render (nest _ d)     = render d
-    render (embed _ d)    = render d
+    render (emb _ d)      = render d
     render (fill ds)      = render-fills ds
 
     render-fills : ∀ {A} {g : Grammar A} {x} → Docs g x → List Char
@@ -380,14 +383,14 @@ ugly-renderer = record
 
     parsable : ∀ {A x} {g : Grammar A}
                (d : Doc g x) → x ∈ g ∙ render d
-    parsable nil         = return-sem
-    parsable text        = string-sem
-    parsable (d₁ · d₂)   = >>=-sem (parsable d₁) (parsable d₂)
-    parsable line        = <$-sem single-space-sem
-    parsable (group d)   = parsable d
-    parsable (nest _ d)  = parsable d
-    parsable (embed f d) = f (parsable d)
-    parsable (fill ds)   = parsable-fills ds
+    parsable nil        = return-sem
+    parsable text       = string-sem
+    parsable (d₁ · d₂)  = >>=-sem (parsable d₁) (parsable d₂)
+    parsable line       = <$-sem single-space-sem
+    parsable (group d)  = parsable d
+    parsable (nest _ d) = parsable d
+    parsable (emb f d)  = f (parsable d)
+    parsable (fill ds)  = parsable-fills ds
 
     parsable-fills : ∀ {A xs} {g : Grammar A} (ds : Docs g xs) →
                      xs ∈ g sep-by whitespace+ ∙ render-fills ds
@@ -420,20 +423,25 @@ wadler's-renderer w = record
     line  : DocU (tt <$ whitespace+) tt
     union : ∀ {A} {g : Grammar A} {x} → DocU g x → DocU g x → DocU g x
     nest  : ∀ {A} {g : Grammar A} {x} → ℕ → DocU g x → DocU g x
-    embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
+    emb   : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
             (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
 
   -- Some derived combinators.
 
   infixl 20 _⊛-docU_ _<⊛-docU_ _⊛>-docU_
 
+  embedU : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
+           (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
+  embedU f (emb g d) = emb (f ∘ g) d
+  embedU f d         = emb f d
+
   <$>-docU : ∀ {A B : Set} {f : A → B} {x g} →
              DocU (♭ g) x → DocU (f <$> g) (f x)
-  <$>-docU d = embed <$>-sem d
+  <$>-docU d = embedU <$>-sem d
 
   _⊛-docU_ : ∀ {A B g₁ g₂} {f : A → B} {x} →
              DocU (♭ g₁) f → DocU (♭ g₂) x → DocU (g₁ ⊛ g₂) (f x)
-  _⊛-docU_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ · <$>-docU d₂)
+  _⊛-docU_ {g₁ = g₁} {g₂} d₁ d₂ = embedU lemma (d₁ · <$>-docU d₂)
     where
     lemma : ∀ {x s} →
             x ∈ (♭ g₁ >>=′ λ f → f <$> g₂) ∙ s → x ∈ g₁ ⊛ g₂ ∙ s
@@ -441,7 +449,8 @@ wadler's-renderer w = record
 
   _<⊛-docU_ : ∀ {A B g₁ g₂} {x : A} {y : B} →
               DocU (♭ g₁) x → DocU (♭ g₂) y → DocU (g₁ <⊛ g₂) x
-  _<⊛-docU_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛-docU d₁ ⊛-docU d₂)
+  _<⊛-docU_ {g₁ = g₁} {g₂} d₁ d₂ =
+    embedU lemma (nil ⊛-docU d₁ ⊛-docU d₂)
     where
     lemma : ∀ {x s} →
             x ∈ return (λ x _ → x) ⊛′ ♭ g₁ ⊛′ ♭ g₂ ∙ s →
@@ -450,7 +459,8 @@ wadler's-renderer w = record
 
   _⊛>-docU_ : ∀ {A B g₁ g₂} {x : A} {y : B} →
               DocU (♭ g₁) x → DocU (♭ g₂) y → DocU (g₁ ⊛> g₂) y
-  _⊛>-docU_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛-docU d₁ ⊛-docU d₂)
+  _⊛>-docU_ {g₁ = g₁} {g₂} d₁ d₂ =
+    embedU lemma (nil ⊛-docU d₁ ⊛-docU d₂)
     where
     lemma : ∀ {y s} →
             y ∈ return (λ _ x → x) ⊛′ ♭ g₁ ⊛′ ♭ g₂ ∙ s →
@@ -465,7 +475,7 @@ wadler's-renderer w = record
          DocU g x → DocU (tt <$ sep) tt → DocU (g sep-by sep) xs →
          DocU (g sep-by sep) (x ∷⁺ xs)
   cons {g = g} {sep} d₁ d₂ d₃ =
-    embed lemma (<$>-docU d₁ ⊛-docU (d₂ ⊛>-docU d₃))
+    embedU lemma (<$>-docU d₁ ⊛-docU (d₂ ⊛>-docU d₃))
     where
     lemma : ∀ {ys s} →
             ys ∈ _∷⁺_ <$>′ g ⊛′ ((tt <$ sep) ⊛>′ (g sep-by sep)) ∙ s →
@@ -476,7 +486,7 @@ wadler's-renderer w = record
   -- A single space character.
 
   space : DocU (tt <$ whitespace+) tt
-  space = embed lemma (<$-docU text)
+  space = embedU lemma (<$-docU text)
     where
     lemma : ∀ {s} →
             tt ∈ tt <$ string′ " " ∙ s →
@@ -489,18 +499,18 @@ wadler's-renderer w = record
     -- Replaces line constructors with single spaces, removes groups.
 
     flatten : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
-    flatten nil         = nil
-    flatten text        = text
-    flatten (d₁ · d₂)   = flatten d₁ · flatten d₂
-    flatten line        = space
-    flatten (group d)   = flatten d
-    flatten (nest i d)  = nest i (flatten d)
-    flatten (embed f d) = embed f (flatten d)
-    flatten (fill ds)   = flatten-fills ds
+    flatten nil        = nil
+    flatten text       = text
+    flatten (d₁ · d₂)  = flatten d₁ · flatten d₂
+    flatten line       = space
+    flatten (group d)  = flatten d
+    flatten (nest i d) = nest i (flatten d)
+    flatten (emb f d)  = embedU f (flatten d)
+    flatten (fill ds)  = flatten-fills ds
 
     flatten-fills : ∀ {A} {g : Grammar A} {xs} →
                     Docs g xs → DocU (g sep-by whitespace+) xs
-    flatten-fills [ d ]    = embed sep-by-sem-singleton (flatten d)
+    flatten-fills [ d ]    = embedU sep-by-sem-singleton (flatten d)
     flatten-fills (d ∷ ds) = cons (flatten d) space (flatten-fills ds)
 
   mutual
@@ -508,20 +518,20 @@ wadler's-renderer w = record
     -- Conversion of Docs to DocUs.
 
     expand-groups : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
-    expand-groups nil         = nil
-    expand-groups text        = text
-    expand-groups (d₁ · d₂)   = expand-groups d₁ · expand-groups d₂
-    expand-groups line        = line
-    expand-groups (group d)   = union (flatten d) (expand-groups d)
-    expand-groups (nest i d)  = nest i (expand-groups d)
-    expand-groups (embed f d) = embed f (expand-groups d)
-    expand-groups (fill ds)   = expand-fills false ds
+    expand-groups nil        = nil
+    expand-groups text       = text
+    expand-groups (d₁ · d₂)  = expand-groups d₁ · expand-groups d₂
+    expand-groups line       = line
+    expand-groups (group d)  = union (flatten d) (expand-groups d)
+    expand-groups (nest i d) = nest i (expand-groups d)
+    expand-groups (emb f d)  = embedU f (expand-groups d)
+    expand-groups (fill ds)  = expand-fills false ds
 
     expand-fills : Bool → -- Unconditionally flatten the first document?
                    ∀ {A} {g : Grammar A} {xs} →
                    Docs g xs → DocU (g sep-by whitespace+) xs
     expand-fills fl [ d ] =
-      embed sep-by-sem-singleton (flatten/expand fl d)
+      embedU sep-by-sem-singleton (flatten/expand fl d)
     expand-fills fl (d ∷ ds) =
       union (cons (flatten d)           space (expand-fills true  ds))
             (cons (flatten/expand fl d) line  (expand-fills false ds))
@@ -584,7 +594,7 @@ wadler's-renderer w = record
   best i (union d₁ d₂)  = λ κ c → better c (best i d₁ κ c)
                                            (best i d₂ κ c)
   best i (nest j d)     = best (j + i) d
-  best i (embed _ d)    = best i d
+  best i (emb _ d)      = best i d
 
   -- Renders a document.
 
@@ -628,7 +638,7 @@ wadler's-renderer w = record
                                      (best-lemma s d₁ hyp)
                                      (best-lemma s d₂ hyp)
   best-lemma s (nest j d)    hyp = best-lemma s d hyp
-  best-lemma s (embed f d)   hyp = best-lemma s d (hyp ∘ f)
+  best-lemma s (emb f d)     hyp = best-lemma s d (hyp ∘ f)
   best-lemma s (d₁ · d₂)     hyp =
     best-lemma s d₁ λ {s′} f∈ →
       cast refl (LM.assoc s _ _)
