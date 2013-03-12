@@ -30,7 +30,8 @@ open import Utilities
 -- recursively enumerated using an Agda function s : ℕ → List Char can
 -- be expressed using one of these grammars:
 -- ♯ ⟦ string (s 0) ⟧ ∣ ♯ (♯ ⟦ string (s 1) ⟧ ∣ …). (The string
--- combinator and ⟦_⟧ are defined in Grammar.Infinite.)
+-- combinator and ⟦_⟧ are defined in Grammar.Infinite. The empty
+-- language can also be handled, see below.)
 --
 -- In practice one may want to restrict attention to, say, recursive
 -- languages. I use general grammars to illustrate that this approach
