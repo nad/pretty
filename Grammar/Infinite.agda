@@ -157,7 +157,7 @@ x <$ g = return x <⊛ g
 infix 30 _+
 
 _+ : ∀ {c A} → ∞Grammar c A → Grammar (List⁺ A)
-p + = _∷_ <$> p ⊛ p ⋆
+g + = _∷_ <$> g ⊛ g ⋆
 
 mutual
 
