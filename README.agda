@@ -18,6 +18,7 @@ import Utilities
 
 -- Infinite grammars.
 
+import Grammar.Infinite.Basic
 import Grammar.Infinite
 
 -- Pretty-printing.
