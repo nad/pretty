@@ -13,10 +13,14 @@ open import Data.Bool
 open import Data.Char
 open import Data.Empty
 open import Data.List as List
-open import Data.Product as Prod
+open import Data.Product
 open import Data.Unit
 open import Function
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Inverse as Inv using (_↔_; module Inverse)
+import Function.Related as Related
+import Relation.Binary.Sigma.Pointwise as Σ
+open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
 
 private module LM {A : Set} = Monoid (List.monoid A)
@@ -113,39 +117,84 @@ if-true : Bool → Grammar ⊤
 if-true true  = return tt
 if-true false = fail
 
-if-true-sem : tt ∈ if-true true ∙ []
-if-true-sem = return-sem
+if-true-sem : ∀ {b s} → tt ∈ if-true b ∙ s ↔ (T b × s ≡ [])
+if-true-sem = record
+  { to         = P.→-to-⟶ (to _)
+  ; from       = P.→-to-⟶ (from _)
+  ; inverse-of = record
+    { left-inverse-of  = from∘to _
+    ; right-inverse-of = to∘from _
+    }
+  }
+  where
+  to : ∀ b {s} → tt ∈ if-true b ∙ s → T b × s ≡ []
+  to true  return-sem = _ , refl
+  to false ∈fail      = ⊥-elim $ fail-sem⁻¹ ∈fail
 
-if-true-sem⁻¹ : ∀ {b s} → tt ∈ if-true b ∙ s → T b × s ≡ []
-if-true-sem⁻¹ {true}  return-sem = _ , refl
-if-true-sem⁻¹ {false} ∈fail      = ⊥-elim (fail-sem⁻¹ ∈fail)
+  from : ∀ b {s} → T b × s ≡ [] → tt ∈ if-true b ∙ s
+  from true  (_  , refl) = return-sem
+  from false (() , refl)
+
+  from∘to : ∀ b {s} (tt∈ : tt ∈ if-true b ∙ s) → from b (to b tt∈) ≡ tt∈
+  from∘to true  return-sem = refl
+  from∘to false ∈fail      = ⊥-elim $ fail-sem⁻¹ ∈fail
+
+  to∘from : ∀ b {s} (eqs : T b × s ≡ []) → to b (from b eqs) ≡ eqs
+  to∘from true  (_  , refl) = refl
+  to∘from false (() , refl)
 
 -- A token satisfying a given predicate.
 
 sat : (p : Char → Bool) → Grammar Char
 sat p = ♯ token >>= λ t → ♯ (const t <$> if-true (p t))
 
-sat-sem : ∀ {p : Char → Bool} {t} → T (p t) →
-          t ∈ sat p ∙ [ t ]
-sat-sem {p} {t} pt = >>=-sem token-sem (<$>-sem lemma)
+sat-sem : ∀ {p : Char → Bool} {t s} →
+          t ∈ sat p ∙ s ↔ (T (p t) × s ≡ [ t ])
+sat-sem {p} {t} = record
+  { to         = P.→-to-⟶ to
+  ; from       = P.→-to-⟶ from
+  ; inverse-of = record
+    { left-inverse-of  = from∘to
+    ; right-inverse-of = to∘from
+    }
+  }
   where
-  lemma : tt ∈ if-true (p t) ∙ []
-  lemma with p t | pt
-  lemma | true  | _  = if-true-sem
-  lemma | false | ()
+  to : ∀ {s} → t ∈ sat p ∙ s → T (p t) × s ≡ [ t ]
+  to (>>=-sem token-sem (>>=-sem tt∈ return-sem)) =
+    proj₁ lemma , P.cong (λ s → t ∷ s ++ []) (proj₂ lemma)
+    where lemma = Inverse.to if-true-sem ⟨$⟩ tt∈
+
+  from : ∀ {s} → T (p t) × s ≡ [ t ] → t ∈ sat p ∙ s
+  from (pt , refl) =
+    >>=-sem token-sem
+            (>>=-sem (Inverse.from if-true-sem ⟨$⟩ (pt , refl))
+                     return-sem)
+
+  from∘to : ∀ {s} (t∈ : t ∈ sat p ∙ s) → from (to t∈) ≡ t∈
+  from∘to (>>=-sem token-sem (>>=-sem {s₂ = []} tt∈ return-sem))
+    with Inverse.to if-true-sem ⟨$⟩ tt∈
+       | Inverse.left-inverse-of if-true-sem tt∈
+  from∘to (>>=-sem token-sem
+             (>>=-sem {x = tt} {s₂ = []}
+                      .(Inverse.from if-true-sem ⟨$⟩ (pt , refl))
+                      return-sem))
+    | (pt , refl) | refl = refl
+
+  to∘from : ∀ {s} (eqs : T (p t) × s ≡ [ t ]) → to (from eqs) ≡ eqs
+  to∘from (pt , refl)
+    rewrite Inverse.right-inverse-of if-true-sem (pt , refl)
+    = refl
 
 -- A specific token.
 
 tok : Char → Grammar Char
 tok t = sat (λ t′ → t ≟C t′)
 
-tok-sem : ∀ {t} → t ∈ tok t ∙ [ t ]
-tok-sem = sat-sem ≟C-refl
-
-tok-sem⁻¹ : ∀ {t t′ s} → t′ ∈ tok t ∙ s → t ≡ t′ × s ≡ [ t ]
-tok-sem⁻¹ (>>=-sem token-sem (>>=-sem t∈ return-sem)) =
-  helper (Prod.map ≟C⇒≡ id (if-true-sem⁻¹ t∈))
-  where
-  helper : ∀ {t t′ s} →
-           t ≡ t′ × s ≡ [] → t ≡ t′ × t′ ∷ s ++ [] ≡ [ t ]
-  helper (refl , refl) = (refl , refl)
+tok-sem : ∀ {t′ t s} → t′ ∈ tok t ∙ s ↔ (t ≡ t′ × s ≡ [ t ])
+tok-sem {t′} {t} {s} =
+  t′ ∈ tok t ∙ s              ↔⟨ sat-sem ⟩
+  (T (t ≟C t′) × s ≡ [ t′ ])  ↔⟨ Inv.sym $
+                                   Σ.cong (Inv.sym ≟C↔≡) (λ {t≡t′} →
+                                     P.subst (λ t′ → s ≡ [ t ] ↔ s ≡ [ t′ ]) t≡t′ Inv.id) ⟩
+  (t ≡ t′ × s ≡ [ t ])        ∎
+  where open Related.EquationalReasoning

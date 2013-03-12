@@ -33,6 +33,8 @@ open import Data.Product as Prod
 open import Data.String as String using (String)
 open import Data.Unit
 open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Inverse using (_↔_; module Inverse)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 
 private
@@ -266,68 +268,259 @@ cast : ∀ {A} {g : Grammar A} {x s₁ s₂} →
        s₁ ≡ s₂ → x ∈ g ∙ s₁ → x ∈ g ∙ s₂
 cast refl = id
 
--- The alternative semantics is sound with respect to the one above.
+-- The alternative semantics is isomorphic to the one above.
 
-sound : ∀ {A x s} {g : Grammar A} → x ∈ g ∙ s → x Basic.∈ ⟦ g ⟧ ∙ s
-sound return-sem       = return-sem
-sound token-sem        = token-sem
-sound (>>=-sem x∈ y∈)  = >>=-sem (sound x∈) (sound y∈)
-sound (∣-left-sem x∈)  = ∣-left-sem (sound x∈)
-sound (∣-right-sem x∈) = ∣-right-sem (sound x∈)
-sound tok-sem          = Basic.tok-sem
-sound (<$>-sem x∈)     = Basic.cast (proj₂ LM.identity _)
-                           (>>=-sem (sound x∈) return-sem)
-sound (⊛-sem f∈ x∈)    = >>=-sem
-                           (sound f∈)
-                           (Basic.cast (proj₂ LM.identity _)
-                              (>>=-sem (sound x∈)
-                                             return-sem))
-sound (<⊛-sem x∈ y∈)   = >>=-sem
-                           (sound x∈)
-                           (Basic.cast (proj₂ LM.identity _)
-                              (>>=-sem (sound y∈)
-                                             return-sem))
-sound (⊛>-sem x∈ y∈)   = >>=-sem (sound x∈) (sound y∈)
-sound ⋆-[]-sem         = ∣-left-sem return-sem
-sound (⋆-+-sem xs∈)    with sound xs∈
-... | >>=-sem (>>=-sem x∈   return-sem)
-              (>>=-sem xs∈′ return-sem) =
-  ∣-right-sem
-    (>>=-sem (>>=-sem x∈   return-sem)
-             (>>=-sem xs∈′ return-sem))
+isomorphic : ∀ {A x s} {g : Grammar A} →
+             x ∈ g ∙ s ↔ x Basic.∈ ⟦ g ⟧ ∙ s
+isomorphic {g = g} = record
+  { to         = P.→-to-⟶ sound
+  ; from       = P.→-to-⟶ (complete g)
+  ; inverse-of = record
+    { left-inverse-of  = complete∘sound
+    ; right-inverse-of = sound∘complete g
+    }
+  }
+  where
 
--- The alternative semantics is complete with respect to the one above.
+  -- Some short lemmas.
 
-complete : ∀ {A x s} {g : Grammar A} → x Basic.∈ ⟦ g ⟧ ∙ s → x ∈ g ∙ s
-complete {g = return x}  return-sem       = return-sem
-complete {g = token}     token-sem        = token-sem
-complete {g = g₁ >>= g₂} (>>=-sem x∈ y∈)  = >>=-sem (complete x∈)
-                                                    (complete y∈)
-complete {g = g₁ ∣ g₂}   (∣-left-sem x∈)  = ∣-left-sem (complete x∈)
-complete {g = g₁ ∣ g₂}   (∣-right-sem x∈) = ∣-right-sem (complete x∈)
+  lemma₁ : ∀ s → s ++ [] ≡ s
+  lemma₁ = proj₂ LM.identity
 
-complete {g = fail}  ∈fail = ⊥-elim (Basic.fail-sem⁻¹ ∈fail)
-complete {g = tok t} t∈    with Basic.tok-sem⁻¹ t∈
-... | (refl , refl) = tok-sem
+  lemma₂ : ∀ s₁ s₂ → s₁ ++ s₂ ++ [] ≡ s₁ ++ s₂
+  lemma₂ s₁ s₂ = P.cong (_++_ s₁) (lemma₁ s₂)
 
-complete {g = f <$> g} (>>=-sem x∈ return-sem) =
-  cast (P.sym $ proj₂ LM.identity _)
-       (<$>-sem (complete x∈))
-complete {g = g₁ ⊛ g₂} (>>=-sem {s₁ = s₁} f∈ (>>=-sem x∈ return-sem)) =
-  cast (P.sym $ P.cong (_++_ s₁) $ proj₂ LM.identity _)
-       (⊛-sem (complete f∈) (complete x∈))
-complete {g = g₁ <⊛ g₂} (>>=-sem {s₁ = s₁} x∈ (>>=-sem y∈ return-sem)) =
-  cast (P.sym $ P.cong (_++_ s₁) $ proj₂ LM.identity _)
-       (<⊛-sem (complete x∈) (complete y∈))
-complete {g = g₁ ⊛> g₂} (>>=-sem x∈ y∈) =
-  ⊛>-sem (complete x∈) (complete y∈)
+  lemma₃ : ∀ s₁ s₂ → s₁ ++ s₂ ≡ (s₁ ++ []) ++ s₂ ++ []
+  lemma₃ s₁ s₂ = P.cong₂ _++_ (P.sym $ lemma₁ s₁) (P.sym $ lemma₁ s₂)
 
-complete {g = g ⋆} (∣-left-sem return-sem) = ⋆-[]-sem
-complete {g = g ⋆} (∣-right-sem (>>=-sem (>>=-sem x∈  return-sem)
-                                         (>>=-sem xs∈ return-sem))) =
-  ⋆-+-sem (⊛-sem (<$>-sem
-                    (cast (P.sym $ proj₂ LM.identity _) (complete x∈)))
-                 (cast (P.sym $ proj₂ LM.identity _) (complete xs∈)))
+  tok-lemma : ∀ {t t′ s} → t ≡ t′ × s ≡ [ t ] → t′ ∈ tok t ∙ s
+  tok-lemma (refl , refl) = tok-sem
+
+  ⋆-lemma : ∀ {c A x xs s} {g : ∞Grammar c A} →
+            (x ∷ xs) Basic.∈ ⟦ g + ⟧ ∙ s → (x ∷ xs) Basic.∈ ⟦ g ⋆ ⟧ ∙ s
+  ⋆-lemma (>>=-sem (>>=-sem x∈   return-sem)
+                   (>>=-sem xs∈′ return-sem)) =
+    ∣-right-sem (>>=-sem (>>=-sem x∈   return-sem)
+                         (>>=-sem xs∈′ return-sem))
+
+  -- Soundness.
+
+  sound : ∀ {A x s} {g : Grammar A} → x ∈ g ∙ s → x Basic.∈ ⟦ g ⟧ ∙ s
+  sound return-sem               = return-sem
+  sound token-sem                = token-sem
+  sound (>>=-sem x∈ y∈)          = >>=-sem (sound x∈) (sound y∈)
+  sound (∣-left-sem x∈)          = ∣-left-sem (sound x∈)
+  sound (∣-right-sem x∈)         = ∣-right-sem (sound x∈)
+  sound tok-sem                  = Inverse.from Basic.tok-sem
+                                     ⟨$⟩ (refl , refl)
+  sound (<$>-sem x∈)             = Basic.cast (lemma₁ _)
+                                     (>>=-sem (sound x∈) return-sem)
+  sound (⊛-sem {s₁ = s₁} f∈ x∈)  = Basic.cast (lemma₂ s₁ _)
+                                     (>>=-sem (sound f∈)
+                                        (>>=-sem (sound x∈) return-sem))
+  sound (<⊛-sem {s₁ = s₁} x∈ y∈) = Basic.cast (lemma₂ s₁ _)
+                                     (>>=-sem (sound x∈)
+                                        (>>=-sem (sound y∈) return-sem))
+  sound (⊛>-sem {s₁ = s₁} x∈ y∈) = >>=-sem (sound x∈) (sound y∈)
+  sound ⋆-[]-sem                 = ∣-left-sem return-sem
+  sound (⋆-+-sem xs∈)            = ⋆-lemma (sound xs∈)
+
+  -- Completeness.
+
+  complete : ∀ {A x s} (g : Grammar A) → x Basic.∈ ⟦ g ⟧ ∙ s → x ∈ g ∙ s
+  complete (return x)  return-sem       = return-sem
+  complete token       token-sem        = token-sem
+  complete (g₁ >>= g₂) (>>=-sem x∈ y∈)  = >>=-sem (complete _ x∈)
+                                                  (complete _ y∈)
+  complete (g₁ ∣ g₂)   (∣-left-sem x∈)  = ∣-left-sem  (complete _ x∈)
+  complete (g₁ ∣ g₂)   (∣-right-sem x∈) = ∣-right-sem (complete _ x∈)
+
+  complete fail    ∈fail = ⊥-elim (Basic.fail-sem⁻¹ ∈fail)
+  complete (tok t) t∈    = tok-lemma (Inverse.to Basic.tok-sem ⟨$⟩ t∈)
+
+  complete (f <$> g) (>>=-sem x∈ return-sem) =
+    cast (P.sym $ lemma₁ _)
+         (<$>-sem (complete _ x∈))
+  complete (g₁ ⊛ g₂) (>>=-sem {s₁ = s₁} f∈ (>>=-sem x∈ return-sem)) =
+    cast (P.sym $ lemma₂ s₁ _)
+         (⊛-sem (complete _ f∈) (complete _ x∈))
+  complete (g₁ <⊛ g₂) (>>=-sem {s₁ = s₁} x∈ (>>=-sem y∈ return-sem)) =
+    cast (P.sym $ lemma₂ s₁ _)
+         (<⊛-sem (complete _ x∈) (complete _ y∈))
+  complete (g₁ ⊛> g₂) (>>=-sem x∈ y∈) =
+    ⊛>-sem (complete _ x∈) (complete _ y∈)
+
+  complete (g ⋆) (∣-left-sem return-sem) = ⋆-[]-sem
+  complete (g ⋆) (∣-right-sem
+                    (>>=-sem (>>=-sem {s₁ = s₁} x∈  return-sem)
+                             (>>=-sem           xs∈ return-sem))) =
+    cast (lemma₃ s₁ _)
+         (⋆-+-sem (⊛-sem (<$>-sem (complete _ x∈)) (complete _ xs∈)))
+
+  -- More short lemmas.
+
+  sound-cast :
+    ∀ {A x s₁ s₂}
+    (g : Grammar A) (eq : s₁ ≡ s₂) (x∈ : x ∈ g ∙ s₁) →
+    sound (cast eq x∈) ≡ Basic.cast eq (sound x∈)
+  sound-cast _ refl _ = refl
+
+  complete-cast :
+    ∀ {A x s₁ s₂}
+    (g : Grammar A) (eq : s₁ ≡ s₂) (x∈ : x Basic.∈ ⟦ g ⟧ ∙ s₁) →
+    complete g (Basic.cast eq x∈) ≡ cast eq (complete g x∈)
+  complete-cast _ refl _ = refl
+
+  cast-cast :
+    ∀ {A} {x : A} {s₁ s₂ g} (eq : s₁ ≡ s₂) {x∈ : x Basic.∈ g ∙ s₁} →
+    Basic.cast (P.sym eq) (Basic.cast eq x∈) ≡ x∈
+  cast-cast refl = refl
+
+  cast-refl :
+    ∀ {A} {x : A} {s g} (eq : s ≡ s) {x∈ : x Basic.∈ g ∙ s} →
+    Basic.cast eq x∈ ≡ x∈
+  cast-refl refl = refl
+
+  cast-⋆-cast :
+    ∀ {c A f xs s₁ s₁′ s₂ s} (g : ∞Grammar c A)
+    (eq₁ : s ≡ s₁ ++ s₂) (eq₂ : s₁′ ++ s₂ ≡ s) (eq₃ : s₁ ≡ s₁′)
+    (f∈  : f  Basic.∈ ⟦ _∷_ <$> g ⟧ ∙ s₁)
+    (xs∈ : xs Basic.∈ ⟦ f <$> g ⋆ ⟧ ∙ s₂) →
+    Basic.cast eq₁
+      (⋆-lemma (Basic.cast eq₂
+        (>>=-sem (Basic.cast eq₃ f∈) xs∈))) ≡
+    ⋆-lemma (>>=-sem f∈ xs∈)
+  cast-⋆-cast _ eq₁ refl refl _ _ = cast-refl eq₁
+
+  -- The functions sound and complete are inverses.
+
+  complete∘sound : ∀ {A x s} {g : Grammar A} (x∈ : x ∈ g ∙ s) →
+                   complete g (sound x∈) ≡ x∈
+  complete∘sound return-sem       = refl
+  complete∘sound token-sem        = refl
+  complete∘sound (>>=-sem x∈ y∈)  = P.cong₂ >>=-sem (complete∘sound x∈)
+                                                    (complete∘sound y∈)
+  complete∘sound (∣-left-sem x∈)  = P.cong ∣-left-sem (complete∘sound x∈)
+  complete∘sound (∣-right-sem x∈) = P.cong ∣-right-sem (complete∘sound x∈)
+
+  complete∘sound (tok-sem {t = t})
+    rewrite Inverse.right-inverse-of (Basic.tok-sem {t = t})
+                                     (refl , refl)
+    = refl
+
+  complete∘sound (<$>-sem {s = s} x∈) with sound x∈ | complete∘sound x∈
+  complete∘sound (<$>-sem {f = f} {g = g} {s = s}
+                          .(complete _ x∈′)) | x∈′ | refl
+    rewrite complete-cast (f <$> g) (lemma₁ s) (>>=-sem x∈′ return-sem)
+          | lemma₁ s
+    = refl
+
+  complete∘sound (⊛-sem f∈ x∈) with sound f∈ | complete∘sound f∈
+                                  | sound x∈ | complete∘sound x∈
+  complete∘sound (⊛-sem {g₁ = g₁} {g₂ = g₂} {s₁ = s₁} {s₂ = s₂}
+                        .(complete _ f∈′) .(complete _ x∈′))
+    | f∈′ | refl | x∈′ | refl
+    rewrite complete-cast (g₁ ⊛ g₂) (lemma₂ s₁ s₂)
+                          (>>=-sem f∈′ (>>=-sem x∈′ return-sem))
+          | lemma₁ s₂
+    = refl
+
+  complete∘sound (<⊛-sem x∈ y∈) with sound x∈ | complete∘sound x∈
+                                   | sound y∈ | complete∘sound y∈
+  complete∘sound (<⊛-sem {g₁ = g₁} {g₂ = g₂} {s₁ = s₁} {s₂ = s₂}
+                        .(complete _ x∈′) .(complete _ y∈′))
+    | x∈′ | refl | y∈′ | refl
+    rewrite complete-cast (g₁ <⊛ g₂) (lemma₂ s₁ s₂)
+                          (>>=-sem x∈′ (>>=-sem y∈′ return-sem))
+          | lemma₁ s₂
+    = refl
+
+  complete∘sound (⊛>-sem x∈ y∈) with sound x∈ | complete∘sound x∈
+                                   | sound y∈ | complete∘sound y∈
+  complete∘sound (⊛>-sem .(complete _ x∈′) .(complete _ y∈′))
+    | x∈′ | refl | y∈′ | refl
+    = refl
+
+  complete∘sound ⋆-[]-sem      = refl
+  complete∘sound (⋆-+-sem xs∈) with sound xs∈ | complete∘sound xs∈
+  complete∘sound (⋆-+-sem .(complete _
+                              (>>=-sem (>>=-sem x∈   return-sem)
+                                       (>>=-sem xs∈′ return-sem))))
+    | >>=-sem (>>=-sem {s₁ = s₁} x∈   return-sem)
+              (>>=-sem {s₁ = s₂} xs∈′ return-sem)
+    | refl
+    rewrite lemma₁ s₁ | lemma₁ s₂
+    = refl
+
+  sound∘complete : ∀ {A x s}
+                   (g : Grammar A) (x∈ : x Basic.∈ ⟦ g ⟧ ∙ s) →
+                   sound (complete g x∈) ≡ x∈
+  sound∘complete (return x)  return-sem       = refl
+  sound∘complete token       token-sem        = refl
+  sound∘complete (g₁ >>= g₂) (>>=-sem x∈ y∈)  = P.cong₂ >>=-sem (sound∘complete (♭? g₁) x∈)
+                                                                (sound∘complete (♭? (g₂ _)) y∈)
+  sound∘complete (g₁ ∣ g₂)   (∣-left-sem x∈)  = P.cong ∣-left-sem  (sound∘complete (♭? g₁) x∈)
+  sound∘complete (g₁ ∣ g₂)   (∣-right-sem x∈) = P.cong ∣-right-sem (sound∘complete (♭? g₂) x∈)
+
+  sound∘complete fail    ∈fail = ⊥-elim (Basic.fail-sem⁻¹ ∈fail)
+  sound∘complete (tok t) t∈    =
+    helper _ (Inverse.left-inverse-of Basic.tok-sem t∈)
+    where
+    helper : ∀ {t t′ s} {t∈ : t′ Basic.∈ Basic.tok t ∙ s}
+             (eqs : t ≡ t′ × s ≡ [ t ]) →
+             Inverse.from Basic.tok-sem ⟨$⟩ eqs ≡ t∈ →
+             sound (tok-lemma eqs) ≡ t∈
+    helper (refl , refl) ≡t∈ = ≡t∈
+
+  sound∘complete (f <$> g) (>>=-sem x∈ return-sem)
+    with complete (♭? g) x∈ | sound∘complete (♭? g) x∈
+  sound∘complete (f <$> g) (>>=-sem {s₁ = s₁} .(sound x∈′) return-sem)
+    | x∈′ | refl
+    rewrite sound-cast (f <$> g) (P.sym $ lemma₁ s₁) (<$>-sem x∈′)
+    = cast-cast (lemma₁ s₁)
+
+  sound∘complete (g₁ ⊛ g₂) (>>=-sem f∈ (>>=-sem x∈ return-sem))
+    with complete (♭? g₁) f∈ | sound∘complete (♭? g₁) f∈
+       | complete (♭? g₂) x∈ | sound∘complete (♭? g₂) x∈
+  sound∘complete (g₁ ⊛ g₂)
+    (>>=-sem {s₁ = s₁} .(sound f∈′)
+             (>>=-sem {s₁ = s₂} .(sound x∈′) return-sem))
+    | f∈′ | refl | x∈′ | refl
+    rewrite sound-cast (g₁ ⊛ g₂) (P.sym $ lemma₂ s₁ s₂) (⊛-sem f∈′ x∈′)
+    = cast-cast (lemma₂ s₁ s₂)
+
+  sound∘complete (g₁ <⊛ g₂) (>>=-sem x∈ (>>=-sem y∈ return-sem))
+    with complete (♭? g₁) x∈ | sound∘complete (♭? g₁) x∈
+       | complete (♭? g₂) y∈ | sound∘complete (♭? g₂) y∈
+  sound∘complete (g₁ <⊛ g₂)
+    (>>=-sem {s₁ = s₁} .(sound x∈′)
+             (>>=-sem {s₁ = s₂} .(sound y∈′) return-sem))
+    | x∈′ | refl | y∈′ | refl
+    rewrite sound-cast (g₁ <⊛ g₂) (P.sym $ lemma₂ s₁ s₂) (<⊛-sem x∈′ y∈′)
+    = cast-cast (lemma₂ s₁ s₂)
+
+  sound∘complete (g₁ ⊛> g₂) (>>=-sem x∈ y∈)
+    with complete (♭? g₁) x∈ | sound∘complete (♭? g₁) x∈
+       | complete (♭? g₂) y∈ | sound∘complete (♭? g₂) y∈
+  sound∘complete (g₁ ⊛> g₂) (>>=-sem .(sound x∈′) .(sound y∈′))
+    | x∈′ | refl | y∈′ | refl
+    = refl
+
+  sound∘complete (g ⋆) (∣-left-sem return-sem) = refl
+  sound∘complete (g ⋆) (∣-right-sem (>>=-sem (>>=-sem x∈ return-sem)
+                                             (>>=-sem xs∈ return-sem)))
+    with complete (♭? g) x∈ | sound∘complete (♭? g) x∈
+       | complete (g ⋆) xs∈ | sound∘complete (g ⋆) xs∈
+  sound∘complete (g ⋆) (∣-right-sem (>>=-sem
+                          (>>=-sem {s₁ = s₁} .(sound x∈′) return-sem)
+                          (>>=-sem {s₁ = s₂} .(sound xs∈′) return-sem)))
+    | x∈′ | refl | xs∈′ | refl
+    rewrite sound-cast (g ⋆) (lemma₃ s₁ s₂)
+                       (⋆-+-sem (⊛-sem (<$>-sem x∈′) xs∈′))
+          | cast-⋆-cast g (lemma₃ s₁ s₂) (lemma₂ s₁ s₂) (lemma₁ s₁)
+                        (>>=-sem (sound x∈′) return-sem)
+                        (>>=-sem (sound xs∈′) return-sem)
+    = refl
 
 ------------------------------------------------------------------------
 -- Semantics combinators

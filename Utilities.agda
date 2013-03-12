@@ -7,7 +7,6 @@ module Utilities where
 open import Data.Bool
 open import Data.Bool.Properties using (T-∧)
 open import Data.Char as Char
-open import Data.Empty
 open import Data.List
 open import Data.List.NonEmpty as List⁺
 open import Data.Nat as Nat
@@ -18,11 +17,12 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using () renaming (module Equivalence to Eq)
+open import Function.Inverse using (_↔_)
+open import Function.Related.TypeIsomorphisms
 open import Relation.Binary
 import Relation.Binary.Props.DecTotalOrder as DTO
 import Relation.Binary.Props.StrictTotalOrder as STO
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
-open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary.Decidable
 
 ------------------------------------------------------------------------
@@ -47,15 +47,10 @@ c₁ ≤?C c₂ = ⌊ DecTotalOrder._≤?_
 _≟C_ : Char → Char → Bool
 c₁ ≟C c₂ = ⌊ c₁ Char.≟ c₂ ⌋
 
--- Some lemmas related to _≟C_.
+-- A lemma related to _≟C_.
 
-≟C-refl : ∀ {c} → T (c ≟C c)
-≟C-refl {c} with c Char.≟ c
-... | yes refl = tt
-... | no  c≢c  = ⊥-elim (c≢c refl)
-
-≟C⇒≡ : ∀ {c c′} → T (c ≟C c′) → c ≡ c′
-≟C⇒≡ = toWitness
+≟C↔≡ : ∀ {c c′} → T (c ≟C c′) ↔ c ≡ c′
+≟C↔≡ = True↔ (_ Char.≟ _) P.proof-irrelevance
 
 ------------------------------------------------------------------------
 -- Conversion of strings satisfying given predicates to annotated
