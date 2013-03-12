@@ -42,7 +42,7 @@ module Basic where
   -- recursively enumerated using an Agda function s : ℕ → List Char
   -- can be expressed using one of these grammars:
   -- ♯ ⟦ string (s 0) ⟧ ∣ ♯ (♯ ⟦ string (s 1) ⟧ ∣ …). (The string
-  -- combinator is defined below.)
+  -- combinator and ⟦_⟧ are defined below.)
   --
   -- In practice one may want to restrict attention to, say, recursive
   -- languages. I use general grammars to illustrate that this
@@ -366,8 +366,8 @@ symbol′ = symbol ∘ String.toList
 
 -- Pattern matching on values of type x Basic.∈ ⟦ g₁ ⊛ g₂ ⟧ ∙ s (say)
 -- is somewhat inconvenient: the patterns have the form
--- (Basic.>>=-sem _ (Basic.>>=-sem _ Basic.return-sem)). The
--- following, direct definition of the semantics may be easier to use.
+-- (>>=-sem _ (>>=-sem _ return-sem)). The following, direct
+-- definition of the semantics may be easier to use.
 
 infix 4 _∈_∙_
 
