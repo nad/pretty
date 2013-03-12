@@ -126,21 +126,11 @@ Grammar-for A = (x : A) → Grammar (∃ λ x′ → x′ ≡ x)
 ⟦ g₁ ∣ g₂   ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.∣ ♯ ⟦ ♭? g₂ ⟧
 ⟦ fail      ⟧ = Basic.fail
 ⟦ tok t     ⟧ = Basic.tok t
-⟦ f <$> g   ⟧ = ♯ ⟦ ♭? g ⟧ Basic.>>= λ x → ♯ Basic.return (f x)
-⟦ g₁ ⊛ g₂   ⟧ =    ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ f →
-                ♯ (♯ ⟦ ♭? g₂ ⟧ Basic.>>= λ x →
-                   ♯ Basic.return (f x))
-⟦ g₁ <⊛ g₂  ⟧ =    ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ x →
-                ♯ (♯ ⟦ ♭? g₂ ⟧ Basic.>>= λ _ →
-                   ♯ Basic.return x)
-⟦ g₁ ⊛> g₂  ⟧ =    ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ _ →
-                ♯ (♯ ⟦ ♭? g₂ ⟧ Basic.>>= λ x →
-                   ♯ Basic.return x)
-⟦ g ⋆       ⟧ =   ♯ Basic.return []
-                Basic.∣
-                  ♯ (♯ ⟦ ♭? g ⟧ Basic.>>= λ x →
-                  ♯ (♯ ⟦ g ⋆  ⟧ Basic.>>= λ xs →
-                     ♯ Basic.return (x ∷ xs)))
+⟦ f <$> g   ⟧ = ♯ ⟦ ♭? g  ⟧ Basic.>>= λ x → ♯ Basic.return (f x)
+⟦ g₁ ⊛ g₂   ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ f → ♯ ⟦ f       <$> g₂ ⟧
+⟦ g₁ <⊛ g₂  ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ x → ♯ ⟦ const x <$> g₂ ⟧
+⟦ g₁ ⊛> g₂  ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ _ → ♯ ⟦          ♭? g₂ ⟧
+⟦ g ⋆       ⟧ = ♯ Basic.return [] Basic.∣ ♯ ⟦ _∷_ <$> g ⊛ g ⋆ ⟧
 
 ------------------------------------------------------------------------
 -- Grammar combinators
@@ -297,18 +287,14 @@ sound (<⊛-sem x∈ y∈)   = >>=-sem
                            (Basic.cast (proj₂ LM.identity _)
                               (>>=-sem (sound y∈)
                                              return-sem))
-sound (⊛>-sem x∈ y∈)   = >>=-sem
-                           (sound x∈)
-                           (Basic.cast (proj₂ LM.identity _)
-                              (>>=-sem (sound y∈)
-                                             return-sem))
+sound (⊛>-sem x∈ y∈)   = >>=-sem (sound x∈) (sound y∈)
 sound ⋆-[]-sem         = ∣-left-sem return-sem
 sound (⋆-+-sem xs∈)    with sound xs∈
-... | >>=-sem (>>=-sem x∈ return-sem)
-                    (>>=-sem xs∈′ return-sem) =
+... | >>=-sem (>>=-sem x∈   return-sem)
+              (>>=-sem xs∈′ return-sem) =
   ∣-right-sem
-    (>>=-sem (Basic.cast (P.sym $ proj₂ LM.identity _) x∈)
-                   (>>=-sem xs∈′ return-sem))
+    (>>=-sem (>>=-sem x∈   return-sem)
+             (>>=-sem xs∈′ return-sem))
 
 -- The alternative semantics is complete with respect to the one above.
 
@@ -333,13 +319,14 @@ complete {g = g₁ ⊛ g₂} (>>=-sem {s₁ = s₁} f∈ (>>=-sem x∈ return-se
 complete {g = g₁ <⊛ g₂} (>>=-sem {s₁ = s₁} x∈ (>>=-sem y∈ return-sem)) =
   cast (P.sym $ P.cong (_++_ s₁) $ proj₂ LM.identity _)
        (<⊛-sem (complete x∈) (complete y∈))
-complete {g = g₁ ⊛> g₂} (>>=-sem {s₁ = s₁} x∈ (>>=-sem y∈ return-sem)) =
-  cast (P.sym $ P.cong (_++_ s₁) $ proj₂ LM.identity _)
-       (⊛>-sem (complete x∈) (complete y∈))
+complete {g = g₁ ⊛> g₂} (>>=-sem x∈ y∈) =
+  ⊛>-sem (complete x∈) (complete y∈)
 
 complete {g = g ⋆} (∣-left-sem return-sem) = ⋆-[]-sem
-complete {g = g ⋆} (∣-right-sem (>>=-sem x∈ (>>=-sem xs∈ return-sem))) =
-  ⋆-+-sem (⊛-sem (<$>-sem (complete x∈))
+complete {g = g ⋆} (∣-right-sem (>>=-sem (>>=-sem x∈  return-sem)
+                                         (>>=-sem xs∈ return-sem))) =
+  ⋆-+-sem (⊛-sem (<$>-sem
+                    (cast (P.sym $ proj₂ LM.identity _) (complete x∈)))
                  (cast (P.sym $ proj₂ LM.identity _) (complete xs∈)))
 
 ------------------------------------------------------------------------
