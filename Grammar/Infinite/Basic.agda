@@ -94,7 +94,7 @@ cast refl = id
 fail : ∀ {A} → Grammar A
 fail = ♯ fail ∣ ♯ fail
 
-fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail {A = A} ∙ s)
+fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail ∙ s)
 fail-sem⁻¹ (∣-left-sem  ∈fail) = fail-sem⁻¹ ∈fail
 fail-sem⁻¹ (∣-right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
