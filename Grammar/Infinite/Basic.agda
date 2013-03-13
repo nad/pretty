@@ -14,20 +14,16 @@ open import Data.Char
 open import Data.Empty
 open import Data.List as List
 open import Data.Product
-open import Data.Sum as Sum
 open import Data.Unit
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
-import Function.Related.TypeIsomorphisms as Iso
-open import Relation.Binary.Product.Pointwise using (_×-cong_)
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
 
 private module LM {A : Set} = Monoid (List.monoid A)
-open Related.EquationalReasoning
 
 open import Utilities
 
@@ -84,105 +80,6 @@ data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
   ∣-right-sem : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x s} →
                 x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
 
-return-sem′ : ∀ {A} {x y : A} {s} → x ∈ return y ∙ s ↔ (x ≡ y × s ≡ [])
-return-sem′ {A} = record
-  { to         = P.→-to-⟶ to
-  ; from       = P.→-to-⟶ from
-  ; inverse-of = record
-    { left-inverse-of  = from∘to
-    ; right-inverse-of = to∘from
-    }
-  }
-  where
-  to : ∀ {x y : A} {s} → x ∈ return y ∙ s → x ≡ y × s ≡ []
-  to return-sem = (refl , refl)
-
-  from : ∀ {x y : A} {s} → x ≡ y × s ≡ [] → x ∈ return y ∙ s
-  from (refl , refl) = return-sem
-
-  from∘to : ∀ {x y : A} {s} (x∈ : x ∈ return y ∙ s) → from (to x∈) ≡ x∈
-  from∘to return-sem = refl
-
-  to∘from : ∀ {x y : A} {s} (eqs : x ≡ y × s ≡ []) → to (from eqs) ≡ eqs
-  to∘from (refl , refl) = refl
-
-token-sem′ : ∀ {t s} → t ∈ token ∙ s ↔ s ≡ [ t ]
-token-sem′ = record
-  { to         = P.→-to-⟶ to
-  ; from       = P.→-to-⟶ from
-  ; inverse-of = record
-    { left-inverse-of  = from∘to
-    ; right-inverse-of = to∘from
-    }
-  }
-  where
-  to : ∀ {t s} → t ∈ token ∙ s → s ≡ [ t ]
-  to token-sem = refl
-
-  from : ∀ {t s} → s ≡ [ t ] → t ∈ token ∙ s
-  from refl = token-sem
-
-  from∘to : ∀ {t s} (x∈ : t ∈ token ∙ s) → from (to x∈) ≡ x∈
-  from∘to token-sem = refl
-
-  to∘from : ∀ {t s} (eq : s ≡ [ t ]) → to (from eq) ≡ eq
-  to∘from refl = refl
-
->>=-sem′ : ∀ {A B y s} {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)} →
-           y ∈ g₁ >>= g₂ ∙ s ↔
-           ∃₂ λ s₁ s₂ → ∃ λ x →
-              s ≡ s₁ ++ s₂ × x ∈ ♭ g₁ ∙ s₁ × y ∈ ♭ (g₂ x) ∙ s₂
->>=-sem′ {B = B} {g₁ = g₁} {g₂} = record
-  { to         = P.→-to-⟶ to
-  ; from       = P.→-to-⟶ from
-  ; inverse-of = record
-    { left-inverse-of  = from∘to
-    ; right-inverse-of = to∘from
-    }
-  }
-  where
-  RHS : B → List Char → Set₁
-  RHS y s = ∃₂ λ s₁ s₂ → ∃ λ x →
-               s ≡ s₁ ++ s₂ × x ∈ ♭ g₁ ∙ s₁ × y ∈ ♭ (g₂ x) ∙ s₂
-
-  to : ∀ {y s} → y ∈ g₁ >>= g₂ ∙ s → RHS y s
-  to (>>=-sem x∈ y∈) = _ , _ , _ , refl , x∈ , y∈
-
-  from : ∀ {y s} → RHS y s → y ∈ g₁ >>= g₂ ∙ s
-  from (_ , _ , _ , refl , x∈ , y∈) = >>=-sem x∈ y∈
-
-  from∘to : ∀ {y s} (x∈ : y ∈ g₁ >>= g₂ ∙ s) → from (to x∈) ≡ x∈
-  from∘to (>>=-sem x∈ y∈) = refl
-
-  to∘from : ∀ {y s} (rhs : RHS y s) → to (from rhs) ≡ rhs
-  to∘from (_ , _ , _ , refl , x∈ , y∈) = refl
-
-∣-sem′ : ∀ {A x s} {g₁ g₂ : ∞ (Grammar A)} →
-         x ∈ g₁ ∣ g₂ ∙ s ↔ (x ∈ ♭ g₁ ∙ s ⊎ x ∈ ♭ g₂ ∙ s)
-∣-sem′ {g₁ = g₁} {g₂} = record
-  { to         = P.→-to-⟶ to
-  ; from       = P.→-to-⟶ from
-  ; inverse-of = record
-    { left-inverse-of  = from∘to
-    ; right-inverse-of = to∘from
-    }
-  }
-  where
-  to : ∀ {x s} → x ∈ g₁ ∣ g₂ ∙ s → x ∈ ♭ g₁ ∙ s ⊎ x ∈ ♭ g₂ ∙ s
-  to (∣-left-sem  x∈) = inj₁ x∈
-  to (∣-right-sem x∈) = inj₂ x∈
-
-  from : ∀ {x s} → x ∈ ♭ g₁ ∙ s ⊎ x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
-  from = Sum.[ ∣-left-sem , ∣-right-sem ]
-
-  from∘to : ∀ {x s} (x∈ : x ∈ g₁ ∣ g₂ ∙ s) → from (to x∈) ≡ x∈
-  from∘to (∣-left-sem  x∈) = refl
-  from∘to (∣-right-sem x∈) = refl
-
-  to∘from : ∀ {x s} (x∈ : x ∈ ♭ g₁ ∙ s ⊎ x ∈ ♭ g₂ ∙ s) →
-            to (from x∈) ≡ x∈
-  to∘from = Sum.[ (λ _ → refl) , (λ _ → refl) ]
-
 ----------------------------------------------------------------------
 -- Some grammar and semantics combinators
 
@@ -197,19 +94,9 @@ cast refl = id
 fail : ∀ {A} → Grammar A
 fail = ♯ fail ∣ ♯ fail
 
-fail-sem : ∀ {A} {x : A} {s} → x ∈ fail ∙ s ↔ ⊥
-fail-sem {x = x} {s} = record
-  { to         = P.→-to-⟶ to
-  ; from       = P.→-to-⟶ (λ ())
-  ; inverse-of = record
-    { left-inverse-of  = ⊥-elim ∘ to
-    ; right-inverse-of = λ ()
-    }
-  }
-  where
-  to : x ∈ fail ∙ s → ⊥
-  to (∣-left-sem  ∈fail) = to ∈fail
-  to (∣-right-sem ∈fail) = to ∈fail
+fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail ∙ s)
+fail-sem⁻¹ (∣-left-sem  ∈fail) = fail-sem⁻¹ ∈fail
+fail-sem⁻¹ (∣-right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
 -- Map.
 
@@ -218,16 +105,11 @@ infixl 20 _<$>_
 _<$>_ : ∀ {A B} → (A → B) → Grammar A → Grammar B
 f <$> g = ♯ g >>= λ x → ♯ return (f x)
 
-<$>-sem : ∀ {A B} {f : A → B} {g : Grammar A} {y s} →
-          y ∈ f <$> g ∙ s ↔ ∃ λ x → x ∈ g ∙ s × y ≡ f x
-<$>-sem {f = f} {g} {y} {s} =
-  y ∈ f <$> g ∙ s                                         ↔⟨ >>=-sem′ ⟩
-  (∃₂ λ s₁ s₂ → ∃ λ x →
-      s ≡ s₁ ++ s₂ × x ∈ g ∙ s₁ × y ∈ return (f x) ∙ s₂)  ↔⟨ Σ.cong Inv.id (Σ.cong Inv.id (Σ.cong Inv.id
-                                                               (Inv.id ×-cong (Inv.id ×-cong return-sem′)))) ⟩
-  (∃₂ λ s₁ s₂ → ∃ λ x →
-      s ≡ s₁ ++ s₂ × x ∈ g ∙ s₁ × y ≡ f x × s₂ ≡ [])      ↔⟨ {!!} ⟩
-  (∃ λ x → x ∈ g ∙ s × y ≡ f x)                           ∎
+<$>-sem : ∀ {A B} {f : A → B} {g : Grammar A} {x s} →
+          x ∈ g ∙ s → f x ∈ f <$> g ∙ s
+<$>-sem x∈ =
+  cast (proj₂ LM.identity _)
+       (>>=-sem x∈ return-sem)
 
 -- The empty string if the argument is true, otherwise failure.
 
@@ -236,12 +118,30 @@ if-true true  = return tt
 if-true false = fail
 
 if-true-sem : ∀ {b s} → tt ∈ if-true b ∙ s ↔ (T b × s ≡ [])
-if-true-sem {true}  {s} = tt ∈ return tt ∙ s  ↔⟨ return-sem′ ⟩
-                          (tt ≡ tt × s ≡ [])  ↔⟨ Inv.sym (Iso.True↔ (yes (refl {x = tt})) P.proof-irrelevance) ×-cong Inv.id ⟩
-                          (⊤ × s ≡ [])        ∎
-if-true-sem {false} {s} = tt ∈ fail ∙ s  ↔⟨ fail-sem ⟩
-                          ⊥              ↔⟨ {!!} ⟩
-                          (⊥ × s ≡ [])   ∎
+if-true-sem = record
+  { to         = P.→-to-⟶ (to _)
+  ; from       = P.→-to-⟶ (from _)
+  ; inverse-of = record
+    { left-inverse-of  = from∘to _
+    ; right-inverse-of = to∘from _
+    }
+  }
+  where
+  to : ∀ b {s} → tt ∈ if-true b ∙ s → T b × s ≡ []
+  to true  return-sem = _ , refl
+  to false ∈fail      = ⊥-elim $ fail-sem⁻¹ ∈fail
+
+  from : ∀ b {s} → T b × s ≡ [] → tt ∈ if-true b ∙ s
+  from true  (_  , refl) = return-sem
+  from false (() , refl)
+
+  from∘to : ∀ b {s} (tt∈ : tt ∈ if-true b ∙ s) → from b (to b tt∈) ≡ tt∈
+  from∘to true  return-sem = refl
+  from∘to false ∈fail      = ⊥-elim $ fail-sem⁻¹ ∈fail
+
+  to∘from : ∀ b {s} (eqs : T b × s ≡ []) → to b (from b eqs) ≡ eqs
+  to∘from true  (_  , refl) = refl
+  to∘from false (() , refl)
 
 -- A token satisfying a given predicate.
 
@@ -250,17 +150,40 @@ sat p = ♯ token >>= λ t → ♯ (const t <$> if-true (p t))
 
 sat-sem : ∀ {p : Char → Bool} {t s} →
           t ∈ sat p ∙ s ↔ (T (p t) × s ≡ [ t ])
-sat-sem {p} {t} {s} =
-  t ∈ sat p ∙ s                                                ↔⟨ >>=-sem′ ⟩
-  (∃₂ λ s₁ s₂ → ∃ λ t′ → s ≡ s₁ ++ s₂ ×
-      t′ ∈ token ∙ s₁ × t ∈ const t′ <$> if-true (p t′) ∙ s₂)  ↔⟨ Σ.cong Inv.id (Σ.cong Inv.id (Σ.cong Inv.id
-                                                                    (Inv.id ×-cong (token-sem′ ×-cong <$>-sem)))) ⟩
-  (∃₂ λ s₁ s₂ → ∃ λ t′ → s ≡ s₁ ++ s₂ ×
-      s₁ ≡ [ t′ ] × ∃ λ x → x ∈ if-true (p t′) ∙ s₂ × t ≡ t′)  ↔⟨ Σ.cong Inv.id (Σ.cong Inv.id (Σ.cong Inv.id
-                                                                    (Inv.id ×-cong (Inv.id ×-cong Σ.cong Inv.id (if-true-sem ×-cong Inv.id))))) ⟩
-  (∃₂ λ s₁ s₂ → ∃ λ t′ → s ≡ s₁ ++ s₂ ×
-      s₁ ≡ [ t′ ] × ⊤ × (T (p t′) × s₂ ≡ []) × t ≡ t′)         ↔⟨ {!!} ⟩
-  (T (p t) × s ≡ [ t ])                                        ∎
+sat-sem {p} {t} = record
+  { to         = P.→-to-⟶ to
+  ; from       = P.→-to-⟶ from
+  ; inverse-of = record
+    { left-inverse-of  = from∘to
+    ; right-inverse-of = to∘from
+    }
+  }
+  where
+  to : ∀ {s} → t ∈ sat p ∙ s → T (p t) × s ≡ [ t ]
+  to (>>=-sem token-sem (>>=-sem tt∈ return-sem)) =
+    proj₁ lemma , P.cong (λ s → t ∷ s ++ []) (proj₂ lemma)
+    where lemma = Inverse.to if-true-sem ⟨$⟩ tt∈
+
+  from : ∀ {s} → T (p t) × s ≡ [ t ] → t ∈ sat p ∙ s
+  from (pt , refl) =
+    >>=-sem token-sem
+            (>>=-sem (Inverse.from if-true-sem ⟨$⟩ (pt , refl))
+                     return-sem)
+
+  from∘to : ∀ {s} (t∈ : t ∈ sat p ∙ s) → from (to t∈) ≡ t∈
+  from∘to (>>=-sem token-sem (>>=-sem {s₂ = []} tt∈ return-sem))
+    with Inverse.to if-true-sem ⟨$⟩ tt∈
+       | Inverse.left-inverse-of if-true-sem tt∈
+  from∘to (>>=-sem token-sem
+             (>>=-sem {x = tt} {s₂ = []}
+                      .(Inverse.from if-true-sem ⟨$⟩ (pt , refl))
+                      return-sem))
+    | (pt , refl) | refl = refl
+
+  to∘from : ∀ {s} (eqs : T (p t) × s ≡ [ t ]) → to (from eqs) ≡ eqs
+  to∘from (pt , refl)
+    rewrite Inverse.right-inverse-of if-true-sem (pt , refl)
+    = refl
 
 -- A specific token.
 
@@ -274,3 +197,4 @@ tok-sem {t′} {t} {s} =
                                    Σ.cong (Inv.sym ≟C↔≡) (λ {t≡t′} →
                                      P.subst (λ t′ → s ≡ [ t ] ↔ s ≡ [ t′ ]) t≡t′ Inv.id) ⟩
   (t ≡ t′ × s ≡ [ t ])        ∎
+  where open Related.EquationalReasoning
