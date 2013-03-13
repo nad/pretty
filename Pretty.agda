@@ -429,17 +429,12 @@ wadler's-renderer w = record
   where
 
   -- Documents with unions instead of groups, and no fills.
-  --
-  -- The text constructor caches the string's length. (This
-  -- optimisation is taken from Daan Leijen's implementation of
-  -- Wadler's combinators; Hughes also mentions it in his paper about
-  -- pretty-printing.)
 
   infixr 20 _·_
 
   data DocU : ∀ {A} → Grammar A → A → Set₁ where
     nil   : ∀ {A} {x : A} → DocU (return x) x
-    text  : ∀ {s} → ℕ → DocU (string s) s
+    text  : ∀ {s} → DocU (string s) s
     _·_   : ∀ {c₁ c₂ A B x y}
               {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
             DocU (♭? g₁) x → DocU (♭? (g₂ x)) y → DocU (g₁ >>= g₂) y
@@ -452,9 +447,6 @@ wadler's-renderer w = record
   -- Some derived combinators.
 
   infixl 20 _⊛-docU_ _<⊛-docU_ _⊛>-docU_
-
-  textU : ∀ {s} → DocU (string s) s
-  textU {s = s} = text (length s)
 
   embedU : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
@@ -513,7 +505,7 @@ wadler's-renderer w = record
   -- A single space character.
 
   space : DocU (tt <$ whitespace +) tt
-  space = embedU lemma (<$-docU textU)
+  space = embedU lemma (<$-docU text)
     where
     lemma : ∀ {s} →
             tt ∈ tt <$ string′ " " ∙ s →
@@ -527,7 +519,7 @@ wadler's-renderer w = record
 
     flatten : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     flatten nil        = nil
-    flatten text       = textU
+    flatten text       = text
     flatten (d₁ · d₂)  = flatten d₁ · flatten d₂
     flatten line       = space
     flatten (group d)  = flatten d
@@ -546,7 +538,7 @@ wadler's-renderer w = record
 
     expand-groups : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     expand-groups nil        = nil
-    expand-groups text       = textU
+    expand-groups text       = text
     expand-groups (d₁ · d₂)  = expand-groups d₁ · expand-groups d₂
     expand-groups line       = line
     expand-groups (group d)  = union (flatten d) (expand-groups d)
@@ -571,9 +563,8 @@ wadler's-renderer w = record
   -- Layouts (representations of certain strings).
 
   data Layout-element : Set where
-    text      : List Char → ℕ -- The string's length.
-                  → Layout-element
-    nest-line : ℕ → Layout-element
+    text      : List Char → Layout-element
+    nest-line : ℕ         → Layout-element
 
   Layout : Set
   Layout = List Layout-element
@@ -581,7 +572,7 @@ wadler's-renderer w = record
   -- Conversion of layouts into strings.
 
   showE : Layout-element → List Char
-  showE (text s _)    = s
+  showE (text s)      = s
   showE (nest-line i) = '\n' ∷ replicate i ' '
 
   show : Layout → List Char
@@ -594,7 +585,7 @@ wadler's-renderer w = record
 
     fits : ℕ → Layout → Bool
     fits w []                = true
-    fits w (text _ l    ∷ x) = fits′ w l x
+    fits w (text s      ∷ x) = fits′ w (length s) x
     fits w (nest-line i ∷ x) = true
 
     fits′ : ℕ → ℕ → Layout → Bool
@@ -615,14 +606,14 @@ wadler's-renderer w = record
 
   best : ∀ {A} {g : Grammar A} {x} →
          ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
-  best i nil              = id
-  best i (text {s = s} l) = λ κ c → text s l ∷ κ (l + c)
-  best i (d₁ · d₂)        = best i d₁ ∘ best i d₂
-  best i line             = λ κ _ → nest-line i ∷ κ i
-  best i (union d₁ d₂)    = λ κ c → better c (best i d₁ κ c)
-                                             (best i d₂ κ c)
-  best i (nest j d)       = best (j + i) d
-  best i (emb _ d)        = best i d
+  best i nil            = id
+  best i (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
+  best i (d₁ · d₂)      = best i d₁ ∘ best i d₂
+  best i line           = λ κ _ → nest-line i ∷ κ i
+  best i (union d₁ d₂)  = λ κ c → better c (best i d₁ κ c)
+                                           (best i d₂ κ c)
+  best i (nest j d)     = best (j + i) d
+  best i (emb _ d)      = best i d
 
   -- Renders a document.
 
@@ -659,7 +650,7 @@ wadler's-renderer w = record
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
   best-lemma s nil           hyp = hyp return-sem
-  best-lemma s (text _)      hyp = hyp string-sem
+  best-lemma s text          hyp = hyp string-sem
   best-lemma s line {i}      hyp = hyp (nest-line-lemma i)
   best-lemma s (union d₁ d₂) hyp = if-lemma s
                                      (fits′ w _ (best _ d₁ _ _))
