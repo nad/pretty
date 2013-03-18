@@ -9,6 +9,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Grammar.Infinite
 open import Pretty
+open import Renderer
 
 data Bit : Set where
   [0] [1] : Bit

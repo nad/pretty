@@ -21,9 +21,13 @@ import Utilities
 import Grammar.Infinite.Basic
 import Grammar.Infinite
 
--- Pretty-printing.
+-- Pretty-printing (documents and document combinators).
 
 import Pretty
+
+-- Document renderers.
+
+import Renderer
 
 -- Examples.
 

@@ -13,6 +13,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Grammar.Infinite
 open import Pretty
+open import Renderer
 open import Utilities
 
 -- "Name characters".

@@ -14,6 +14,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 open import Examples.Name
 open import Grammar.Infinite
 open import Pretty
+open import Renderer
 open import Utilities
 
 data Tree : Set where

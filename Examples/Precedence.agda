@@ -36,6 +36,7 @@ open import Relation.Nullary.Product
 open import Examples.Name as Name hiding (name)
 open import Grammar.Infinite
 open import Pretty
+open import Renderer
 open import Utilities
 
 ------------------------------------------------------------------------
