@@ -44,8 +44,7 @@ return x = λ y s → y ≡ x × s ≡ []
 
 -- Map.
 
-infixl 20 _<$>_
-infixr 20 _<$_
+infixl 20 _<$>_ _<$_
 
 _<$>_ : ∀ {A B} → (A → B) → Grammar A → Grammar B
 f <$> g = λ x s → ∃ λ y → g y s × x ≡ f y

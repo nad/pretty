@@ -72,8 +72,7 @@ empty-grammar _ (lift ())
 
 -- Map.
 
-infixl 20 _<$>_
-infixr 20 _<$_
+infixl 20 _<$>_ _<$_
 
 _<$>_ : ∀ {NT A B} → (A → B) → Prod NT A → Prod NT B
 f <$> p = return f ⊛ p

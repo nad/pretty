@@ -230,7 +230,7 @@ final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
               Final-whitespace g → Doc g x → Doc g x
 final-line′ {g = g} i final d = embed lemma (d <⊛-doc nest i line⋆)
   where
-  lemma : ∀ {x s} → x ∈ g <⊛ tt <$ whitespace ⋆ ∙ s → x ∈ g ∙ s
+  lemma : ∀ {x s} → x ∈ g <⊛ (tt <$ whitespace ⋆) ∙ s → x ∈ g ∙ s
   lemma (<⊛-sem x∈ (<⊛-sem return-sem white)) = final x∈ white
 
 final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)

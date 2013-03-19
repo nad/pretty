@@ -139,7 +139,7 @@ Grammar-for A = (x : A) → Grammar (∃ λ x′ → x′ ≡ x)
 
 -- The result of _<$_ always returns the same result.
 
-infixr 20 _<$_
+infixl 20 _<$_
 
 _<$_ : ∀ {A B} → A → Grammar B → Grammar A
 x <$ g = return x <⊛ g
