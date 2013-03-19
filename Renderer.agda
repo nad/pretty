@@ -25,7 +25,8 @@ open import Grammar.Infinite
 open import Pretty
 open import Utilities
 
--- Renderers.
+------------------------------------------------------------------------
+-- Renderers
 
 record Renderer : Set₁ where
   field
@@ -38,7 +39,8 @@ record Renderer : Set₁ where
     parsable : ∀ {A} {g : Grammar A} {x : A}
                (d : Doc g x) → x ∈ g ∙ render d
 
-  -- Some derived definitions and properties.
+  ----------------------------------------------------------------------
+  -- Some derived definitions and properties
 
   -- Pretty-printers are correct by definition, for any renderer,
   -- assuming that the underlying grammar is unambiguous.
@@ -92,7 +94,11 @@ record Renderer : Set₁ where
       render text                 ≡⟨ render-string _ ⟩
       s                           ∎
 
--- An example renderer.
+------------------------------------------------------------------------
+-- An example renderer
+
+-- This renderer replaces every occurrence of "line" with a single
+-- space character.
 
 ugly-renderer : Renderer
 ugly-renderer = record
@@ -141,9 +147,10 @@ ugly-renderer = record
 ugly-renderer-ignores-emb : Renderer.Ignores-emb ugly-renderer
 ugly-renderer-ignores-emb = P.refl
 
+------------------------------------------------------------------------
 -- An example renderer, based on the one in Wadler's "A prettier
--- printer".
---
+-- printer"
+
 -- The natural number is the line width.
 
 wadler's-renderer : ℕ → Renderer
