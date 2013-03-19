@@ -15,7 +15,9 @@ open import Data.Product
 open import Data.String as String using (String)
 open import Data.Unit
 open import Function
-import Relation.Binary.PropositionalEquality as P
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Inverse using (module Inverse)
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 private module LM {A : Set} = Monoid (List.monoid A)
 
@@ -36,6 +38,8 @@ record Renderer : Set₁ where
     parsable : ∀ {A} {g : Grammar A} {x : A}
                (d : Doc g x) → x ∈ g ∙ render d
 
+  -- Some derived definitions and properties.
+
   -- Pretty-printers are correct by definition, for any renderer,
   -- assuming that the underlying grammar is unambiguous.
 
@@ -43,6 +47,50 @@ record Renderer : Set₁ where
     ∀ {A} {g : Grammar A} (pretty : Pretty-printer g) →
     ∀ x → x ∈ g ∙ render (pretty x)
   pretty-printer-correct pretty x = parsable (pretty x)
+
+  -- If there is only one grammatically correct string, then the
+  -- renderer returns this string.
+
+  render-unique-string : ∀ {A} {g : Grammar A} {x s} →
+                         (∀ {s′} → x ∈ g ∙ s′ → s′ ≡ s) →
+                         (d : Doc g x) → render d ≡ s
+  render-unique-string unique d = unique (parsable d)
+
+  -- Thus, in particular, documents for the grammar "string s" are
+  -- always rendered in the same way.
+
+  render-string : ∀ {s s′} (d : Doc (string s) s′) → render d ≡ s
+  render-string = render-unique-string λ s′∈ →
+    P.sym $ proj₂ (Inverse.to string-sem′ ⟨$⟩ s′∈)
+
+  -- The property of ignoring (top-level) emb constructors.
+
+  Ignores-emb : Set₁
+  Ignores-emb =
+    ∀ {A B x y} {g₁ : Grammar A} {g₂ : Grammar B}
+    {f : ∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s} {d : Doc g₁ x} →
+    render (emb f d) ≡ render d
+
+  -- If the renderer ignores emb constructors then, for every valid
+  -- string, there is a document that renders to that string. (The
+  -- renderers below ignore emb.)
+
+  every-string-possible :
+    Ignores-emb →
+    ∀ {A} {g : Grammar A} {x s} →
+    x ∈ g ∙ s → ∃ λ (d : Doc g x) → render d ≡ s
+  every-string-possible ignores-emb {g = g} {x} {s} x∈ =
+    (embed lemma₁ text , lemma₂)
+    where
+    open P.≡-Reasoning
+
+    lemma₁ : ∀ {s′} → s ∈ string s ∙ s′ → x ∈ g ∙ s′
+    lemma₁ s∈ = cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈)) x∈
+
+    lemma₂ = begin
+      render (embed lemma₁ text)  ≡⟨ ignores-emb ⟩
+      render text                 ≡⟨ render-string _ ⟩
+      s                           ∎
 
 -- An example renderer.
 
@@ -88,6 +136,11 @@ ugly-renderer = record
     parsable-fills (d ∷ ds) =
       sep-by-sem-∷ (parsable d) single-space-sem (parsable-fills ds)
 
+-- The "ugly renderer" ignores emb constructors.
+
+ugly-renderer-ignores-emb : Renderer.Ignores-emb ugly-renderer
+ugly-renderer-ignores-emb = P.refl
+
 -- An example renderer, based on the one in Wadler's "A prettier
 -- printer".
 --
@@ -98,7 +151,7 @@ wadler's-renderer w = record
   { render   = render
   ; parsable = parsable
   }
-  where
+  module Wadler's-renderer where
 
   -- Documents with unions instead of groups, and no fills.
 
@@ -347,6 +400,20 @@ wadler's-renderer w = record
              (d : Doc g x) → x ∈ g ∙ render d
   parsable d = best-lemma [] (expand-groups d)
                           (cast (P.sym $ proj₂ LM.identity _))
+
+-- Wadler's renderer ignores emb constructors.
+
+wadler's-renderer-ignores-emb :
+  ∀ {w} → Renderer.Ignores-emb (wadler's-renderer w)
+wadler's-renderer-ignores-emb {w} {d = d}
+  with Wadler's-renderer.expand-groups w d
+... | Wadler's-renderer.nil       = P.refl
+... | Wadler's-renderer.text      = P.refl
+... | _ Wadler's-renderer.· _     = P.refl
+... | Wadler's-renderer.line      = P.refl
+... | Wadler's-renderer.union _ _ = P.refl
+... | Wadler's-renderer.nest _ _  = P.refl
+... | Wadler's-renderer.emb _ _   = P.refl
 
 -- Uses wadler's-renderer to render a document using the given line
 -- width.
