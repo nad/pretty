@@ -137,7 +137,7 @@ Grammar-for A = (x : A) → Grammar (∃ λ x′ → x′ ≡ x)
 ------------------------------------------------------------------------
 -- Grammar combinators
 
--- The result of _<$_ always returns the same result.
+-- The result of x <$ g is always x.
 
 infixl 20 _<$_
 
