@@ -220,7 +220,7 @@ wadler's-renderer w = record
 
   <$-docU : ∀ {A B : Set} {x : A} {y : B} {g} →
             DocU g y → DocU (x <$ g) x
-  <$-docU d = nil <⊛-docU d
+  <$-docU d = embedU <$-sem d
 
   cons : ∀ {A B} {g : Grammar A} {sep : Grammar B} {x xs} →
          DocU g x → DocU (tt <$ sep) tt → DocU (g sep-by sep) xs →
@@ -231,7 +231,7 @@ wadler's-renderer w = record
     lemma : ∀ {ys s} →
             ys ∈ _∷⁺_ <$> g ⊛ ((tt <$ sep) ⊛> (g sep-by sep)) ∙ s →
             ys ∈ g sep-by sep ∙ s
-    lemma (⊛-sem (<$>-sem x∈) (⊛>-sem (<⊛-sem return-sem y∈) xs∈)) =
+    lemma (⊛-sem (<$>-sem x∈) (⊛>-sem (<$-sem y∈) xs∈)) =
       sep-by-sem-∷ x∈ y∈ xs∈
 
   -- A single space character.
@@ -242,7 +242,7 @@ wadler's-renderer w = record
     lemma : ∀ {s} →
             tt ∈ tt <$ string′ " " ∙ s →
             tt ∈ tt <$ whitespace + ∙ s
-    lemma (<⊛-sem return-sem (⊛-sem (<$>-sem tok-sem) return-sem)) =
+    lemma (<$-sem (⊛-sem (<$>-sem tok-sem) return-sem)) =
       <$-sem single-space-sem
 
   mutual

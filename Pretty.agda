@@ -122,11 +122,15 @@ tok-doc {t} = embed lemma token-doc
   lemma : ∀ {s} → t ∈ token ∙ s → t ∈ tok t ∙ s
   lemma token-sem = tok-sem
 
--- A combinator corresponding to "map".
+-- Some mapping combinators.
 
 <$>-doc : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
           Doc (♭? g) x → Doc (f <$> g) (f x)
 <$>-doc d = embed <$>-sem d
+
+<$-doc : ∀ {c A B} {x : A} {y} {g : ∞Grammar c B} →
+         Doc (♭? g) y → Doc (x <$ g) x
+<$-doc d = embed <$-sem d
 
 -- Some sequencing combinators.
 
@@ -155,10 +159,6 @@ _⊛>-doc_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛-doc d₁ ⊛-do
   lemma : ∀ {y s} →
           y ∈ return (λ _ x → x) ⊛ g₁ ⊛ g₂ ∙ s → y ∈ g₁ ⊛> g₂ ∙ s
   lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = ⊛>-sem x∈ y∈
-
-<$-doc : ∀ {A B : Set} {x : A} {y : B} {g} →
-         Doc g y → Doc (x <$ g) x
-<$-doc d = nil <⊛-doc d
 
 -- Document combinators for choices.
 
@@ -221,7 +221,7 @@ line⋆ = embed lemma line
   lemma : ∀ {s} →
           tt ∈ tt <$ whitespace + ∙ s →
           tt ∈ tt <$ whitespace ⋆ ∙ s
-  lemma (<⊛-sem return-sem w+) = <⊛-sem return-sem (⋆-+-sem w+)
+  lemma (<$-sem w+) = <$-sem (⋆-+-sem w+)
 
 -- Combinators that add a final "line" to the document, nested i
 -- steps. (The grammars have to satisfy certain predicates.)
@@ -231,7 +231,7 @@ final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
 final-line′ {g = g} i final d = embed lemma (d <⊛-doc nest i line⋆)
   where
   lemma : ∀ {x s} → x ∈ g <⊛ (tt <$ whitespace ⋆) ∙ s → x ∈ g ∙ s
-  lemma (<⊛-sem x∈ (<⊛-sem return-sem white)) = final x∈ white
+  lemma (<⊛-sem x∈ (<$-sem white)) = final x∈ white
 
 final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
              {final : IsJust (final-whitespace? n g)} →
