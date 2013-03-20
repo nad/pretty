@@ -16,7 +16,9 @@ open import Data.Unit
 open import Function
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
-open import Grammar.Infinite
+open import Grammar.Infinite as G
+  hiding (_<$>_; _<$_; _⊛_; _<⊛_; _⊛>_; token; tok; if-true; sat;
+          tok-sat; symbol; list; list⁺)
 
 ------------------------------------------------------------------------
 -- Pretty-printers
@@ -52,7 +54,7 @@ mutual
 
     -- One or more whitespace characters.
 
-    line  : Doc (tt <$ whitespace +) tt
+    line  : Doc (tt G.<$ whitespace +) tt
 
     -- Grouping construct.
 
@@ -104,123 +106,124 @@ embed f d         = emb f d
 
 -- A document for the given character.
 
-token-doc : ∀ {t} → Doc token t
-token-doc {t} = embed lemma text
+token : ∀ {t} → Doc G.token t
+token {t} = embed lemma text
   where
   lemma′ : ∀ {x s} → x ∈ string (t ∷ []) ∙ s → x ≡ t ∷ [] →
-           t ∈ token ∙ s
+           t ∈ G.token ∙ s
   lemma′ (⊛-sem (<$>-sem tok-sem) return-sem) refl = token-sem
 
-  lemma : ∀ {s} → t ∷ [] ∈ string (t ∷ []) ∙ s → t ∈ token ∙ s
+  lemma : ∀ {s} → t ∷ [] ∈ string (t ∷ []) ∙ s → t ∈ G.token ∙ s
   lemma t∈ = lemma′ t∈ refl
 
 -- A document for the given character.
 
-tok-doc : ∀ {t} → Doc (tok t) t
-tok-doc {t} = embed lemma token-doc
+tok : ∀ {t} → Doc (G.tok t) t
+tok {t} = embed lemma token
   where
-  lemma : ∀ {s} → t ∈ token ∙ s → t ∈ tok t ∙ s
+  lemma : ∀ {s} → t ∈ G.token ∙ s → t ∈ G.tok t ∙ s
   lemma token-sem = tok-sem
 
 -- Some mapping combinators.
 
-<$>-doc : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
-          Doc (♭? g) x → Doc (f <$> g) (f x)
-<$>-doc d = embed <$>-sem d
+<$> : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
+      Doc (♭? g) x → Doc (f G.<$> g) (f x)
+<$> d = embed <$>-sem d
 
-<$-doc : ∀ {c A B} {x : A} {y} {g : ∞Grammar c B} →
-         Doc (♭? g) y → Doc (x <$ g) x
-<$-doc d = embed <$-sem d
+<$ : ∀ {c A B} {x : A} {y} {g : ∞Grammar c B} →
+     Doc (♭? g) y → Doc (x G.<$ g) x
+<$ d = embed <$-sem d
 
 -- Some sequencing combinators.
 
-infixl 20 _⊛-doc_ _<⊛-doc_ _⊛>-doc_
+infixl 20 _⊛_ _<⊛_ _⊛>_
 
-_⊛-doc_ : ∀ {c₁ c₂ A B f x} {g₁ : ∞Grammar c₁ (A → B)}
-            {g₂ : ∞Grammar c₂ A} →
-          Doc (♭? g₁) f → Doc (♭? g₂) x → Doc (g₁ ⊛ g₂) (f x)
-_⊛-doc_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ · <$>-doc d₂)
-  where
-  lemma : ∀ {x s} → x ∈ (g₁ >>= λ f → f <$> g₂) ∙ s → x ∈ g₁ ⊛ g₂ ∙ s
-  lemma (>>=-sem f∈ (<$>-sem x∈)) = ⊛-sem f∈ x∈
-
-_<⊛-doc_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
-           Doc (♭? g₁) x → Doc (♭? g₂) y → Doc (g₁ <⊛ g₂) x
-_<⊛-doc_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛-doc d₁ ⊛-doc d₂)
+_⊛_ : ∀ {c₁ c₂ A B f x}
+        {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A} →
+      Doc (♭? g₁) f → Doc (♭? g₂) x → Doc (g₁ G.⊛ g₂) (f x)
+_⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ · <$> d₂)
   where
   lemma : ∀ {x s} →
-          x ∈ return (λ x _ → x) ⊛ g₁ ⊛ g₂ ∙ s → x ∈ g₁ <⊛ g₂ ∙ s
+          x ∈ (g₁ >>= λ f → f G.<$> g₂) ∙ s → x ∈ g₁ G.⊛ g₂ ∙ s
+  lemma (>>=-sem f∈ (<$>-sem x∈)) = ⊛-sem f∈ x∈
+
+_<⊛_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
+       Doc (♭? g₁) x → Doc (♭? g₂) y → Doc (g₁ G.<⊛ g₂) x
+_<⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛ d₁ ⊛ d₂)
+  where
+  lemma : ∀ {x s} →
+          x ∈ return (λ x _ → x) G.⊛ g₁ G.⊛ g₂ ∙ s → x ∈ g₁ G.<⊛ g₂ ∙ s
   lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = <⊛-sem x∈ y∈
 
-_⊛>-doc_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
-           Doc (♭? g₁) x → Doc (♭? g₂) y → Doc (g₁ ⊛> g₂) y
-_⊛>-doc_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛-doc d₁ ⊛-doc d₂)
+_⊛>_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
+       Doc (♭? g₁) x → Doc (♭? g₂) y → Doc (g₁ G.⊛> g₂) y
+_⊛>_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛ d₁ ⊛ d₂)
   where
   lemma : ∀ {y s} →
-          y ∈ return (λ _ x → x) ⊛ g₁ ⊛ g₂ ∙ s → y ∈ g₁ ⊛> g₂ ∙ s
+          y ∈ return (λ _ x → x) G.⊛ g₁ G.⊛ g₂ ∙ s → y ∈ g₁ G.⊛> g₂ ∙ s
   lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = ⊛>-sem x∈ y∈
 
 -- Document combinators for choices.
 
-∣-left-doc : ∀ {c₁ c₂ A x} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
-             Doc (♭? g₁) x → Doc (g₁ ∣ g₂) x
-∣-left-doc d = embed ∣-left-sem d
+left : ∀ {c₁ c₂ A x} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
+       Doc (♭? g₁) x → Doc (g₁ ∣ g₂) x
+left d = embed ∣-left-sem d
 
-∣-right-doc : ∀ {c₁ c₂ A x} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
-              Doc (♭? g₂) x → Doc (g₁ ∣ g₂) x
-∣-right-doc d = embed ∣-right-sem d
+right : ∀ {c₁ c₂ A x} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
+        Doc (♭? g₂) x → Doc (g₁ ∣ g₂) x
+right d = embed ∣-right-sem d
 
 -- Some Kleene star and plus combinators.
 
-[]-doc : ∀ {c A} {g : ∞Grammar c A} → Doc (g ⋆) []
-[]-doc {A = A} {g} = embed lemma nil
+⋆-[] : ∀ {c A} {g : ∞Grammar c A} → Doc (g ⋆) []
+⋆-[] {A = A} {g} = embed lemma nil
   where
   lemma : ∀ {s} → [] ∈ return {A = List A} [] ∙ s → [] ∈ g ⋆ ∙ s
   lemma return-sem = ⋆-[]-sem
 
-infixr 20 _+-∷-⋆-doc_ _⋆-∷-doc_
+infixr 20 _+-∷-⋆_ _⋆-∷_
 
-_+-∷-⋆-doc_ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
-              Doc (♭? g) x → Doc (g ⋆) xs → Doc (g +) (x ∷ xs)
-d₁ +-∷-⋆-doc d₂ = <$>-doc d₁ ⊛-doc d₂
+_+-∷-⋆_ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
+          Doc (♭? g) x → Doc (g ⋆) xs → Doc (g +) (x ∷ xs)
+d₁ +-∷-⋆ d₂ = <$> d₁ ⊛ d₂
 
-_⋆-∷-doc_ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
-            Doc (♭? g) x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
-d₁ ⋆-∷-doc d₂ = embed ⋆-+-sem (d₁ +-∷-⋆-doc d₂)
+_⋆-∷_ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
+        Doc (♭? g) x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
+d₁ ⋆-∷ d₂ = embed ⋆-+-sem (d₁ +-∷-⋆ d₂)
 
 -- A document for the empty string.
 
-if-true-doc : ∀ {b} {t : T b} → Doc (if-true b) t
-if-true-doc {true}     = nil
-if-true-doc {false} {}
+if-true : ∀ {b} {t : T b} → Doc (G.if-true b) t
+if-true {true}     = nil
+if-true {false} {}
 
 -- Documents for the given character.
 
-sat-doc : ∀ {p : Char → Bool} {t pt} →
-          Doc (sat p) (t , pt)
-sat-doc = token-doc · <$>-doc if-true-doc
+sat : ∀ {p : Char → Bool} {t pt} →
+      Doc (G.sat p) (t , pt)
+sat = token · <$> if-true
 
-tok-sat-doc : {p : Char → Bool} → Pretty-printer-for (tok-sat p)
-tok-sat-doc _ = <$-doc tok-doc
+tok-sat : {p : Char → Bool} → Pretty-printer-for (G.tok-sat p)
+tok-sat _ = <$ tok
 
 -- A single space character.
 
-space-doc : Doc (whitespace ⋆) (' ' ∷ [])
-space-doc = embed lemma tok-doc
+space : Doc (whitespace ⋆) (' ' ∷ [])
+space = embed lemma tok
   where
   lemma : ∀ {s} →
-          ' ' ∈ tok ' ' ∙ s →
+          ' ' ∈ G.tok ' ' ∙ s →
           (' ' ∷ []) ∈ whitespace ⋆ ∙ s
   lemma tok-sem = ⋆-+-sem single-space-sem
 
 -- A variant of line (with _⋆ instead of _+ in the grammar).
 
-line⋆ : Doc (tt <$ whitespace ⋆) tt
+line⋆ : Doc (tt G.<$ whitespace ⋆) tt
 line⋆ = embed lemma line
   where
   lemma : ∀ {s} →
-          tt ∈ tt <$ whitespace + ∙ s →
-          tt ∈ tt <$ whitespace ⋆ ∙ s
+          tt ∈ tt G.<$ whitespace + ∙ s →
+          tt ∈ tt G.<$ whitespace ⋆ ∙ s
   lemma (<$-sem w+) = <$-sem (⋆-+-sem w+)
 
 -- Combinators that add a final "line" to the document, nested i
@@ -228,9 +231,9 @@ line⋆ = embed lemma line
 
 final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
               Final-whitespace g → Doc g x → Doc g x
-final-line′ {g = g} i final d = embed lemma (d <⊛-doc nest i line⋆)
+final-line′ {g = g} i final d = embed lemma (d <⊛ nest i line⋆)
   where
-  lemma : ∀ {x s} → x ∈ g <⊛ (tt <$ whitespace ⋆) ∙ s → x ∈ g ∙ s
+  lemma : ∀ {x s} → x ∈ g G.<⊛ (tt G.<$ whitespace ⋆) ∙ s → x ∈ g ∙ s
   lemma (<⊛-sem x∈ (<$-sem white)) = final x∈ white
 
 final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
@@ -241,61 +244,61 @@ final-line i n {final} d =
 
 -- A document for the given symbol (and no following whitespace).
 
-symbol-doc : ∀ {s} → Doc (symbol s) s
-symbol-doc = text <⊛-doc []-doc
+symbol : ∀ {s} → Doc (G.symbol s) s
+symbol = text <⊛ ⋆-[]
 
 -- A document for the given symbol plus a "line".
 
-symbol-line-doc : ∀ {s} → Doc (symbol s) s
-symbol-line-doc = final-line 0 1 symbol-doc
+symbol-line : ∀ {s} → Doc (G.symbol s) s
+symbol-line = final-line 0 1 symbol
 
 -- A document for the given symbol plus a space character.
 
-symbol-space-doc : ∀ {s} → Doc (symbol s) s
-symbol-space-doc = text <⊛-doc space-doc
+symbol-space : ∀ {s} → Doc (G.symbol s) s
+symbol-space = text <⊛ space
 
 -- A combinator for bracketed output, based on one in Wadler's "A
 -- prettier printer".
 
 bracket : ∀ {c A x s₁ s₂} {g : ∞Grammar c A} (n : ℕ) →
           {final : IsJust (final-whitespace? n (♭? g))} →
-          Doc (♭? g) x → Doc (symbol s₁ ⊛> g <⊛ symbol s₂) x
+          Doc (♭? g) x → Doc (G.symbol s₁ G.⊛> g G.<⊛ G.symbol s₂) x
 bracket n {final} d =
-  group (nest 2 symbol-line-doc
-           ⊛>-doc
+  group (nest 2 symbol-line
+           ⊛>
          final-line 0 n {final = final} (nest 2 d)
-           <⊛-doc
-         symbol-doc)
+           <⊛
+         symbol)
 
 mutual
 
   -- Conversion of pretty-printers for elements into pretty-printers
   -- for lists.
 
-  map⋆-doc : ∀ {c A} {g : ∞Grammar c A} →
-            Pretty-printer (♭? g) → Pretty-printer (g ⋆)
-  map⋆-doc p []       = []-doc
-  map⋆-doc p (x ∷ xs) = embed ⋆-+-sem (map+-doc p (x ∷ xs))
+  map⋆ : ∀ {c A} {g : ∞Grammar c A} →
+         Pretty-printer (♭? g) → Pretty-printer (g ⋆)
+  map⋆ p []       = ⋆-[]
+  map⋆ p (x ∷ xs) = embed ⋆-+-sem (map+ p (x ∷ xs))
 
-  map+-doc : ∀ {c A} {g : ∞Grammar c A} →
-             Pretty-printer (♭? g) → Pretty-printer (g +)
-  map+-doc p (x ∷ xs) = p x +-∷-⋆-doc map⋆-doc p xs
+  map+ : ∀ {c A} {g : ∞Grammar c A} →
+         Pretty-printer (♭? g) → Pretty-printer (g +)
+  map+ p (x ∷ xs) = p x +-∷-⋆ map⋆ p xs
 
 mutual
 
   -- Conversion of pretty-printers for specific elements into
   -- pretty-printers for specific lists.
 
-  list-doc : ∀ {A} {elem : Grammar-for A} →
-             Pretty-printer-for elem →
-             Pretty-printer-for (list elem)
-  list-doc e []       = nil
-  list-doc e (x ∷ xs) = <$>-doc (list⁺-doc e (x ∷ xs))
+  list : ∀ {A} {elem : Grammar-for A} →
+         Pretty-printer-for elem →
+         Pretty-printer-for (G.list elem)
+  list e []       = nil
+  list e (x ∷ xs) = <$> (list⁺ e (x ∷ xs))
 
-  list⁺-doc : ∀ {A} {elem : Grammar-for A} →
-              Pretty-printer-for elem →
-              Pretty-printer-for (list⁺ elem)
-  list⁺-doc e (x ∷ xs) = <$>-doc (e x) ⊛-doc list-doc e xs
+  list⁺ : ∀ {A} {elem : Grammar-for A} →
+          Pretty-printer-for elem →
+          Pretty-printer-for (G.list⁺ elem)
+  list⁺ e (x ∷ xs) = <$> (e x) ⊛ list e xs
 
 -- A variant of fill. (The grammar has to satisfy a certain
 -- predicate.)
@@ -322,24 +325,24 @@ fill+ {g = g} n {final} ds = embed lemma (fill ds)
   lemma : ∀ {s xs} → xs ∈ ♭? g sep-by whitespace + ∙ s → xs ∈ g + ∙ s
   lemma (⊛-sem (<$>-sem x∈) xs∈) = lemma′ x∈ xs∈
 
--- Variants of map+-doc/map⋆-doc that use fill. (The grammars have to
--- satisfy a certain predicate.)
+-- Variants of map+/map⋆ that use fill. (The grammars have to satisfy
+-- a certain predicate.)
 
-map+-fill-doc : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
-                {final : IsJust (final-whitespace? n (♭? g))} →
-                Pretty-printer (♭? g) →
-                Pretty-printer (g +)
-map+-fill-doc {g = g} n {final} p xs =
+map+-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
+            {final : IsJust (final-whitespace? n (♭? g))} →
+            Pretty-printer (♭? g) →
+            Pretty-printer (g +)
+map+-fill {g = g} n {final} p xs =
   fill+ n {final = final} (uncurry to-docs xs)
   where
   to-docs : ∀ x xs → Docs (♭? g) (x ∷ xs)
   to-docs x []        = [ p x ]
   to-docs x (x′ ∷ xs) = p x ∷ to-docs x′ xs
 
-map⋆-fill-doc : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
-                {final : IsJust (final-whitespace? n (♭? g))} →
-                Pretty-printer (♭? g) →
-                Pretty-printer (g ⋆)
-map⋆-fill-doc n         p []       = []-doc
-map⋆-fill-doc n {final} p (x ∷ xs) =
-  embed ⋆-+-sem (map+-fill-doc n {final = final} p (x ∷ xs))
+map⋆-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
+            {final : IsJust (final-whitespace? n (♭? g))} →
+            Pretty-printer (♭? g) →
+            Pretty-printer (g ⋆)
+map⋆-fill n         p []       = ⋆-[]
+map⋆-fill n {final} p (x ∷ xs) =
+  embed ⋆-+-sem (map+-fill n {final = final} p (x ∷ xs))

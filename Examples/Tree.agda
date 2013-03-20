@@ -12,28 +12,34 @@ open import Data.List.NonEmpty as List⁺
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Examples.Name
-open import Grammar.Infinite
-open import Pretty
+import Grammar.Infinite
+import Pretty
 open import Renderer
 open import Utilities
 
 data Tree : Set where
   node : Name → List Tree → Tree
 
-mutual
+module _ where
 
-  tree : Grammar Tree
-  tree = node <$> name-w ⊛ brackets
+  open Grammar.Infinite
 
-  brackets : Grammar (List Tree)
-  brackets = return []
-           ∣ List⁺.toList <$> (symbol′ "[" ⊛> ♯ trees <⊛ symbol′ "]")
+  mutual
 
-  trees : Grammar (List⁺ Tree)
-  trees = _∷_ <$> tree ⊛ commas-and-trees
+    tree : Grammar Tree
+    tree = node <$> name-w ⊛ brackets
 
-  commas-and-trees : Grammar (List Tree)
-  commas-and-trees = (symbol′ "," ⊛> tree) ⋆
+    brackets : Grammar (List Tree)
+    brackets = return []
+             ∣ List⁺.toList <$> (symbol′ "[" ⊛> ♯ trees <⊛ symbol′ "]")
+
+    trees : Grammar (List⁺ Tree)
+    trees = _∷_ <$> tree ⊛ commas-and-trees
+
+    commas-and-trees : Grammar (List Tree)
+    commas-and-trees = (symbol′ "," ⊛> tree) ⋆
+
+open Pretty
 
 -- Wadler presents two pretty-printers for trees in his final code
 -- listing (§11.7). I've included corresponding, but not quite
@@ -50,31 +56,23 @@ module Printer₁ where
 
     tree-printer : Pretty-printer tree
     tree-printer (node s ts) =
-      group
-        (<$>-doc (name-w-printer s)
-           ⊛-doc
-         nest (List.length s) (brackets-printer ts))
+      group (<$> (name-w-printer s) ⊛
+             nest (List.length s) (brackets-printer ts))
 
     brackets-printer : Pretty-printer brackets
-    brackets-printer []       = ∣-left-doc nil
+    brackets-printer []       = left nil
     brackets-printer (t ∷ ts) =
-      ∣-right-doc
-        (<$>-doc
-           (symbol-doc
-              ⊛>-doc
-            nest 1 (trees-printer (t ∷ ts))
-              <⊛-doc
-            symbol-doc))
+      right (<$> (symbol ⊛> nest 1 (trees-printer (t ∷ ts)) <⊛ symbol))
 
     trees-printer : Pretty-printer trees
     trees-printer (t ∷ ts) =
-      <$>-doc (tree-printer t) ⊛-doc commas-and-trees-printer ts
+      <$> (tree-printer t) ⊛ commas-and-trees-printer ts
 
     commas-and-trees-printer : Pretty-printer commas-and-trees
-    commas-and-trees-printer []       = []-doc
+    commas-and-trees-printer []       = ⋆-[]
     commas-and-trees-printer (t ∷ ts) =
-      (symbol-line-doc ⊛>-doc tree-printer t)
-        ⋆-∷-doc
+      (symbol-line ⊛> tree-printer t)
+        ⋆-∷
       commas-and-trees-printer ts
 
 module Printer₂ where
@@ -83,7 +81,7 @@ module Printer₂ where
 
     tree-printer : Pretty-printer tree
     tree-printer (node s ts) =
-      <$>-doc (name-w-printer s) ⊛-doc brackets-printer ts
+      <$> (name-w-printer s) ⊛ brackets-printer ts
 
     -- Note that this printer is not defined in exactly the same way
     -- as Wadler's: Wadler used "nest 2" once, here it is used twice
@@ -93,19 +91,19 @@ module Printer₂ where
     -- combinator).
 
     brackets-printer : Pretty-printer brackets
-    brackets-printer []       = ∣-left-doc nil
+    brackets-printer []       = left nil
     brackets-printer (t ∷ ts) =
-      ∣-right-doc (<$>-doc (bracket 7 (trees-printer (t ∷ ts))))
+      right (<$> (bracket 7 (trees-printer (t ∷ ts))))
 
     trees-printer : Pretty-printer trees
     trees-printer (t ∷ ts) =
-      <$>-doc (tree-printer t) ⊛-doc commas-and-trees-printer ts
+      <$> (tree-printer t) ⊛ commas-and-trees-printer ts
 
     commas-and-trees-printer : Pretty-printer commas-and-trees
-    commas-and-trees-printer []       = []-doc
+    commas-and-trees-printer []       = ⋆-[]
     commas-and-trees-printer (t ∷ ts) =
-      (symbol-line-doc ⊛>-doc tree-printer t)
-        ⋆-∷-doc
+      (symbol-line ⊛> tree-printer t)
+        ⋆-∷
       commas-and-trees-printer ts
 
 t : Tree

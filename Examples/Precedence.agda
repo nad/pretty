@@ -34,8 +34,8 @@ open import Relation.Nullary.Decidable as Dec
 open import Relation.Nullary.Product
 
 open import Examples.Name as Name hiding (name)
-open import Grammar.Infinite
-open import Pretty
+open import Grammar.Infinite as Grammar using (Grammar-for)
+open import Pretty using (Pretty-printer-for)
 open import Renderer
 open import Utilities
 
@@ -45,20 +45,23 @@ open import Utilities
 -- Associativities.
 
 data Associativity : Set where
-  non right left : Associativity
+  -   -- Non-associative.
+   ⇾  -- Right associative.
+   ⇽  -- Left associative.
+     : Associativity
 
 -- We can decide if two associativities are equal.
 
 _≟A_ : Decidable (_≡_ {A = Associativity})
-non   ≟A non   = yes P.refl
-non   ≟A right = no (λ ())
-non   ≟A left  = no (λ ())
-right ≟A non   = no (λ ())
-right ≟A right = yes P.refl
-right ≟A left  = no (λ ())
-left  ≟A non   = no (λ ())
-left  ≟A right = no (λ ())
-left  ≟A left  = yes P.refl
+- ≟A - = yes P.refl
+- ≟A ⇾ = no (λ ())
+- ≟A ⇽ = no (λ ())
+⇾ ≟A - = no (λ ())
+⇾ ≟A ⇾ = yes P.refl
+⇾ ≟A ⇽ = no (λ ())
+⇽ ≟A - = no (λ ())
+⇽ ≟A ⇾ = no (λ ())
+⇽ ≟A ⇽ = yes P.refl
 
 -- Operator names.
 
@@ -99,24 +102,27 @@ _≟O_ : ∀ {assoc} → Decidable (_≡_ {A = Operator assoc})
 
 operator-name : Grammar-for Operator-name
 operator-name n = list⁺ (tok-sat _) n
+  where open Grammar
 
 -- A pretty-printer for operator names.
 
 operator-name-printer : Pretty-printer-for operator-name
-operator-name-printer n = list⁺-doc tok-sat-doc n
+operator-name-printer n = list⁺ tok-sat n
+  where open Pretty
 
 -- A grammar for a given operator.
 
 operator : ∀ {assoc} → Grammar-for (Operator assoc)
 operator op =
   Prod.map ⟪_⟫ (P.cong ⟪_⟫) <$> operator-name (Operator.name op)
+  where open Grammar
 
 -- A pretty-printer for operators.
 
 operator-printer : ∀ {assoc} →
                    Pretty-printer-for (operator {assoc = assoc})
-operator-printer op =
-  <$>-doc (operator-name-printer (Operator.name op))
+operator-printer op = <$> (operator-name-printer (Operator.name op))
+  where open Pretty
 
 ------------------------------------------------------------------------
 -- Precedence graphs
@@ -179,7 +185,7 @@ module Expr (g : Precedence-graph) where
 
     -- A representation of operator parse trees.
 
-    infix 8 _⟨_⟩_ _⟨_⟩ʳ_ _⟨_⟩ˡ_
+    infix 8 _⟨_⟩_ _⟨_⟩⇾_ _⟨_⟩⇽_
     infix 6 _∙_
 
     -- Expr ps contains expressions where the outermost operator has
@@ -196,9 +202,9 @@ module Expr (g : Precedence-graph) where
     -- associativity assoc.
 
     data Expr-in (p : Precedence) : Associativity → Set where
-      _⟨_⟩_  : Expr (↑ p)   → Inner (ops p non  ) → Expr (↑ p)    → Expr-in p non
-      _⟨_⟩ʳ_ : Expr (↑ p)   → Inner (ops p right) → Outer p right → Expr-in p right
-      _⟨_⟩ˡ_ : Outer p left → Inner (ops p left ) → Expr (↑ p)    → Expr-in p left
+      _⟨_⟩_  : Expr (↑ p) → Inner (ops p -) → Expr (↑ p) → Expr-in p -
+      _⟨_⟩⇾_ : Expr (↑ p) → Inner (ops p ⇾) → Outer p ⇾  → Expr-in p ⇾
+      _⟨_⟩⇽_ : Outer p ⇽  → Inner (ops p ⇽) → Expr (↑ p) → Expr-in p ⇽
 
     -- Outer p assoc contains expressions where the head operator
     --   ⑴ has precedence p and associativity assoc, or
@@ -231,8 +237,8 @@ module Expr (g : Precedence-graph) where
 
     forget-in : ∀ {p assoc} → Expr-in p assoc → E
     forget-in (e₁ ⟨ op ⟩  e₂) = app (forget     e₁) op (forget     e₂)
-    forget-in (e₁ ⟨ op ⟩ʳ e₂) = app (forget     e₁) op (forget-out e₂)
-    forget-in (e₁ ⟨ op ⟩ˡ e₂) = app (forget-out e₁) op (forget     e₂)
+    forget-in (e₁ ⟨ op ⟩⇾ e₂) = app (forget     e₁) op (forget-out e₂)
+    forget-in (e₁ ⟨ op ⟩⇽ e₂) = app (forget-out e₁) op (forget     e₂)
 
     forget-out : ∀ {p assoc} → Outer p assoc → E
     forget-out (similar e) = forget-in e
@@ -255,9 +261,9 @@ module Expr (g : Precedence-graph) where
 
     recall-in : ∀ {p} assoc →
                 E → (∃ λ op → op ∈ ops p assoc) → E → Expr-in p assoc
-    recall-in non   e₁ op e₂ = recall     e₁ ⟨ op ⟩  recall     e₂
-    recall-in left  e₁ op e₂ = recall-out e₁ ⟨ op ⟩ˡ recall     e₂
-    recall-in right e₁ op e₂ = recall     e₁ ⟨ op ⟩ʳ recall-out e₂
+    recall-in - e₁ op e₂ = recall     e₁ ⟨ op ⟩  recall     e₂
+    recall-in ⇾ e₁ op e₂ = recall     e₁ ⟨ op ⟩⇾ recall-out e₂
+    recall-in ⇽ e₁ op e₂ = recall-out e₁ ⟨ op ⟩⇽ recall     e₂
 
     recall-out : ∀ {p assoc} → E → Outer p assoc
     recall-out {p₁} {a₁} (app {assoc = a₂} {p = p₂} e₁ op e₂) with p₁ ≟F p₂ | a₁ ≟A a₂
@@ -265,77 +271,83 @@ module Expr (g : Precedence-graph) where
     recall-out (app e₁ op e₂) | _          | _          = tighter (recall-app  e₁ op e₂)
     recall-out e = tighter (recall e)
 
-  mutual
+  module _ where
 
-    -- Expression grammar.
+    open Grammar
 
-    expr : Grammar (Expr any-precedence)
-    expr = whitespace ⋆ ⊛> precs any-precedence <⊛ whitespace ⋆
+    mutual
 
-    -- Grammar for a given list of precedence levels.
+      -- Expression grammar.
 
-    precs : (ps : List Precedence) → Grammar (Expr ps)
-    precs ps = paren <$ string′ "(" ⊛ ♯ expr <⊛ string′ ")"
-             ∣ var <$> Name.name
-             ∣ precs′ ps
+      expr : Grammar (Expr any-precedence)
+      expr = whitespace ⋆ ⊛> precs any-precedence <⊛ whitespace ⋆
 
-    precs′ : (ps : List Precedence) → Grammar (Expr ps)
-    precs′ []       = fail
-    precs′ (p ∷ ps) =
-        (λ { (_ , e) → here P.refl ∙ e }) <$> ♯ prec p
-      ∣ weaken                            <$> precs′ ps
+      -- Grammar for a given list of precedence levels.
 
-    -- Grammar for a given precedence level.
+      precs : (ps : List Precedence) → Grammar (Expr ps)
+      precs ps = paren <$ string′ "(" ⊛ ♯ expr <⊛ string′ ")"
+               ∣ var <$> Name.name
+               ∣ precs′ ps
 
-    prec : (p : Precedence) → Grammar (∃ (Expr-in p))
-    prec p = ,_ <$> non-assoc p
-           ∣ ,_ <$> right⁺ p
-           ∣ ,_ <$> left⁺ p
+      precs′ : (ps : List Precedence) → Grammar (Expr ps)
+      precs′ []       = fail
+      precs′ (p ∷ ps) =
+          (λ { (_ , e) → here P.refl ∙ e }) <$> ♯ prec p
+        ∣ weaken                            <$> precs′ ps
 
-    -- Operators of higher precedence (including parenthesised
-    -- expressions and variables).
+      -- Grammar for a given precedence level.
 
-    higher : (p : Precedence) → Grammar (Expr (↑ p))
-    higher p = precs (↑ p)
+      prec : (p : Precedence) → Grammar (∃ (Expr-in p))
+      prec p = ,_ <$> non-assoc p
+             ∣ ,_ <$> right⁺ p
+             ∣ ,_ <$> left⁺ p
 
-    -- Non-associative operators.
+      -- Operators of higher precedence (including parenthesised
+      -- expressions and variables).
 
-    non-assoc : (p : Precedence) → Grammar (Expr-in p non)
-    non-assoc p = _⟨_⟩_ <$> precs (↑ p)
-                         ⊛  operators (ops p non)
-                         ⊛  precs (↑ p)
+      higher : (p : Precedence) → Grammar (Expr (↑ p))
+      higher p = precs (↑ p)
 
-    -- Right-associative operators.
+      -- Non-associative operators.
 
-    right⁺ : (p : Precedence) → Grammar (Expr-in p right)
-    right⁺ p = _⟨_⟩ʳ_ <$> precs (↑ p)
-                       ⊛  operators (ops p right)
-                       ⊛  right⁺↑ p
+      non-assoc : (p : Precedence) → Grammar (Expr-in p -)
+      non-assoc p = _⟨_⟩_ <$> precs (↑ p)
+                           ⊛  operators (ops p -)
+                           ⊛  precs (↑ p)
 
-    right⁺↑ : (p : Precedence) → Grammar (Outer p right)
-    right⁺↑ p = similar <$> ♯ right⁺ p
-              ∣ tighter <$> precs (↑ p)
+      -- Right-associative operators.
 
-    -- Left-associative operators.
+      right⁺ : (p : Precedence) → Grammar (Expr-in p ⇾)
+      right⁺ p = _⟨_⟩⇾_ <$> precs (↑ p)
+                         ⊛  operators (ops p ⇾)
+                         ⊛  right⁺↑ p
 
-    left⁺ : (p : Precedence) → Grammar (Expr-in p left)
-    left⁺ p = _⟨_⟩ˡ_ <$> left⁺↑ p
-                      ⊛  operators (ops p left)
-                      ⊛  precs (↑ p)
+      right⁺↑ : (p : Precedence) → Grammar (Outer p ⇾)
+      right⁺↑ p = similar <$> ♯ right⁺ p
+                ∣ tighter <$> precs (↑ p)
 
-    left⁺↑ : (p : Precedence) → Grammar (Outer p left)
-    left⁺↑ p = similar <$> ♯ left⁺ p
-             ∣ tighter <$> precs (↑ p)
+      -- Left-associative operators.
 
-    -- An operator from a given list of operators.
+      left⁺ : (p : Precedence) → Grammar (Expr-in p ⇽)
+      left⁺ p = _⟨_⟩⇽_ <$> left⁺↑ p
+                        ⊛  operators (ops p ⇽)
+                        ⊛  precs (↑ p)
 
-    operators : ∀ {assoc} (os : List (Operator assoc)) →
-                Grammar (∃ λ op → op ∈ os)
-    operators []         = fail
-    operators (op ∷ ops) =    (tt <$ whitespace ⋆)
-                           ⊛> (Prod.map id here <$> operator op)
-                           <⊛ (tt <$ whitespace ⋆)
-                         ∣ Prod.map id there <$> operators ops
+      left⁺↑ : (p : Precedence) → Grammar (Outer p ⇽)
+      left⁺↑ p = similar <$> ♯ left⁺ p
+               ∣ tighter <$> precs (↑ p)
+
+      -- An operator from a given list of operators.
+
+      operators : ∀ {assoc} (os : List (Operator assoc)) →
+                  Grammar (∃ λ op → op ∈ os)
+      operators []         = fail
+      operators (op ∷ ops) =    (tt <$ whitespace ⋆)
+                             ⊛> (Prod.map id here <$> operator op)
+                             <⊛ (tt <$ whitespace ⋆)
+                           ∣ Prod.map id there <$> operators ops
+
+  open Pretty
 
   mutual
 
@@ -343,58 +355,49 @@ module Expr (g : Precedence-graph) where
     -- I have not tried very hard to make it pretty.
 
     expr-printer : Pretty-printer expr
-    expr-printer e =
-      []-doc ⊛>-doc precs-printer e <⊛-doc []-doc
+    expr-printer e = ⋆-[] ⊛> precs-printer e <⊛ ⋆-[]
 
     precs-printer : ∀ {ps} → Pretty-printer (precs ps)
     precs-printer e = group (precs-printer′ e)
       where
       precs-printer′ : ∀ {ps} → Pretty-printer (precs ps)
-      precs-printer′ (p∈ps ∙ e) = ∣-right-doc (precs′-printer p∈ps e)
-      precs-printer′ (paren e)  = ∣-left-doc (∣-left-doc
-                                    (<$-doc text ⊛-doc
-                                     nest 1 (expr-printer e) <⊛-doc
-                                     text))
-      precs-printer′ (var x)    = ∣-left-doc (∣-right-doc
-                                      (<$>-doc (name-printer x)))
+      precs-printer′ (p∈ps ∙ e) = right (precs′-printer p∈ps e)
+      precs-printer′ (paren e)  = left (left
+                                    (<$ text ⊛ nest 1 (expr-printer e)
+                                            <⊛ text))
+      precs-printer′ (var x)    = left (right (<$> (name-printer x)))
 
     precs′-printer :
        ∀ {assoc p ps}
        (p∈ : p ∈ ps) (e : Expr-in p assoc) → Doc (precs′ ps) (p∈ ∙ e)
-    precs′-printer (here P.refl) e = ∣-left-doc (<$>-doc (prec-printer _ e))
-    precs′-printer (there p∈ps)  e = ∣-right-doc (<$>-doc (precs′-printer p∈ps e))
+    precs′-printer (here P.refl) e = left (<$> (prec-printer _ e))
+    precs′-printer (there p∈ps)  e = right (<$> (precs′-printer p∈ps e))
 
     prec-printer : ∀ {p} assoc (e : Expr-in p assoc) →
                    Doc (prec p) (assoc , e)
-    prec-printer non   e = ∣-left-doc (∣-left-doc (<$>-doc (non-assoc-printer e)))
-    prec-printer right e = ∣-left-doc (∣-right-doc (<$>-doc (right⁺-printer e)))
-    prec-printer left  e = ∣-right-doc (<$>-doc (left⁺-printer e))
+    prec-printer - e = left (left (<$> (non-assoc-printer e)))
+    prec-printer ⇾ e = left (right (<$> (right⁺-printer e)))
+    prec-printer ⇽ e = right (<$> (left⁺-printer e))
 
     non-assoc-printer : ∀ {p} → Pretty-printer (non-assoc p)
     non-assoc-printer (e₁ ⟨ op ⟩ e₂) =
-      <$>-doc (↑-printer e₁) ⊛-doc
-      operators-printer op ⊛-doc
-      ↑-printer e₂
+      <$> (↑-printer e₁) ⊛ operators-printer op ⊛ ↑-printer e₂
 
     right⁺-printer : ∀ {p} → Pretty-printer (right⁺ p)
-    right⁺-printer (e₁ ⟨ op ⟩ʳ e₂) =
-      <$>-doc (↑-printer e₁) ⊛-doc
-      operators-printer op ⊛-doc
-      right⁺↑-printer e₂
+    right⁺-printer (e₁ ⟨ op ⟩⇾ e₂) =
+      <$> (↑-printer e₁) ⊛ operators-printer op ⊛ right⁺↑-printer e₂
 
     right⁺↑-printer : ∀ {p} → Pretty-printer (right⁺↑ p)
-    right⁺↑-printer (similar e) = ∣-left-doc  (<$>-doc (right⁺-printer e))
-    right⁺↑-printer (tighter e) = ∣-right-doc (<$>-doc (↑-printer e))
+    right⁺↑-printer (similar e) = left  (<$> (right⁺-printer e))
+    right⁺↑-printer (tighter e) = right (<$> (↑-printer e))
 
     left⁺-printer : ∀ {p} → Pretty-printer (left⁺ p)
-    left⁺-printer (e₁ ⟨ op ⟩ˡ e₂) =
-      <$>-doc (left⁺↑-printer e₁) ⊛-doc
-      operators-printer op ⊛-doc
-      ↑-printer e₂
+    left⁺-printer (e₁ ⟨ op ⟩⇽ e₂) =
+      <$> (left⁺↑-printer e₁) ⊛ operators-printer op ⊛ ↑-printer e₂
 
     left⁺↑-printer : ∀ {p} → Pretty-printer (left⁺↑ p)
-    left⁺↑-printer (similar e) = ∣-left-doc  (<$>-doc (left⁺-printer e))
-    left⁺↑-printer (tighter e) = ∣-right-doc (<$>-doc (↑-printer e))
+    left⁺↑-printer (similar e) = left  (<$> (left⁺-printer e))
+    left⁺↑-printer (tighter e) = right (<$> (↑-printer e))
 
     ↑-printer : ∀ {p} → Pretty-printer (precs (↑ p))
     ↑-printer e = nest 2 (precs-printer e)
@@ -403,33 +406,31 @@ module Expr (g : Precedence-graph) where
                         Pretty-printer (operators os)
     operators-printer {os = []}     (_  , ())
     operators-printer {os = ._ ∷ _} (op , here P.refl) =
-      ∣-left-doc (line⋆ ⊛>-doc
-                  <$>-doc (operator-printer op) <⊛-doc
-                  <$-doc space-doc)
+      left (line⋆ ⊛> <$> (operator-printer op) <⊛ <$ space)
     operators-printer {os =  _ ∷ _} (_  , there op∈os) =
-      ∣-right-doc (<$>-doc (operators-printer (_ , op∈os)))
+      right (<$> (operators-printer (_ , op∈os)))
 
 ------------------------------------------------------------------------
 -- An example
 
 -- Some operators.
 
-add : Operator left
+add : Operator ⇽
 add = ⟪ str⁺ "+" ⟫
 
-sub : Operator left
+sub : Operator ⇽
 sub = ⟪ str⁺ "-" ⟫
 
-mul : Operator left
+mul : Operator ⇽
 mul = ⟪ str⁺ "*" ⟫
 
-div : Operator left
+div : Operator ⇽
 div = ⟪ str⁺ "/" ⟫
 
-cons : Operator right
+cons : Operator ⇾
 cons = ⟪ str⁺ "<:" ⟫
 
-snoc : Operator left
+snoc : Operator ⇽
 snoc = ⟪ str⁺ ":>" ⟫
 
 -- A precedence graph.
@@ -438,11 +439,11 @@ g : Precedence-graph
 g = record { ops = ops; ↑ = ↑ }
   where
   ops : Fin 3 → (assoc : Associativity) → List (Operator assoc)
-  ops zero             left  = snoc ∷ []
-  ops zero             right = cons ∷ []
-  ops (suc zero)       left  = add ∷ sub ∷ []
-  ops (suc (suc zero)) left  = mul ∷ div ∷ []
-  ops _                _     = []
+  ops zero             ⇽ = snoc ∷ []
+  ops zero             ⇾ = cons ∷ []
+  ops (suc zero)       ⇽ = add ∷ sub ∷ []
+  ops (suc (suc zero)) ⇽ = mul ∷ div ∷ []
+  ops _                _ = []
 
   ↑ : Fin 3 → List (Fin 3)
   ↑ zero          = # 1 ∷ # 2 ∷ []

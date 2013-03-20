@@ -22,7 +22,9 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_)
 private module LM {A : Set} = Monoid (List.monoid A)
 
 open import Grammar.Infinite
-open import Pretty
+open import Pretty using (Doc; Docs; Pretty-printer; embed)
+open Pretty.Doc
+open Pretty.Docs
 open import Utilities
 
 ------------------------------------------------------------------------

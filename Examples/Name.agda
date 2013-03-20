@@ -11,8 +11,8 @@ open import Data.List
 open import Data.Product
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
-open import Grammar.Infinite
-open import Pretty
+open import Grammar.Infinite as Grammar using (Grammar)
+open import Pretty using (Pretty-printer)
 open import Renderer
 open import Utilities
 
@@ -37,9 +37,11 @@ Name-char = ∃ λ (t : Char) → T (is-name-char t)
 
 name-char : Grammar Name-char
 name-char = sat _
+  where open Grammar
 
 name-char-printer : Pretty-printer name-char
-name-char-printer _ = sat-doc
+name-char-printer _ = sat
+  where open Pretty
 
 -- Note that if we had defined Name-char = Char, then it
 -- wouldn't have been possible to define name-char-printer.
@@ -51,17 +53,21 @@ Name = List Name-char
 
 name : Grammar Name
 name = name-char ⋆
+  where open Grammar
 
 name-printer : Pretty-printer name
-name-printer = map⋆-doc name-char-printer
+name-printer = map⋆ name-char-printer
+  where open Pretty
 
 -- Names possibly followed by whitespace.
 
 name-w : Grammar Name
 name-w = name <⊛ whitespace ⋆
+  where open Grammar
 
 name-w-printer : Pretty-printer name-w
-name-w-printer n = name-printer n <⊛-doc []-doc
+name-w-printer n = name-printer n <⊛ ⋆-[]
+  where open Pretty
 
 test : render 80 (name-w-printer (str "aaa")) ≡ "aaa"
 test = refl

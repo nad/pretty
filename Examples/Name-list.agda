@@ -13,8 +13,8 @@ import Data.List.NonEmpty as List⁺
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Examples.Name
-open import Grammar.Infinite
-open import Pretty
+open import Grammar.Infinite as Grammar using (Grammar)
+open import Pretty using (Pretty-printer)
 open import Renderer
 open import Utilities
 
@@ -22,24 +22,23 @@ name-list-body : Grammar (List Name)
 name-list-body =
     return []
   ∣ List⁺.toList <$> (name-w sep-by symbol′ ",")
+  where open Grammar
 
 name-list : Grammar (List Name)
 name-list = symbol′ "[" ⊛> name-list-body <⊛ symbol′ "]"
+  where open Grammar
+
+open Pretty
 
 name-list-printer : Pretty-printer name-list
-name-list-printer ns = symbol-doc ⊛>-doc body ns <⊛-doc symbol-doc
+name-list-printer ns = symbol ⊛> body ns <⊛ symbol
   where
   body : Pretty-printer name-list-body
-  body []       = ∣-left-doc nil
+  body []       = left nil
   body (n ∷ ns) =
-    ∣-right-doc
-      (<$>-doc
-         (<$>-doc (name-w-printer n)
-            ⊛-doc
-          map⋆-doc (λ n → group symbol-line-doc
-                            ⊛>-doc
-                          name-w-printer n)
-                   ns))
+    right (<$> (<$> (name-w-printer n)
+                  ⊛
+                map⋆ (λ n → group symbol-line ⊛> name-w-printer n) ns))
 
 names : List Name
 names = str "aaa" ∷ str "bbbbb" ∷ str "ccc" ∷
