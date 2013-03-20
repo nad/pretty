@@ -19,6 +19,8 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
+open import Function.Related.TypeIsomorphisms
+open import Relation.Binary.Product.Pointwise
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
@@ -100,57 +102,122 @@ fail-sem⁻¹ (∣-right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
 -- Map.
 
-infixl 20 _<$>_
+infixl 20 _<$>_ _<$_
+
+private
+
+  -- A workaround for what I think is an Agda bug.
+
+  _<$>′_ : ∀ {A B} → (A → B) → ∞ (Grammar A) → Grammar B
+  f <$>′ g = g >>= λ x → ♯ return (f x)
+
+  delay : ∀ {A} → Grammar A → ∞ (Grammar A)
+  delay = ♯_
 
 _<$>_ : ∀ {A B} → (A → B) → Grammar A → Grammar B
-f <$> g = ♯ g >>= λ x → ♯ return (f x)
+f <$> g = f <$>′ delay g
 
-<$>-sem : ∀ {A B} {f : A → B} {g : Grammar A} {x s} →
-          x ∈ g ∙ s → f x ∈ f <$> g ∙ s
-<$>-sem x∈ =
-  cast (proj₂ LM.identity _)
-       (>>=-sem x∈ return-sem)
+_<$_ : ∀ {A B} → A → Grammar B → Grammar A
+x <$ g = const x <$> g
 
--- The empty string if the argument is true, otherwise failure.
-
-if-true : Bool → Grammar ⊤
-if-true true  = return tt
-if-true false = fail
-
-if-true-sem : ∀ {b s} → tt ∈ if-true b ∙ s ↔ (T b × s ≡ [])
-if-true-sem = record
-  { to         = P.→-to-⟶ (to _)
-  ; from       = P.→-to-⟶ (from _)
+<$>-sem : ∀ {A B} {f : A → B} {g : Grammar A} {y s} →
+          y ∈ f <$> g ∙ s ↔ ∃ λ x → x ∈ g ∙ s × y ≡ f x
+<$>-sem {A} {B} {f} {g} = record
+  { to         = P.→-to-⟶ to
+  ; from       = P.→-to-⟶ (from (delay g))
   ; inverse-of = record
-    { left-inverse-of  = from∘to _
-    ; right-inverse-of = to∘from _
+    { left-inverse-of  = from∘to
+    ; right-inverse-of = to∘from (delay g)
     }
   }
   where
-  to : ∀ b {s} → tt ∈ if-true b ∙ s → T b × s ≡ []
-  to true  return-sem = _ , refl
+  lemma : ∀ s → s ++ [] ≡ s
+  lemma s = proj₂ LM.identity s
+
+  to : ∀ {s g y} → y ∈ f <$>′ g ∙ s → ∃ λ x → x ∈ ♭ g ∙ s × y ≡ f x
+  to (>>=-sem x∈ return-sem) =
+    _ , cast (P.sym $ lemma _) x∈ , refl
+
+  from : ∀ {s y} g → (∃ λ x → x ∈ ♭ g ∙ s × y ≡ f x) → y ∈ f <$>′ g ∙ s
+  from _ (x , x∈ , refl) = cast (lemma _) (>>=-sem x∈ return-sem)
+
+  >>=-cast : ∀ {x y s₁ s₂ s}
+               {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
+             (eq : s₁ ≡ s₂)
+             (x∈ : x ∈ ♭ g₁ ∙ s₁) (y∈ : y ∈ ♭ (g₂ x) ∙ s) →
+             >>=-sem {g₁ = g₁} {g₂ = g₂} (cast eq x∈) y∈ ≡
+             cast (P.cong (λ s′ → s′ ++ s) eq) (>>=-sem x∈ y∈)
+  >>=-cast refl _ _ = refl
+
+  cast-cast : ∀ {A g s₁ s₂} {z : A} {z∈ : z ∈ g ∙ s₂}
+              (eq₁ : s₁ ≡ s₂) (eq₂ : s₂ ≡ s₁) →
+              cast eq₁ (cast eq₂ z∈) ≡ z∈
+  cast-cast refl refl = refl
+
+  from∘to : ∀ {s g y} (y∈ : y ∈ f <$>′ g ∙ s) → from _ (to y∈) ≡ y∈
+  from∘to (>>=-sem {s₁ = s} x∈ return-sem) = begin
+    cast (lemma (s ++ []))
+         (>>=-sem (cast (P.sym $ lemma s) x∈) return-sem)  ≡⟨ P.cong (cast (lemma (s ++ []))) $
+                                                                     >>=-cast (P.sym (lemma s)) x∈ return-sem ⟩
+    cast (lemma (s ++ []))
+         (cast (P.cong (λ s → s ++ []) (P.sym $ lemma s))
+               (>>=-sem x∈ return-sem))                    ≡⟨ cast-cast (lemma (s ++ []))
+                                                                        (P.cong (λ s → s ++ []) (P.sym $ lemma s)) ⟩
+    >>=-sem x∈ return-sem                                  ∎
+    where open P.≡-Reasoning
+
+  to-cast : ∀ {s₁ s₂ y} g (eq : s₁ ≡ s₂) (y∈ : y ∈ f <$>′ g ∙ s₁) →
+            to (cast eq y∈) ≡
+            P.subst (λ s → ∃ λ x → x ∈ ♭ g ∙ s × y ≡ f x) eq (to y∈)
+  to-cast _ refl y∈ = refl
+
+  to∘from : ∀ {s y} g
+            (x∈ : ∃ λ x → x ∈ ♭ g ∙ s × y ≡ f x) → to (from g x∈) ≡ x∈
+  to∘from {s} g (x , x∈ , refl)
+    rewrite to-cast g (lemma s) (>>=-sem x∈ return-sem)
+          | lemma s
+    = refl
+
+-- The empty string if the argument is true, otherwise failure.
+
+if-true : (b : Bool) → Grammar (T b)
+if-true true  = return tt
+if-true false = fail
+
+if-true-sem : ∀ {b} x {s} → x ∈ if-true b ∙ s ↔ s ≡ []
+if-true-sem x = record
+  { to         = P.→-to-⟶ (to _)
+  ; from       = P.→-to-⟶ (from _ _)
+  ; inverse-of = record
+    { left-inverse-of  = from∘to _
+    ; right-inverse-of = to∘from _ x
+    }
+  }
+  where
+  to : ∀ b {x s} → x ∈ if-true b ∙ s → s ≡ []
+  to true  return-sem = refl
   to false ∈fail      = ⊥-elim $ fail-sem⁻¹ ∈fail
 
-  from : ∀ b {s} → T b × s ≡ [] → tt ∈ if-true b ∙ s
-  from true  (_  , refl) = return-sem
-  from false (() , refl)
+  from : ∀ b x {s} → s ≡ [] → x ∈ if-true b ∙ s
+  from true  _  refl = return-sem
+  from false () refl
 
-  from∘to : ∀ b {s} (tt∈ : tt ∈ if-true b ∙ s) → from b (to b tt∈) ≡ tt∈
+  from∘to : ∀ b {x s} (x∈ : x ∈ if-true b ∙ s) → from b x (to b x∈) ≡ x∈
   from∘to true  return-sem = refl
   from∘to false ∈fail      = ⊥-elim $ fail-sem⁻¹ ∈fail
 
-  to∘from : ∀ b {s} (eqs : T b × s ≡ []) → to b (from b eqs) ≡ eqs
-  to∘from true  (_  , refl) = refl
-  to∘from false (() , refl)
+  to∘from : ∀ b x {s} (eq : s ≡ []) → to b (from b x eq) ≡ eq
+  to∘from true  _  refl = refl
+  to∘from false () refl
 
 -- A token satisfying a given predicate.
 
-sat : (p : Char → Bool) → Grammar Char
-sat p = ♯ token >>= λ t → ♯ (const t <$> if-true (p t))
+sat : (p : Char → Bool) → Grammar (∃ λ t → T (p t))
+sat p = ♯ token >>= λ t → ♯ (_,_ t <$> if-true (p t))
 
-sat-sem : ∀ {p : Char → Bool} {t s} →
-          t ∈ sat p ∙ s ↔ (T (p t) × s ≡ [ t ])
-sat-sem {p} {t} = record
+sat-sem : ∀ {p : Char → Bool} {t pt s} →
+          (t , pt) ∈ sat p ∙ s ↔ s ≡ [ t ]
+sat-sem {p} {t} {pt} = record
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ from
   ; inverse-of = record
@@ -159,42 +226,75 @@ sat-sem {p} {t} = record
     }
   }
   where
-  to : ∀ {s} → t ∈ sat p ∙ s → T (p t) × s ≡ [ t ]
+  to : ∀ {s} → (t , pt) ∈ sat p ∙ s → s ≡ [ t ]
   to (>>=-sem token-sem (>>=-sem tt∈ return-sem)) =
-    proj₁ lemma , P.cong (λ s → t ∷ s ++ []) (proj₂ lemma)
-    where lemma = Inverse.to if-true-sem ⟨$⟩ tt∈
+    P.cong (λ s → t ∷ s ++ []) (Inverse.to (if-true-sem pt) ⟨$⟩ tt∈)
 
-  from : ∀ {s} → T (p t) × s ≡ [ t ] → t ∈ sat p ∙ s
-  from (pt , refl) =
+  from : ∀ {s} → s ≡ [ t ] → (t , pt) ∈ sat p ∙ s
+  from refl =
     >>=-sem token-sem
-            (>>=-sem (Inverse.from if-true-sem ⟨$⟩ (pt , refl))
+            (>>=-sem (Inverse.from (if-true-sem pt) ⟨$⟩ refl)
                      return-sem)
 
-  from∘to : ∀ {s} (t∈ : t ∈ sat p ∙ s) → from (to t∈) ≡ t∈
-  from∘to (>>=-sem token-sem (>>=-sem {s₂ = []} tt∈ return-sem))
-    with Inverse.to if-true-sem ⟨$⟩ tt∈
-       | Inverse.left-inverse-of if-true-sem tt∈
+  from∘to : ∀ {s} (t∈ : (t , pt) ∈ sat p ∙ s) → from (to t∈) ≡ t∈
+  from∘to (>>=-sem token-sem (>>=-sem tt∈ return-sem))
+    with Inverse.to (if-true-sem pt) ⟨$⟩ tt∈
+       | Inverse.left-inverse-of (if-true-sem pt) tt∈
   from∘to (>>=-sem token-sem
-             (>>=-sem {x = tt} {s₂ = []}
-                      .(Inverse.from if-true-sem ⟨$⟩ (pt , refl))
+             (>>=-sem .(Inverse.from (if-true-sem pt) ⟨$⟩ refl)
                       return-sem))
-    | (pt , refl) | refl = refl
+    | refl | refl = refl
 
-  to∘from : ∀ {s} (eqs : T (p t) × s ≡ [ t ]) → to (from eqs) ≡ eqs
-  to∘from (pt , refl)
-    rewrite Inverse.right-inverse-of if-true-sem (pt , refl)
+  to∘from : ∀ {s} (eq : s ≡ [ t ]) → to (from eq) ≡ eq
+  to∘from refl
+    rewrite Inverse.right-inverse-of (if-true-sem pt) refl
     = refl
 
 -- A specific token.
 
 tok : Char → Grammar Char
-tok t = sat (λ t′ → t ≟C t′)
+tok t = t <$ sat (λ t′ → t ≟C t′)
 
-tok-sem : ∀ {t′ t s} → t′ ∈ tok t ∙ s ↔ (t ≡ t′ × s ≡ [ t ])
-tok-sem {t′} {t} {s} =
-  t′ ∈ tok t ∙ s              ↔⟨ sat-sem ⟩
-  (T (t ≟C t′) × s ≡ [ t′ ])  ↔⟨ Inv.sym $
-                                   Σ.cong (Inv.sym ≟C↔≡) (λ {t≡t′} →
-                                     P.subst (λ t′ → s ≡ [ t ] ↔ s ≡ [ t′ ]) t≡t′ Inv.id) ⟩
-  (t ≡ t′ × s ≡ [ t ])        ∎
-  where open Related.EquationalReasoning
+abstract
+
+  -- Grammar.Infinite requires a lot more memory to type-check if this
+  -- definition is made concrete (at the time of writing).
+
+  tok-sem : ∀ {t′ t s} → t′ ∈ tok t ∙ s ↔ (t ≡ t′ × s ≡ [ t ])
+  tok-sem {t′} {t} {s} =
+    t′ ∈ tok t ∙ s                                   ↔⟨ <$>-sem ⟩
+    (∃ λ p → p ∈ sat (λ t′ → t ≟C t′) ∙ s × t′ ≡ t)  ↔⟨ Σ.cong Inv.id (sat-sem ×-cong Inv.id) ⟩
+    (∃ λ p → s ≡ [ proj₁ p ] × t′ ≡ t)               ↔⟨ Σ-assoc ⟩
+    (∃ λ t″ → T (t ≟C t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (≟C↔≡ ×-cong Inv.id) ⟩
+    (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t)          ↔⟨ lemma ⟩
+    (t ≡ t′ × s ≡ [ t ])                             ∎
+    where
+    open Related.EquationalReasoning
+
+    lemma : (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t) ↔
+            (t ≡ t′ × s ≡ [ t ])
+    lemma = record
+      { to         = P.→-to-⟶ to
+      ; from       = P.→-to-⟶ from
+      ; inverse-of = record
+        { left-inverse-of  = from∘to
+        ; right-inverse-of = to∘from
+        }
+      }
+      where
+      to : ∀ {t′ t : Char} {s} →
+           (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t) → t ≡ t′ × s ≡ [ t ]
+      to (._ , refl , refl , refl) = (refl , refl)
+
+      from : ∀ {t′ t : Char} {s} →
+             t ≡ t′ × s ≡ [ t ] → ∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t
+      from (refl , refl) = (_ , refl , refl , refl)
+
+      from∘to : ∀ {t′ t : Char} {s}
+                (eqs : ∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t) →
+                from (to eqs) ≡ eqs
+      from∘to (._ , refl , refl , refl) = refl
+
+      to∘from : ∀ {t′ t : Char} {s} (eqs : t ≡ t′ × s ≡ [ t ]) →
+                to (from eqs) ≡ eqs
+      to∘from (refl , refl) = refl
