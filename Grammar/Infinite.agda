@@ -119,6 +119,13 @@ Grammar-for A = (x : A) → Grammar (∃ λ x′ → x′ ≡ x)
 ♭? {true}  = ♭
 ♭? {false} = id
 
+-- A grammar combinator: Kleene plus.
+
+infix 30 _+
+
+_+ : ∀ {c A} → ∞Grammar c A → Grammar (List⁺ A)
+g + = _∷_ <$> g ⊛ g ⋆
+
 -- The semantics of "extended" grammars is given by translation to
 -- simple grammars.
 
@@ -134,17 +141,10 @@ Grammar-for A = (x : A) → Grammar (∃ λ x′ → x′ ≡ x)
 ⟦ g₁ ⊛ g₂   ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ f → ♯ ⟦ f <$> g₂ ⟧
 ⟦ g₁ <⊛ g₂  ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ x → ♯ ⟦ x <$  g₂ ⟧
 ⟦ g₁ ⊛> g₂  ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ _ → ♯ ⟦    ♭? g₂ ⟧
-⟦ g ⋆       ⟧ = ♯ Basic.return [] Basic.∣ ♯ ⟦ _∷_ <$> g ⊛ g ⋆ ⟧
+⟦ g ⋆       ⟧ = ♯ Basic.return [] Basic.∣ ♯ ⟦ uncurry _∷_ <$> g + ⟧
 
 ------------------------------------------------------------------------
--- Grammar combinators
-
--- Kleene plus.
-
-infix 30 _+
-
-_+ : ∀ {c A} → ∞Grammar c A → Grammar (List⁺ A)
-g + = _∷_ <$> g ⊛ g ⋆
+-- More grammar combinators
 
 mutual
 
@@ -287,18 +287,15 @@ isomorphic {g = g} = record
   lemma₂ : ∀ s₁ s₂ → s₁ ++ s₂ ++ [] ≡ s₁ ++ s₂
   lemma₂ s₁ s₂ = P.cong (_++_ s₁) (lemma₁ s₂)
 
-  lemma₃ : ∀ s₁ s₂ → s₁ ++ s₂ ≡ (s₁ ++ []) ++ s₂ ++ []
-  lemma₃ s₁ s₂ = P.cong₂ _++_ (P.sym $ lemma₁ s₁) (P.sym $ lemma₁ s₂)
+  lemma₃ : ∀ s₁ s₂ → s₁ ++ s₂ ≡ ((s₁ ++ []) ++ s₂ ++ []) ++ []
+  lemma₃ s₁ s₂ = begin
+    s₁ ++ s₂                        ≡⟨ P.cong₂ _++_ (P.sym $ lemma₁ s₁) (P.sym $ lemma₁ s₂) ⟩
+    (s₁ ++ []) ++ s₂ ++ []          ≡⟨ P.sym $ lemma₁ _ ⟩
+    ((s₁ ++ []) ++ s₂ ++ []) ++ []  ∎
+    where open P.≡-Reasoning
 
   tok-lemma : ∀ {t t′ s} → t ≡ t′ × s ≡ [ t ] → t′ ∈ tok t ∙ s
   tok-lemma (refl , refl) = tok-sem
-
-  ⋆-lemma : ∀ {c A x xs s} {g : ∞Grammar c A} →
-            (x ∷ xs) Basic.∈ ⟦ g + ⟧ ∙ s → (x ∷ xs) Basic.∈ ⟦ g ⋆ ⟧ ∙ s
-  ⋆-lemma (>>=-sem (>>=-sem x∈   return-sem)
-                   (>>=-sem xs∈′ return-sem)) =
-    ∣-right-sem (>>=-sem (>>=-sem x∈   return-sem)
-                         (>>=-sem xs∈′ return-sem))
 
   -- Soundness.
 
@@ -322,7 +319,10 @@ isomorphic {g = g} = record
                                         (>>=-sem (sound y∈) return-sem))
   sound (⊛>-sem {s₁ = s₁} x∈ y∈) = >>=-sem (sound x∈) (sound y∈)
   sound ⋆-[]-sem                 = ∣-left-sem return-sem
-  sound (⋆-+-sem xs∈)            = ⋆-lemma (sound xs∈)
+  sound (⋆-+-sem xs∈)            = Basic.cast (lemma₁ _)
+                                     (∣-right-sem
+                                        (>>=-sem (sound xs∈)
+                                                 return-sem))
 
   -- Completeness.
 
@@ -353,9 +353,10 @@ isomorphic {g = g} = record
     ⊛>-sem (complete _ x∈) (complete _ y∈)
 
   complete (g ⋆) (∣-left-sem return-sem) = ⋆-[]-sem
-  complete (g ⋆) (∣-right-sem
+  complete (g ⋆) (∣-right-sem (>>=-sem
                     (>>=-sem (>>=-sem {s₁ = s₁} x∈  return-sem)
-                             (>>=-sem           xs∈ return-sem))) =
+                             (>>=-sem           xs∈ return-sem))
+                    return-sem)) =
     cast (lemma₃ s₁ _)
          (⋆-+-sem (⊛-sem (<$>-sem (complete _ x∈)) (complete _ xs∈)))
 
@@ -378,21 +379,11 @@ isomorphic {g = g} = record
     Basic.cast (P.sym eq) (Basic.cast eq x∈) ≡ x∈
   cast-cast refl = refl
 
-  cast-refl :
-    ∀ {A} {x : A} {s g} (eq : s ≡ s) {x∈ : x Basic.∈ g ∙ s} →
-    Basic.cast eq x∈ ≡ x∈
-  cast-refl refl = refl
-
-  cast-⋆-cast :
-    ∀ {c A f xs s₁ s₁′ s₂ s} (g : ∞Grammar c A)
-    (eq₁ : s ≡ s₁ ++ s₂) (eq₂ : s₁′ ++ s₂ ≡ s) (eq₃ : s₁ ≡ s₁′)
-    (f∈  : f  Basic.∈ ⟦ _∷_ <$> g ⟧ ∙ s₁)
-    (xs∈ : xs Basic.∈ ⟦ f <$> g ⋆ ⟧ ∙ s₂) →
-    Basic.cast eq₁
-      (⋆-lemma (Basic.cast eq₂
-        (>>=-sem (Basic.cast eq₃ f∈) xs∈))) ≡
-    ⋆-lemma (>>=-sem f∈ xs∈)
-  cast-⋆-cast _ eq₁ refl refl _ _ = cast-refl eq₁
+  cast-cast′ :
+    ∀ {A} {x : A} {s₁ s₂ g}
+    (eq₁ : s₂ ≡ s₁) (eq₂ : s₁ ≡ s₂) {x∈ : x Basic.∈ g ∙ s₁} →
+    Basic.cast eq₁ (Basic.cast eq₂ x∈) ≡ x∈
+  cast-cast′ refl refl = refl
 
   -- The functions sound and complete are inverses.
 
@@ -452,13 +443,18 @@ isomorphic {g = g} = record
 
   complete∘sound ⋆-[]-sem      = refl
   complete∘sound (⋆-+-sem xs∈) with sound xs∈ | complete∘sound xs∈
-  complete∘sound (⋆-+-sem .(complete _
-                              (>>=-sem (>>=-sem x∈   return-sem)
-                                       (>>=-sem xs∈′ return-sem))))
+  complete∘sound (⋆-+-sem {g = g}
+                    .(complete _ (>>=-sem (>>=-sem x∈   return-sem)
+                                          (>>=-sem xs∈′ return-sem))))
     | >>=-sem (>>=-sem {s₁ = s₁} x∈   return-sem)
               (>>=-sem {s₁ = s₂} xs∈′ return-sem)
     | refl
-    rewrite lemma₁ s₁ | lemma₁ s₂
+    rewrite complete-cast (g ⋆) (lemma₁ ((s₁ ++ []) ++ s₂ ++ []))
+                          (∣-right-sem
+                            (>>=-sem (>>=-sem (>>=-sem x∈   return-sem)
+                                              (>>=-sem xs∈′ return-sem))
+                                     return-sem))
+          | lemma₁ s₁ | lemma₁ s₂ | lemma₁ (s₁ ++ s₂)
     = refl
 
   sound∘complete : ∀ {A x s}
@@ -523,20 +519,45 @@ isomorphic {g = g} = record
     = refl
 
   sound∘complete (g ⋆) (∣-left-sem return-sem) = refl
-  sound∘complete (g ⋆) (∣-right-sem (>>=-sem (>>=-sem x∈ return-sem)
-                                             (>>=-sem xs∈ return-sem)))
+  sound∘complete (g ⋆)
+    (∣-right-sem
+       (>>=-sem {x = ._}
+          (>>=-sem {y = ._} (>>=-sem          x∈  return-sem)
+                            (>>=-sem {y = ._} xs∈ return-sem))
+          return-sem))
     with complete (♭? g) x∈ | sound∘complete (♭? g) x∈
        | complete (g ⋆) xs∈ | sound∘complete (g ⋆) xs∈
-  sound∘complete (g ⋆) (∣-right-sem (>>=-sem
-                          (>>=-sem {s₁ = s₁} .(sound x∈′) return-sem)
-                          (>>=-sem {s₁ = s₂} .(sound xs∈′) return-sem)))
+  sound∘complete (g ⋆)
+    (∣-right-sem
+       (>>=-sem (>>=-sem (>>=-sem {s₁ = s₁} .(sound x∈′)  return-sem)
+                         (>>=-sem {s₁ = s₂} .(sound xs∈′) return-sem))
+                return-sem))
     | x∈′ | refl | xs∈′ | refl
     rewrite sound-cast (g ⋆) (lemma₃ s₁ s₂)
                        (⋆-+-sem (⊛-sem (<$>-sem x∈′) xs∈′))
-          | cast-⋆-cast g (lemma₃ s₁ s₂) (lemma₂ s₁ s₂) (lemma₁ s₁)
-                        (>>=-sem (sound x∈′) return-sem)
-                        (>>=-sem (sound xs∈′) return-sem)
-    = refl
+    = lemma g (lemma₃ s₁ s₂) (lemma₁ (s₁ ++ s₂))
+              (lemma₂ s₁ s₂) (lemma₁ s₁)
+              (>>=-sem (sound x∈′)  return-sem)
+              (>>=-sem (sound xs∈′) return-sem)
+    where
+    lemma :
+      ∀ {c A} {f : List A → List⁺ A} {xs s₁ s₁++s₂ s₁++[] s₂++[]}
+      (g   : ∞Grammar c A)
+      (eq₁ : s₁++s₂ ≡ (s₁++[] ++ s₂++[]) ++ [])
+      (eq₂ : (s₁++s₂) ++ [] ≡ s₁++s₂)
+      (eq₃ : s₁ ++ s₂++[] ≡ s₁++s₂)
+      (eq₄ : s₁++[] ≡ s₁)
+      (f∈  : f  Basic.∈ ⟦ _∷_ <$> g ⟧ ∙ s₁++[])
+      (xs∈ : xs Basic.∈ ⟦ f <$> g ⋆ ⟧ ∙ s₂++[]) →
+      _≡_ {A = List⁺.toList xs Basic.∈ ⟦ g ⋆ ⟧ ∙ _}
+          (Basic.cast eq₁
+             (Basic.cast eq₂
+                (∣-right-sem
+                   (>>=-sem
+                      (Basic.cast eq₃ (>>=-sem (Basic.cast eq₄ f∈) xs∈))
+                      return-sem))))
+          (∣-right-sem (>>=-sem (>>=-sem f∈ xs∈) return-sem))
+    lemma _ eq₁ eq₂ refl refl _ _ = cast-cast′ eq₁ eq₂
 
 ------------------------------------------------------------------------
 -- Semantics combinators
