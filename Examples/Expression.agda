@@ -61,7 +61,7 @@ module Expression₁ where
     ppr one         = left one-doc
     ppr (sub e₁ e₂) =
       right (group
-        (<$> (ppr e₁) ⊛ nest 2 (line⋆ ⊛> text ⊛> space ⊛> pprP e₂)))
+        (<$> ppr e₁ ⊛ nest 2 (line⋆ ⊛> text ⊛> space ⊛> pprP e₂)))
 
     pprP : Pretty-printer atom
     pprP one = one-doc
@@ -110,7 +110,7 @@ module Expression₂ where
     ppr : Pretty-printer expr
     ppr one         = left one-doc
     ppr (sub e₁ e₂) =
-      right (group (<$> (final-line 2 6 (ppr e₁)) ⊛
+      right (group (<$> final-line 2 6 (ppr e₁) ⊛
                     nest 2 (symbol-space ⊛> pprP e₂)))
 
     pprP : Pretty-printer atom
@@ -168,7 +168,7 @@ module Expression₃ where
   -- Documents for variables.
 
   var-doc : ∀ x → Doc (expr ′7) (var x)
-  var-doc x = left (right (<$> (name-w-printer x)))
+  var-doc x = left (right (<$> name-w-printer x))
 
   -- Adds parentheses to a document.
 
@@ -200,12 +200,12 @@ module Expression₃ where
 
     sub-printer : ∀ e₁ e₂ → Doc (expr ′5) (sub e₁ e₂)
     sub-printer e₁ e₂ =
-      right (group (<$> (final-line 2 10 (expr-printer ′5 e₁)) ⊛
+      right (group (<$> final-line 2 10 (expr-printer ′5 e₁) ⊛
                     nest 2 (symbol-space ⊛> expr-printer ′6 e₂)))
 
     div-printer : ∀ e₁ e₂ → Doc (expr ′6) (div e₁ e₂)
     div-printer e₁ e₂ =
-      right (group (<$> (final-line 2 10 (expr-printer ′6 e₁)) ⊛
+      right (group (<$> final-line 2 10 (expr-printer ′6 e₁) ⊛
                     nest 2 (symbol-space ⊛> expr-printer ′7 e₂)))
 
   -- Unit tests.

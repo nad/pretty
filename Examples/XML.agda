@@ -112,17 +112,17 @@ mutual
   xml-printer : Pretty-printer xml
   xml-printer (elt t atts []) =
     left ((start-of-element-printer (t , atts) ·
-           <$> (left (<$ text)))
+           <$> left (<$ text))
           <⊛ symbol)
   xml-printer (elt t atts xs) =
     left ((start-of-element-printer (t , atts) ·
-           <$> (right (text ⊛> w-xmls-printer xs <⊛ symbol <⊛ symbol)))
+           <$> right (text ⊛> w-xmls-printer xs <⊛ symbol <⊛ symbol))
           <⊛ symbol)
   xml-printer (txt t) =
     -- Wadler pretty-prints text items in a different way. (The
     -- grammar that I use does not allow me to remove/modify
     -- whitespace like Wadler does.)
-    right (<$> (text-printer t) <⊛ ⋆-[])
+    right (<$> text-printer t <⊛ ⋆-[])
 
   start-of-element-printer : Pretty-printer start-of-element
   start-of-element-printer (t , atts) =
@@ -139,7 +139,7 @@ mutual
 
   attr-printer : Pretty-printer attr
   attr-printer (att n v) =
-    <$> (name-w-printer n) <⊛ symbol <⊛ text ⊛ name-printer v <⊛ symbol
+    <$> name-w-printer n <⊛ symbol <⊛ text ⊛ name-printer v <⊛ symbol
 
   w-xmls-printer : Pretty-printer w-xmls
   w-xmls-printer []       = <$ ⋆-[] ⊛> ⋆-[]

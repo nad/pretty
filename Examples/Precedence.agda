@@ -121,7 +121,7 @@ operator op =
 
 operator-printer : ∀ {assoc} →
                    Pretty-printer-for (operator {assoc = assoc})
-operator-printer op = <$> (operator-name-printer (Operator.name op))
+operator-printer op = <$> operator-name-printer (Operator.name op)
   where open Pretty
 
 ------------------------------------------------------------------------
@@ -365,39 +365,39 @@ module Expr (g : Precedence-graph) where
       precs-printer′ (paren e)  = left (left
                                     (<$ text ⊛ nest 1 (expr-printer e)
                                             <⊛ text))
-      precs-printer′ (var x)    = left (right (<$> (name-printer x)))
+      precs-printer′ (var x)    = left (right (<$> name-printer x))
 
     precs′-printer :
        ∀ {assoc p ps}
        (p∈ : p ∈ ps) (e : Expr-in p assoc) → Doc (precs′ ps) (p∈ ∙ e)
-    precs′-printer (here P.refl) e = left (<$> (prec-printer _ e))
-    precs′-printer (there p∈ps)  e = right (<$> (precs′-printer p∈ps e))
+    precs′-printer (here P.refl) e = left (<$> prec-printer _ e)
+    precs′-printer (there p∈ps)  e = right (<$> precs′-printer p∈ps e)
 
     prec-printer : ∀ {p} assoc (e : Expr-in p assoc) →
                    Doc (prec p) (assoc , e)
-    prec-printer - e = left (left (<$> (non-assoc-printer e)))
-    prec-printer ⇾ e = left (right (<$> (right⁺-printer e)))
-    prec-printer ⇽ e = right (<$> (left⁺-printer e))
+    prec-printer - e = left (left (<$> non-assoc-printer e))
+    prec-printer ⇾ e = left (right (<$> right⁺-printer e))
+    prec-printer ⇽ e = right (<$> left⁺-printer e)
 
     non-assoc-printer : ∀ {p} → Pretty-printer (non-assoc p)
     non-assoc-printer (e₁ ⟨ op ⟩ e₂) =
-      <$> (↑-printer e₁) ⊛ operators-printer op ⊛ ↑-printer e₂
+      <$> ↑-printer e₁ ⊛ operators-printer op ⊛ ↑-printer e₂
 
     right⁺-printer : ∀ {p} → Pretty-printer (right⁺ p)
     right⁺-printer (e₁ ⟨ op ⟩⇾ e₂) =
-      <$> (↑-printer e₁) ⊛ operators-printer op ⊛ right⁺↑-printer e₂
+      <$> ↑-printer e₁ ⊛ operators-printer op ⊛ right⁺↑-printer e₂
 
     right⁺↑-printer : ∀ {p} → Pretty-printer (right⁺↑ p)
-    right⁺↑-printer (similar e) = left  (<$> (right⁺-printer e))
-    right⁺↑-printer (tighter e) = right (<$> (↑-printer e))
+    right⁺↑-printer (similar e) = left  (<$> right⁺-printer e)
+    right⁺↑-printer (tighter e) = right (<$> ↑-printer e)
 
     left⁺-printer : ∀ {p} → Pretty-printer (left⁺ p)
     left⁺-printer (e₁ ⟨ op ⟩⇽ e₂) =
-      <$> (left⁺↑-printer e₁) ⊛ operators-printer op ⊛ ↑-printer e₂
+      <$> left⁺↑-printer e₁ ⊛ operators-printer op ⊛ ↑-printer e₂
 
     left⁺↑-printer : ∀ {p} → Pretty-printer (left⁺↑ p)
-    left⁺↑-printer (similar e) = left  (<$> (left⁺-printer e))
-    left⁺↑-printer (tighter e) = right (<$> (↑-printer e))
+    left⁺↑-printer (similar e) = left  (<$> left⁺-printer e)
+    left⁺↑-printer (tighter e) = right (<$> ↑-printer e)
 
     ↑-printer : ∀ {p} → Pretty-printer (precs (↑ p))
     ↑-printer e = nest 2 (precs-printer e)
@@ -406,9 +406,9 @@ module Expr (g : Precedence-graph) where
                         Pretty-printer (operators os)
     operators-printer {os = []}     (_  , ())
     operators-printer {os = ._ ∷ _} (op , here P.refl) =
-      left (line⋆ ⊛> <$> (operator-printer op) <⊛ <$ space)
+      left (line⋆ ⊛> <$> operator-printer op <⊛ <$ space)
     operators-printer {os =  _ ∷ _} (_  , there op∈os) =
-      right (<$> (operators-printer (_ , op∈os)))
+      right (<$> operators-printer (_ , op∈os))
 
 ------------------------------------------------------------------------
 -- An example

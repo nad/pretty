@@ -56,7 +56,7 @@ module Printer₁ where
 
     tree-printer : Pretty-printer tree
     tree-printer (node s ts) =
-      group (<$> (name-w-printer s) ⊛
+      group (<$> name-w-printer s ⊛
              nest (List.length s) (brackets-printer ts))
 
     brackets-printer : Pretty-printer brackets
@@ -66,7 +66,7 @@ module Printer₁ where
 
     trees-printer : Pretty-printer trees
     trees-printer (t ∷ ts) =
-      <$> (tree-printer t) ⊛ commas-and-trees-printer ts
+      <$> tree-printer t ⊛ commas-and-trees-printer ts
 
     commas-and-trees-printer : Pretty-printer commas-and-trees
     commas-and-trees-printer []       = ⋆-[]
@@ -81,7 +81,7 @@ module Printer₂ where
 
     tree-printer : Pretty-printer tree
     tree-printer (node s ts) =
-      <$> (name-w-printer s) ⊛ brackets-printer ts
+      <$> name-w-printer s ⊛ brackets-printer ts
 
     -- Note that this printer is not defined in exactly the same way
     -- as Wadler's: Wadler used "nest 2" once, here it is used twice
@@ -93,11 +93,11 @@ module Printer₂ where
     brackets-printer : Pretty-printer brackets
     brackets-printer []       = left nil
     brackets-printer (t ∷ ts) =
-      right (<$> (bracket 7 (trees-printer (t ∷ ts))))
+      right (<$> bracket 7 (trees-printer (t ∷ ts)))
 
     trees-printer : Pretty-printer trees
     trees-printer (t ∷ ts) =
-      <$> (tree-printer t) ⊛ commas-and-trees-printer ts
+      <$> tree-printer t ⊛ commas-and-trees-printer ts
 
     commas-and-trees-printer : Pretty-printer commas-and-trees
     commas-and-trees-printer []       = ⋆-[]

@@ -126,12 +126,14 @@ tok {t} = embed lemma token
 
 -- Some mapping combinators.
 
-<$> : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
-      Doc (♭? g) x → Doc (f G.<$> g) (f x)
+infix 20 <$>_ <$_
+
+<$>_ : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
+       Doc (♭? g) x → Doc (f G.<$> g) (f x)
 <$> d = embed <$>-sem d
 
-<$ : ∀ {c A B} {x : A} {y} {g : ∞Grammar c B} →
-     Doc (♭? g) y → Doc (x G.<$ g) x
+<$_ : ∀ {c A B} {x : A} {y} {g : ∞Grammar c B} →
+      Doc (♭? g) y → Doc (x G.<$ g) x
 <$ d = embed <$-sem d
 
 -- Some sequencing combinators.

@@ -36,7 +36,7 @@ name-list-printer ns = symbol ⊛> body ns <⊛ symbol
   body : Pretty-printer name-list-body
   body []       = left nil
   body (n ∷ ns) =
-    right (<$> (<$> (name-w-printer n)
+    right (<$> (<$> name-w-printer n
                   ⊛
                 map⋆ (λ n → group symbol-line ⊛> name-w-printer n) ns))
 
