@@ -34,11 +34,11 @@ module Expression₁ where
 
       expr : Grammar Expr
       expr = atom
-           ∣ sub <$> ♯ expr ⊛ (
-                     whitespace ⋆
-                  ⊛> string′ "-"
-                  ⊛> whitespace ⋆
-                  ⊛> atom)
+           ∣ sub <$> ♯ expr
+                  <⊛ whitespace ⋆
+                  <⊛ string′ "-"
+                  <⊛ whitespace ⋆
+                  ⊛  atom
 
       atom : Grammar Expr
       atom = one <$ string′ "1"
@@ -58,8 +58,8 @@ module Expression₁ where
     ppr : Pretty-printer expr
     ppr one         = left one-doc
     ppr (sub e₁ e₂) =
-      right (group
-        (<$> ppr e₁ ⊛ nest 2 (line⋆ tt-⊛> text ⊛> space ⊛> pprP e₂)))
+      right (group (<$> ppr e₁ <⊛-tt
+                    nest 2 line⋆ <⊛ text <⊛ space ⊛ nest 2 (pprP e₂)))
 
     pprP : Pretty-printer atom
     pprP one = one-doc
@@ -92,7 +92,7 @@ module Expression₂ where
 
       expr : Grammar Expr
       expr = atom
-           ∣ sub <$> ♯ expr ⊛ (symbol′ "-" ⊛> atom)
+           ∣ sub <$> ♯ expr <⊛ symbol′ "-" ⊛ atom
 
       atom : Grammar Expr
       atom = one <$ symbol′ "1"
@@ -108,8 +108,8 @@ module Expression₂ where
     ppr : Pretty-printer expr
     ppr one         = left one-doc
     ppr (sub e₁ e₂) =
-      right (group (<$> final-line 2 6 (ppr e₁) ⊛
-                    nest 2 (symbol-space ⊛> pprP e₂)))
+      right (group (<$> final-line 2 6 (ppr e₁) <⊛
+                    symbol-space ⊛ nest 2 (pprP e₂)))
 
     pprP : Pretty-printer atom
     pprP one = one-doc
@@ -149,9 +149,9 @@ module Expression₃ where
 
     expr : Prec → Grammar Expr
     expr ′5 = ♯ expr ′6
-            ∣ sub <$> ♯ expr ′5 ⊛ (symbol′ "-" ⊛> ♯ expr ′6)
+            ∣ sub <$> ♯ expr ′5 <⊛ symbol′ "-" ⊛ ♯ expr ′6
     expr ′6 = ♯ expr ′7
-            ∣ div <$> ♯ expr ′6 ⊛ (symbol′ "/" ⊛> ♯ expr ′7)
+            ∣ div <$> ♯ expr ′6 <⊛ symbol′ "/" ⊛ ♯ expr ′7
     expr ′7 = one <$ symbol′ "1"
             ∣ var <$> name-w
             ∣ symbol′ "(" ⊛> ♯ expr ′5 <⊛ symbol′ ")"
@@ -198,13 +198,13 @@ module Expression₃ where
 
     sub-printer : ∀ e₁ e₂ → Doc (expr ′5) (sub e₁ e₂)
     sub-printer e₁ e₂ =
-      right (group (<$> final-line 2 10 (expr-printer ′5 e₁) ⊛
-                    nest 2 (symbol-space ⊛> expr-printer ′6 e₂)))
+      right (group (<$> final-line 2 10 (expr-printer ′5 e₁) <⊛
+                    symbol-space ⊛ nest 2 (expr-printer ′6 e₂)))
 
     div-printer : ∀ e₁ e₂ → Doc (expr ′6) (div e₁ e₂)
     div-printer e₁ e₂ =
-      right (group (<$> final-line 2 10 (expr-printer ′6 e₁) ⊛
-                    nest 2 (symbol-space ⊛> expr-printer ′7 e₂)))
+      right (group (<$> final-line 2 10 (expr-printer ′6 e₁) <⊛
+                    symbol-space ⊛ nest 2 (expr-printer ′7 e₂)))
 
   -- Unit tests.
 
