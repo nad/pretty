@@ -55,26 +55,28 @@ module Expression₁ where
 
   mutual
 
-    ppr : Pretty-printer expr
-    ppr one         = left one-doc
-    ppr (sub e₁ e₂) =
-      right (group (<$> ppr e₁ <⊛-tt
-                    nest 2 line⋆ <⊛ text <⊛ space ⊛ nest 2 (pprP e₂)))
+    expr-printer : Pretty-printer expr
+    expr-printer one         = left one-doc
+    expr-printer (sub e₁ e₂) =
+      right (group (<$> expr-printer e₁ <⊛-tt
+                    nest 2 line⋆ <⊛ text <⊛ space ⊛
+                    nest 2 (term-printer e₂)))
 
-    pprP : Pretty-printer term
-    pprP one = one-doc
-    pprP e   = right (text ⊛> nil-⋆ ⊛> ppr e <⊛ nil-⋆ <⊛ text)
+    term-printer : Pretty-printer term
+    term-printer one = one-doc
+    term-printer e   =
+      right (text ⊛> nil-⋆ ⊛> expr-printer e <⊛ nil-⋆ <⊛ text)
 
   example : Expr
   example = sub (sub one one) (sub one one)
 
-  test₁ : render 80 (ppr example) ≡ "1 - 1 - (1 - 1)"
+  test₁ : render 80 (expr-printer example) ≡ "1 - 1 - (1 - 1)"
   test₁ = refl
 
-  test₂ : render 11 (ppr example) ≡ "1 - 1\n  - (1 - 1)"
+  test₂ : render 11 (expr-printer example) ≡ "1 - 1\n  - (1 - 1)"
   test₂ = refl
 
-  test₃ : render 8 (ppr example) ≡ "1 - 1\n  - (1\n    - 1)"
+  test₃ : render 8 (expr-printer example) ≡ "1 - 1\n  - (1\n    - 1)"
   test₃ = refl
 
 -- Expression₁.expr does not accept final whitespace. The grammar
@@ -105,23 +107,23 @@ module Expression₂ where
 
   mutual
 
-    ppr : Pretty-printer expr
-    ppr one         = left one-doc
-    ppr (sub e₁ e₂) =
-      right (group (<$> final-line 2 6 (ppr e₁) <⊛
-                    symbol-space ⊛ nest 2 (pprP e₂)))
+    expr-printer : Pretty-printer expr
+    expr-printer one         = left one-doc
+    expr-printer (sub e₁ e₂) =
+      right (group (<$> final-line 2 6 (expr-printer e₁) <⊛
+                    symbol-space ⊛ nest 2 (term-printer e₂)))
 
-    pprP : Pretty-printer term
-    pprP one = one-doc
-    pprP e   = right (symbol ⊛> ppr e <⊛ symbol)
+    term-printer : Pretty-printer term
+    term-printer one = one-doc
+    term-printer e   = right (symbol ⊛> expr-printer e <⊛ symbol)
 
-  test₁ : render 80 (ppr example) ≡ "1 - 1 - (1 - 1)"
+  test₁ : render 80 (expr-printer example) ≡ "1 - 1 - (1 - 1)"
   test₁ = refl
 
-  test₂ : render 11 (ppr example) ≡ "1 - 1\n  - (1 - 1)"
+  test₂ : render 11 (expr-printer example) ≡ "1 - 1\n  - (1 - 1)"
   test₂ = refl
 
-  test₃ : render 8 (ppr example) ≡ "1 - 1\n  - (1\n    - 1)"
+  test₃ : render 8 (expr-printer example) ≡ "1 - 1\n  - (1\n    - 1)"
   test₃ = refl
 
 -- A somewhat larger expression example.
