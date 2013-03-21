@@ -31,7 +31,7 @@ import Renderer
 
 -- Examples.
 
-import Examples.Bit
+import Examples.Bool
 import Examples.Name
 import Examples.Name-list
 import Examples.Expression
