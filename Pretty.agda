@@ -169,11 +169,11 @@ _⊛>_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ d₂)
 
 left : ∀ {c₁ c₂ A x} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
        Doc (♭? g₁) x → Doc (g₁ ∣ g₂) x
-left d = embed ∣-left-sem d
+left d = embed left-sem d
 
 right : ∀ {c₁ c₂ A x} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
         Doc (♭? g₂) x → Doc (g₁ ∣ g₂) x
-right d = embed ∣-right-sem d
+right d = embed right-sem d
 
 -- Some Kleene star and plus combinators.
 

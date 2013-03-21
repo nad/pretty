@@ -138,30 +138,30 @@ infix 4 [_]_∈_∙_
 
 data [_]_∈_∙_ {NT : Set → Set₁} (g : Grammar NT) :
               ∀ {A} → A → Prod NT A → List Char → Set₁ where
-  !-sem       : ∀ {A} {nt : NT A} {x s} →
-                [ g ] x ∈ g A nt ∙ s → [ g ] x ∈ ! nt ∙ s
-  return-sem  : ∀ {A} {x : A} → [ g ] x ∈ return x ∙ []
-  token-sem   : ∀ {t} → [ g ] t ∈ token ∙ [ t ]
-  tok-sem     : ∀ {t} → [ g ] t ∈ tok t ∙ [ t ]
-  ⊛-sem       : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ : Prod NT A}
-                  {f x s₁ s₂} →
-                [ g ] f ∈ p₁ ∙ s₁ → [ g ] x ∈ p₂ ∙ s₂ →
-                [ g ] f x ∈ p₁ ⊛ p₂ ∙ s₁ ++ s₂
-  <⊛-sem      : ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} {x y s₁ s₂} →
-                [ g ] x ∈ p₁ ∙ s₁ → [ g ] y ∈ p₂ ∙ s₂ →
-                [ g ] x ∈ p₁ <⊛ p₂ ∙ s₁ ++ s₂
-  >>=-sem     : ∀ {A B} {p₁ : Prod NT A} {p₂ : A → Prod NT B}
-                  {x y s₁ s₂} →
-                [ g ] x ∈ p₁ ∙ s₁ → [ g ] y ∈ p₂ x ∙ s₂ →
-                [ g ] y ∈ p₁ >>= p₂ ∙ s₁ ++ s₂
-  ∣-left-sem  : ∀ {A} {p₁ p₂ : Prod NT A} {x s} →
-                [ g ] x ∈ p₁ ∙ s → [ g ] x ∈ p₁ ∣ p₂ ∙ s
-  ∣-right-sem : ∀ {A} {p₁ p₂ : Prod NT A} {x s} →
-                [ g ] x ∈ p₂ ∙ s → [ g ] x ∈ p₁ ∣ p₂ ∙ s
-  ⋆-[]-sem    : ∀ {A} {p : Prod NT A} →
-                [ g ] [] ∈ p ⋆ ∙ []
-  ⋆-+-sem     : ∀ {A} {p : Prod NT A} {xs s} →
-                [ g ] xs ∈ p + ∙ s → [ g ] xs ∈ p ⋆ ∙ s
+  !-sem      : ∀ {A} {nt : NT A} {x s} →
+               [ g ] x ∈ g A nt ∙ s → [ g ] x ∈ ! nt ∙ s
+  return-sem : ∀ {A} {x : A} → [ g ] x ∈ return x ∙ []
+  token-sem  : ∀ {t} → [ g ] t ∈ token ∙ [ t ]
+  tok-sem    : ∀ {t} → [ g ] t ∈ tok t ∙ [ t ]
+  ⊛-sem      : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ : Prod NT A}
+                 {f x s₁ s₂} →
+               [ g ] f ∈ p₁ ∙ s₁ → [ g ] x ∈ p₂ ∙ s₂ →
+               [ g ] f x ∈ p₁ ⊛ p₂ ∙ s₁ ++ s₂
+  <⊛-sem     : ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} {x y s₁ s₂} →
+               [ g ] x ∈ p₁ ∙ s₁ → [ g ] y ∈ p₂ ∙ s₂ →
+               [ g ] x ∈ p₁ <⊛ p₂ ∙ s₁ ++ s₂
+  >>=-sem    : ∀ {A B} {p₁ : Prod NT A} {p₂ : A → Prod NT B}
+                 {x y s₁ s₂} →
+               [ g ] x ∈ p₁ ∙ s₁ → [ g ] y ∈ p₂ x ∙ s₂ →
+               [ g ] y ∈ p₁ >>= p₂ ∙ s₁ ++ s₂
+  left-sem   : ∀ {A} {p₁ p₂ : Prod NT A} {x s} →
+               [ g ] x ∈ p₁ ∙ s → [ g ] x ∈ p₁ ∣ p₂ ∙ s
+  right-sem  : ∀ {A} {p₁ p₂ : Prod NT A} {x s} →
+               [ g ] x ∈ p₂ ∙ s → [ g ] x ∈ p₁ ∣ p₂ ∙ s
+  ⋆-[]-sem   : ∀ {A} {p : Prod NT A} →
+               [ g ] [] ∈ p ⋆ ∙ []
+  ⋆-+-sem    : ∀ {A} {p : Prod NT A} {xs s} →
+               [ g ] xs ∈ p + ∙ s → [ g ] xs ∈ p ⋆ ∙ s
 
 -- Cast lemma.
 
@@ -245,11 +245,11 @@ sat-sem pt = >>=-sem token-sem (<$>-sem (if-true-sem pt))
 
 whitespace-sem-space : ∀ {NT} {g : Grammar NT} →
                        [ g ] ' ' ∈ whitespace ∙ [ ' ' ]
-whitespace-sem-space = ∣-left-sem tok-sem
+whitespace-sem-space = left-sem tok-sem
 
 whitespace-sem-newline : ∀ {NT} {g : Grammar NT} →
                          [ g ] '\n' ∈ whitespace ∙ [ '\n' ]
-whitespace-sem-newline = ∣-right-sem tok-sem
+whitespace-sem-newline = right-sem tok-sem
 
 string-sem : ∀ {NT} {g : Grammar NT} {s} →
              [ g ] s ∈ string s ∙ s
@@ -287,16 +287,16 @@ replace-fail :
   [ g             ] x ∈                      p ∙ s
 replace-fail (! nt)      ()
 replace-fail fail        ()
-replace-fail (return x)  return-sem       = return-sem
-replace-fail token       token-sem        = token-sem
-replace-fail (tok t)     tok-sem          = tok-sem
-replace-fail (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)    = ⊛-sem   (replace-fail p₁ f∈) (replace-fail p₂     x∈)
-replace-fail (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)   = <⊛-sem  (replace-fail p₁ x∈) (replace-fail p₂     y∈)
-replace-fail (p₁ >>= p₂) (>>=-sem x∈ y∈)  = >>=-sem (replace-fail p₁ x∈) (replace-fail (p₂ _) y∈)
-replace-fail (p₁ ∣ p₂)   (∣-left-sem  x∈) = ∣-left-sem  (replace-fail p₁ x∈)
-replace-fail (p₁ ∣ p₂)   (∣-right-sem x∈) = ∣-right-sem (replace-fail p₂ x∈)
-replace-fail (p ⋆)       ⋆-[]-sem         = ⋆-[]-sem
-replace-fail (p ⋆)       (⋆-+-sem xs∈)    = ⋆-+-sem (replace-fail (p +) xs∈)
+replace-fail (return x)  return-sem      = return-sem
+replace-fail token       token-sem       = token-sem
+replace-fail (tok t)     tok-sem         = tok-sem
+replace-fail (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   = ⊛-sem   (replace-fail p₁ f∈) (replace-fail p₂     x∈)
+replace-fail (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  = <⊛-sem  (replace-fail p₁ x∈) (replace-fail p₂     y∈)
+replace-fail (p₁ >>= p₂) (>>=-sem x∈ y∈) = >>=-sem (replace-fail p₁ x∈) (replace-fail (p₂ _) y∈)
+replace-fail (p₁ ∣ p₂)   (left-sem  x∈)  = left-sem  (replace-fail p₁ x∈)
+replace-fail (p₁ ∣ p₂)   (right-sem x∈)  = right-sem (replace-fail p₂ x∈)
+replace-fail (p ⋆)       ⋆-[]-sem        = ⋆-[]-sem
+replace-fail (p ⋆)       (⋆-+-sem xs∈)   = ⋆-+-sem (replace-fail (p +) xs∈)
 
 -- Unfolds every non-terminal. At most n /nested/ unfoldings are
 -- performed.
@@ -318,41 +318,41 @@ unfold n       g (p ⋆)       = unfold n g p ⋆
 
 unfold-to : ∀ {NT A} {g : Grammar NT} {x s} n (p : Prod NT A) →
             [ g ] x ∈ p ∙ s → [ g ] x ∈ unfold n g p ∙ s
-unfold-to zero    p           x∈               = x∈
-unfold-to (suc n) (! nt)      (!-sem x∈)       = unfold-to n _ x∈
-unfold-to (suc n) fail        x∈               = x∈
-unfold-to (suc n) (return x)  x∈               = x∈
-unfold-to (suc n) token       x∈               = x∈
-unfold-to (suc n) (tok x)     x∈               = x∈
-unfold-to (suc n) (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)    = ⊛-sem (unfold-to (suc n) p₁ f∈)
-                                                       (unfold-to (suc n) p₂ x∈)
-unfold-to (suc n) (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)   = <⊛-sem (unfold-to (suc n) p₁ x∈)
-                                                        (unfold-to (suc n) p₂ y∈)
-unfold-to (suc n) (p₁ >>= p₂) (>>=-sem x∈ y∈)  = >>=-sem (unfold-to (suc n) p₁ x∈)
-                                                         (unfold-to (suc n) (p₂ _) y∈)
-unfold-to (suc n) (p₁ ∣ p₂)   (∣-left-sem x∈)  = ∣-left-sem  (unfold-to (suc n) p₁ x∈)
-unfold-to (suc n) (p₁ ∣ p₂)   (∣-right-sem x∈) = ∣-right-sem (unfold-to (suc n) p₂ x∈)
-unfold-to (suc n) (p ⋆)       ⋆-[]-sem         = ⋆-[]-sem
-unfold-to (suc n) (p ⋆)       (⋆-+-sem xs∈)    = ⋆-+-sem (unfold-to (suc n) (p +) xs∈)
+unfold-to zero    p           x∈              = x∈
+unfold-to (suc n) (! nt)      (!-sem x∈)      = unfold-to n _ x∈
+unfold-to (suc n) fail        x∈              = x∈
+unfold-to (suc n) (return x)  x∈              = x∈
+unfold-to (suc n) token       x∈              = x∈
+unfold-to (suc n) (tok x)     x∈              = x∈
+unfold-to (suc n) (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   = ⊛-sem (unfold-to (suc n) p₁ f∈)
+                                                      (unfold-to (suc n) p₂ x∈)
+unfold-to (suc n) (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  = <⊛-sem (unfold-to (suc n) p₁ x∈)
+                                                       (unfold-to (suc n) p₂ y∈)
+unfold-to (suc n) (p₁ >>= p₂) (>>=-sem x∈ y∈) = >>=-sem (unfold-to (suc n) p₁ x∈)
+                                                        (unfold-to (suc n) (p₂ _) y∈)
+unfold-to (suc n) (p₁ ∣ p₂)   (left-sem x∈)   = left-sem  (unfold-to (suc n) p₁ x∈)
+unfold-to (suc n) (p₁ ∣ p₂)   (right-sem x∈)  = right-sem (unfold-to (suc n) p₂ x∈)
+unfold-to (suc n) (p ⋆)       ⋆-[]-sem        = ⋆-[]-sem
+unfold-to (suc n) (p ⋆)       (⋆-+-sem xs∈)   = ⋆-+-sem (unfold-to (suc n) (p +) xs∈)
 
 unfold-from : ∀ {NT A} {g : Grammar NT} {x s} n (p : Prod NT A) →
               [ g ] x ∈ unfold n g p ∙ s → [ g ] x ∈ p ∙ s
-unfold-from zero    p           x∈               = x∈
-unfold-from (suc n) (! nt)      x∈               = !-sem (unfold-from n _ x∈)
-unfold-from (suc n) fail        x∈               = x∈
-unfold-from (suc n) (return x)  x∈               = x∈
-unfold-from (suc n) token       x∈               = x∈
-unfold-from (suc n) (tok x)     x∈               = x∈
-unfold-from (suc n) (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)    = ⊛-sem (unfold-from (suc n) p₁ f∈)
-                                                         (unfold-from (suc n) p₂ x∈)
-unfold-from (suc n) (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)   = <⊛-sem (unfold-from (suc n) p₁ x∈)
-                                                          (unfold-from (suc n) p₂ y∈)
-unfold-from (suc n) (p₁ >>= p₂) (>>=-sem x∈ y∈)  = >>=-sem (unfold-from (suc n) p₁ x∈)
-                                                           (unfold-from (suc n) (p₂ _) y∈)
-unfold-from (suc n) (p₁ ∣ p₂)   (∣-left-sem x∈)  = ∣-left-sem  (unfold-from (suc n) p₁ x∈)
-unfold-from (suc n) (p₁ ∣ p₂)   (∣-right-sem x∈) = ∣-right-sem (unfold-from (suc n) p₂ x∈)
-unfold-from (suc n) (p ⋆)       ⋆-[]-sem         = ⋆-[]-sem
-unfold-from (suc n) (p ⋆)       (⋆-+-sem xs∈)    = ⋆-+-sem (unfold-from (suc n) (p +) xs∈)
+unfold-from zero    p           x∈              = x∈
+unfold-from (suc n) (! nt)      x∈              = !-sem (unfold-from n _ x∈)
+unfold-from (suc n) fail        x∈              = x∈
+unfold-from (suc n) (return x)  x∈              = x∈
+unfold-from (suc n) token       x∈              = x∈
+unfold-from (suc n) (tok x)     x∈              = x∈
+unfold-from (suc n) (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   = ⊛-sem (unfold-from (suc n) p₁ f∈)
+                                                        (unfold-from (suc n) p₂ x∈)
+unfold-from (suc n) (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  = <⊛-sem (unfold-from (suc n) p₁ x∈)
+                                                         (unfold-from (suc n) p₂ y∈)
+unfold-from (suc n) (p₁ >>= p₂) (>>=-sem x∈ y∈) = >>=-sem (unfold-from (suc n) p₁ x∈)
+                                                          (unfold-from (suc n) (p₂ _) y∈)
+unfold-from (suc n) (p₁ ∣ p₂)   (left-sem x∈)   = left-sem  (unfold-from (suc n) p₁ x∈)
+unfold-from (suc n) (p₁ ∣ p₂)   (right-sem x∈)  = right-sem (unfold-from (suc n) p₂ x∈)
+unfold-from (suc n) (p ⋆)       ⋆-[]-sem        = ⋆-[]-sem
+unfold-from (suc n) (p ⋆)       (⋆-+-sem xs∈)   = ⋆-+-sem (unfold-from (suc n) (p +) xs∈)
 
 ------------------------------------------------------------------------
 -- Nullability
@@ -442,9 +442,9 @@ nullable? {NT} n g p =
   null? (p₁ >>= p₂)   = null? p₁                  >>=M λ { (x , x∈) →
                         null? (p₂ x)              >>=M λ { (y , y∈) →
                         just (y , >>=-sem x∈ y∈)  }}
-  null? (p₁ ∣ p₂)     = (Product.map id ∣-left-sem  <$>M null? p₁)
+  null? (p₁ ∣ p₂)     = (Product.map id left-sem  <$>M null? p₁)
                           ∣M
-                        (Product.map id ∣-right-sem <$>M null? p₂)
+                        (Product.map id right-sem <$>M null? p₂)
 
 ------------------------------------------------------------------------
 -- Detecting the whitespace combinator
@@ -526,15 +526,15 @@ final-whitespace? {NT} n g p = unfold-lemma <$>M final? (unfold n g p)
               Final-whitespace g (p₁ ⊛ p₃) →
               Final-whitespace g (p₁ ⊛ (p₂ ∣ p₃))
   ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
-    (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (∣-left-sem x∈))
+    (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (left-sem x∈))
     white
     with f x | (s₁ ++ s₂) ++ s₃ | f₁₂ (⊛-sem f∈ x∈) white
-  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (∣-left-sem x∈′)
+  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (left-sem x∈′)
   ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
-    (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (∣-right-sem x∈))
+    (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (right-sem x∈))
     white
     with f x | (s₁ ++ s₂) ++ s₃ | f₁₃ (⊛-sem f∈ x∈) white
-  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (∣-right-sem x∈′)
+  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (right-sem x∈′)
 
   ⊛-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ : Prod NT A} →
             Final-whitespace g p₂ →
@@ -585,8 +585,8 @@ final-whitespace? {NT} n g p = unfold-lemma <$>M final? (unfold n g p)
             Final-whitespace g p₁ →
             Final-whitespace g p₂ →
             Final-whitespace g (p₁ ∣ p₂)
-  ∣-lemma f₁ f₂ (∣-left-sem  x∈) white = ∣-left-sem  (f₁ x∈ white)
-  ∣-lemma f₁ f₂ (∣-right-sem x∈) white = ∣-right-sem (f₂ x∈ white)
+  ∣-lemma f₁ f₂ (left-sem  x∈) white = left-sem  (f₁ x∈ white)
+  ∣-lemma f₁ f₂ (right-sem x∈) white = right-sem (f₂ x∈ white)
 
   final? : ∀ {A} (p : Prod NT A) →
            Maybe (Final-whitespace g p)

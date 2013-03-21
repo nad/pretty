@@ -360,13 +360,13 @@ wadler's-renderer w = record
     ∀ i → replicate i ' ' ∈ whitespace ⋆ ∙ replicate i ' '
   replicate-lemma zero    = ⋆-[]-sem
   replicate-lemma (suc i) =
-    ⋆-∷-sem (∣-left-sem tok-sem) (replicate-lemma i)
+    ⋆-∷-sem (left-sem tok-sem) (replicate-lemma i)
 
   nest-line-lemma :
     ∀ {A} {x : A} i →
     x ∈ x <$ whitespace + ∙ showE (nest-line i)
   nest-line-lemma i =
-    <$-sem (+-sem (∣-right-sem tok-sem) (replicate-lemma i))
+    <$-sem (+-sem (right-sem tok-sem) (replicate-lemma i))
 
   if-lemma :
     ∀ {A} {g : Grammar A} {x l₁ l₂} s b →

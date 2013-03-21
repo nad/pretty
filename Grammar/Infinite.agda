@@ -225,39 +225,39 @@ symbol′ = symbol ∘ String.toList
 infix 4 _∈_∙_
 
 data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
-  return-sem  : ∀ {A} {x : A} → x ∈ return x ∙ []
-  token-sem   : ∀ {t} → t ∈ token ∙ [ t ]
-  >>=-sem     : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A}
-                  {g₂ : A → ∞Grammar c₂ B} {x y s₁ s₂} →
-                x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? (g₂ x) ∙ s₂ →
-                y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
-  ∣-left-sem  : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A}
-                  {x s} →
-                x ∈ ♭? g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
-  ∣-right-sem : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A}
-                  {x s} →
-                x ∈ ♭? g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
-  tok-sem     : ∀ {t} → t ∈ tok t ∙ [ t ]
-  <$>-sem     : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} {x s} →
-                x ∈ ♭? g ∙ s → f x ∈ f <$> g ∙ s
-  <$-sem      : ∀ {c A B} {x : A} {g : ∞Grammar c B} {y s} →
-                y ∈ ♭? g ∙ s → x ∈ x <$ g ∙ s
-  ⊛-sem       : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ (A → B)}
-                  {g₂ : ∞Grammar c₂ A} {f x s₁ s₂} →
-                f ∈ ♭? g₁ ∙ s₁ → x ∈ ♭? g₂ ∙ s₂ →
-                f x ∈ g₁ ⊛ g₂ ∙ s₁ ++ s₂
-  <⊛-sem      : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
-                  {x y s₁ s₂} →
-                x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ →
-                x ∈ g₁ <⊛ g₂ ∙ s₁ ++ s₂
-  ⊛>-sem      : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
-                  {x y s₁ s₂} →
-                x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ →
-                y ∈ g₁ ⊛> g₂ ∙ s₁ ++ s₂
-  ⋆-[]-sem    : ∀ {c A} {g : ∞Grammar c A} →
-                [] ∈ g ⋆ ∙ []
-  ⋆-+-sem     : ∀ {c A} {g : ∞Grammar c A} {x xs s} →
-                (x ∷ xs) ∈ g + ∙ s → x ∷ xs ∈ g ⋆ ∙ s
+  return-sem : ∀ {A} {x : A} → x ∈ return x ∙ []
+  token-sem  : ∀ {t} → t ∈ token ∙ [ t ]
+  >>=-sem    : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A}
+                 {g₂ : A → ∞Grammar c₂ B} {x y s₁ s₂} →
+               x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? (g₂ x) ∙ s₂ →
+               y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
+  left-sem   : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A}
+                 {x s} →
+               x ∈ ♭? g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  right-sem  : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A}
+                 {x s} →
+               x ∈ ♭? g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  tok-sem    : ∀ {t} → t ∈ tok t ∙ [ t ]
+  <$>-sem    : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} {x s} →
+               x ∈ ♭? g ∙ s → f x ∈ f <$> g ∙ s
+  <$-sem     : ∀ {c A B} {x : A} {g : ∞Grammar c B} {y s} →
+               y ∈ ♭? g ∙ s → x ∈ x <$ g ∙ s
+  ⊛-sem      : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ (A → B)}
+                 {g₂ : ∞Grammar c₂ A} {f x s₁ s₂} →
+               f ∈ ♭? g₁ ∙ s₁ → x ∈ ♭? g₂ ∙ s₂ →
+               f x ∈ g₁ ⊛ g₂ ∙ s₁ ++ s₂
+  <⊛-sem     : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
+                 {x y s₁ s₂} →
+               x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ →
+               x ∈ g₁ <⊛ g₂ ∙ s₁ ++ s₂
+  ⊛>-sem     : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
+                 {x y s₁ s₂} →
+               x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ →
+               y ∈ g₁ ⊛> g₂ ∙ s₁ ++ s₂
+  ⋆-[]-sem   : ∀ {c A} {g : ∞Grammar c A} →
+               [] ∈ g ⋆ ∙ []
+  ⋆-+-sem    : ∀ {c A} {g : ∞Grammar c A} {x xs s} →
+               (x ∷ xs) ∈ g + ∙ s → x ∷ xs ∈ g ⋆ ∙ s
 
 -- Cast lemma.
 
@@ -303,8 +303,8 @@ isomorphic {g = g} = record
   sound return-sem               = return-sem
   sound token-sem                = token-sem
   sound (>>=-sem x∈ y∈)          = >>=-sem (sound x∈) (sound y∈)
-  sound (∣-left-sem x∈)          = ∣-left-sem (sound x∈)
-  sound (∣-right-sem x∈)         = ∣-right-sem (sound x∈)
+  sound (left-sem x∈)            = left-sem (sound x∈)
+  sound (right-sem x∈)           = right-sem (sound x∈)
   sound tok-sem                  = Inverse.from Basic.tok-sem
                                      ⟨$⟩ (refl , refl)
   sound (<$>-sem x∈)             = Basic.cast (lemma₁ _)
@@ -318,21 +318,21 @@ isomorphic {g = g} = record
                                      (>>=-sem (sound x∈)
                                         (>>=-sem (sound y∈) return-sem))
   sound (⊛>-sem {s₁ = s₁} x∈ y∈) = >>=-sem (sound x∈) (sound y∈)
-  sound ⋆-[]-sem                 = ∣-left-sem return-sem
+  sound ⋆-[]-sem                 = left-sem return-sem
   sound (⋆-+-sem xs∈)            = Basic.cast (lemma₁ _)
-                                     (∣-right-sem
+                                     (right-sem
                                         (>>=-sem (sound xs∈)
                                                  return-sem))
 
   -- Completeness.
 
   complete : ∀ {A x s} (g : Grammar A) → x Basic.∈ ⟦ g ⟧ ∙ s → x ∈ g ∙ s
-  complete (return x)  return-sem       = return-sem
-  complete token       token-sem        = token-sem
-  complete (g₁ >>= g₂) (>>=-sem x∈ y∈)  = >>=-sem (complete _ x∈)
-                                                  (complete _ y∈)
-  complete (g₁ ∣ g₂)   (∣-left-sem x∈)  = ∣-left-sem  (complete _ x∈)
-  complete (g₁ ∣ g₂)   (∣-right-sem x∈) = ∣-right-sem (complete _ x∈)
+  complete (return x)  return-sem      = return-sem
+  complete token       token-sem       = token-sem
+  complete (g₁ >>= g₂) (>>=-sem x∈ y∈) = >>=-sem (complete _ x∈)
+                                                 (complete _ y∈)
+  complete (g₁ ∣ g₂)   (left-sem x∈)   = left-sem  (complete _ x∈)
+  complete (g₁ ∣ g₂)   (right-sem x∈)  = right-sem (complete _ x∈)
 
   complete fail    ∈fail = ⊥-elim (Basic.fail-sem⁻¹ ∈fail)
   complete (tok t) t∈    = tok-lemma (Inverse.to Basic.tok-sem ⟨$⟩ t∈)
@@ -352,8 +352,8 @@ isomorphic {g = g} = record
   complete (g₁ ⊛> g₂) (>>=-sem x∈ y∈) =
     ⊛>-sem (complete _ x∈) (complete _ y∈)
 
-  complete (g ⋆) (∣-left-sem return-sem) = ⋆-[]-sem
-  complete (g ⋆) (∣-right-sem (>>=-sem
+  complete (g ⋆) (left-sem return-sem) = ⋆-[]-sem
+  complete (g ⋆) (right-sem (>>=-sem
                     (>>=-sem (>>=-sem {s₁ = s₁} x∈  return-sem)
                              (>>=-sem           xs∈ return-sem))
                     return-sem)) =
@@ -389,12 +389,12 @@ isomorphic {g = g} = record
 
   complete∘sound : ∀ {A x s} {g : Grammar A} (x∈ : x ∈ g ∙ s) →
                    complete g (sound x∈) ≡ x∈
-  complete∘sound return-sem       = refl
-  complete∘sound token-sem        = refl
-  complete∘sound (>>=-sem x∈ y∈)  = P.cong₂ >>=-sem (complete∘sound x∈)
-                                                    (complete∘sound y∈)
-  complete∘sound (∣-left-sem x∈)  = P.cong ∣-left-sem (complete∘sound x∈)
-  complete∘sound (∣-right-sem x∈) = P.cong ∣-right-sem (complete∘sound x∈)
+  complete∘sound return-sem      = refl
+  complete∘sound token-sem       = refl
+  complete∘sound (>>=-sem x∈ y∈) = P.cong₂ >>=-sem (complete∘sound x∈)
+                                                   (complete∘sound y∈)
+  complete∘sound (left-sem x∈)   = P.cong left-sem (complete∘sound x∈)
+  complete∘sound (right-sem x∈)  = P.cong right-sem (complete∘sound x∈)
 
   complete∘sound (tok-sem {t = t})
     rewrite Inverse.right-inverse-of (Basic.tok-sem {t = t})
@@ -450,7 +450,7 @@ isomorphic {g = g} = record
               (>>=-sem {s₁ = s₂} xs∈′ return-sem)
     | refl
     rewrite complete-cast (g ⋆) (lemma₁ ((s₁ ++ []) ++ s₂ ++ []))
-                          (∣-right-sem
+                          (right-sem
                             (>>=-sem (>>=-sem (>>=-sem x∈   return-sem)
                                               (>>=-sem xs∈′ return-sem))
                                      return-sem))
@@ -460,12 +460,12 @@ isomorphic {g = g} = record
   sound∘complete : ∀ {A x s}
                    (g : Grammar A) (x∈ : x Basic.∈ ⟦ g ⟧ ∙ s) →
                    sound (complete g x∈) ≡ x∈
-  sound∘complete (return x)  return-sem       = refl
-  sound∘complete token       token-sem        = refl
-  sound∘complete (g₁ >>= g₂) (>>=-sem x∈ y∈)  = P.cong₂ >>=-sem (sound∘complete (♭? g₁) x∈)
-                                                                (sound∘complete (♭? (g₂ _)) y∈)
-  sound∘complete (g₁ ∣ g₂)   (∣-left-sem x∈)  = P.cong ∣-left-sem  (sound∘complete (♭? g₁) x∈)
-  sound∘complete (g₁ ∣ g₂)   (∣-right-sem x∈) = P.cong ∣-right-sem (sound∘complete (♭? g₂) x∈)
+  sound∘complete (return x)  return-sem      = refl
+  sound∘complete token       token-sem       = refl
+  sound∘complete (g₁ >>= g₂) (>>=-sem x∈ y∈) = P.cong₂ >>=-sem (sound∘complete (♭? g₁) x∈)
+                                                               (sound∘complete (♭? (g₂ _)) y∈)
+  sound∘complete (g₁ ∣ g₂)   (left-sem x∈)   = P.cong left-sem  (sound∘complete (♭? g₁) x∈)
+  sound∘complete (g₁ ∣ g₂)   (right-sem x∈)  = P.cong right-sem (sound∘complete (♭? g₂) x∈)
 
   sound∘complete fail    ∈fail = ⊥-elim (Basic.fail-sem⁻¹ ∈fail)
   sound∘complete (tok t) t∈    =
@@ -518,9 +518,9 @@ isomorphic {g = g} = record
     | x∈′ | refl | y∈′ | refl
     = refl
 
-  sound∘complete (g ⋆) (∣-left-sem return-sem) = refl
+  sound∘complete (g ⋆) (left-sem return-sem) = refl
   sound∘complete (g ⋆)
-    (∣-right-sem
+    (right-sem
        (>>=-sem {x = ._}
           (>>=-sem {y = ._} (>>=-sem          x∈  return-sem)
                             (>>=-sem {y = ._} xs∈ return-sem))
@@ -528,7 +528,7 @@ isomorphic {g = g} = record
     with complete (♭? g) x∈ | sound∘complete (♭? g) x∈
        | complete (g ⋆) xs∈ | sound∘complete (g ⋆) xs∈
   sound∘complete (g ⋆)
-    (∣-right-sem
+    (right-sem
        (>>=-sem (>>=-sem (>>=-sem {s₁ = s₁} .(sound x∈′)  return-sem)
                          (>>=-sem {s₁ = s₂} .(sound xs∈′) return-sem))
                 return-sem))
@@ -552,11 +552,11 @@ isomorphic {g = g} = record
       _≡_ {A = List⁺.toList xs Basic.∈ ⟦ g ⋆ ⟧ ∙ _}
           (Basic.cast eq₁
              (Basic.cast eq₂
-                (∣-right-sem
+                (right-sem
                    (>>=-sem
                       (Basic.cast eq₃ (>>=-sem (Basic.cast eq₄ f∈) xs∈))
                       return-sem))))
-          (∣-right-sem (>>=-sem (>>=-sem f∈ xs∈) return-sem))
+          (right-sem (>>=-sem (>>=-sem f∈ xs∈) return-sem))
     lemma _ eq₁ eq₂ refl refl _ _ = cast-cast′ eq₁ eq₂
 
 ------------------------------------------------------------------------
@@ -629,7 +629,7 @@ list-sem-lemma : ∀ {A} {x : A} {g s} →
 list-sem-lemma = cast (List-prop.Monad.right-identity _)
 
 single-space-sem : (' ' ∷ []) ∈ whitespace + ∙ String.toList " "
-single-space-sem = +-sem (∣-left-sem tok-sem) ⋆-[]-sem
+single-space-sem = +-sem (left-sem tok-sem) ⋆-[]-sem
 
 string-sem′ : ∀ {s s′ s″} → s ∈ string s′ ∙ s″ ↔ (s ≡ s′ × s′ ≡ s″)
 string-sem′ = record
@@ -739,20 +739,20 @@ expressive f = (g f , g-sem f)
     }
     where
     to : ∀ f {s} → tt ∈ g f ∙ s → ∃ λ n → f n ≡ just s
-    to f (∣-left-sem  tt∈) = (zero , Inverse.to maybe-string-sem ⟨$⟩
-                                       tt∈)
-    to f (∣-right-sem tt∈) = Prod.map suc id $ to (f ∘ suc) tt∈
+    to f (left-sem  tt∈) = (zero , Inverse.to maybe-string-sem ⟨$⟩
+                                     tt∈)
+    to f (right-sem tt∈) = Prod.map suc id $ to (f ∘ suc) tt∈
 
     from : ∀ f {s} → (∃ λ n → f n ≡ just s) → tt ∈ g f ∙ s
-    from f (zero  , eq) = ∣-left-sem  (Inverse.from maybe-string-sem ⟨$⟩
-                                         eq)
-    from f (suc n , eq) = ∣-right-sem (from (f ∘ suc) (n , eq))
+    from f (zero  , eq) = left-sem  (Inverse.from maybe-string-sem ⟨$⟩
+                                       eq)
+    from f (suc n , eq) = right-sem (from (f ∘ suc) (n , eq))
 
     from∘to : ∀ f {s} (tt∈ : tt ∈ g f ∙ s) → from f (to f tt∈) ≡ tt∈
-    from∘to f (∣-right-sem tt∈) = P.cong ∣-right-sem $
-                                    from∘to (f ∘ suc) tt∈
-    from∘to f (∣-left-sem  tt∈) =
-      P.cong ∣-left-sem (Inverse.left-inverse-of maybe-string-sem tt∈)
+    from∘to f (right-sem tt∈) = P.cong right-sem $
+                                  from∘to (f ∘ suc) tt∈
+    from∘to f (left-sem  tt∈) =
+      P.cong left-sem (Inverse.left-inverse-of maybe-string-sem tt∈)
 
     to∘from : ∀ f {s} (eq : ∃ λ n → f n ≡ just s) →
               to f (from f eq) ≡ eq
@@ -846,8 +846,8 @@ final-whitespace′? = final?
             Final-whitespace′ (♭? g₁) →
             Final-whitespace′ (♭? g₂) →
             Final-whitespace′ (g₁ ∣ g₂)
-  ∣-lemma f₁ f₂ (∣-left-sem  x∈) w = , ∣-left-sem  (proj₂ $ f₁ x∈ w)
-  ∣-lemma f₁ f₂ (∣-right-sem x∈) w = , ∣-right-sem (proj₂ $ f₂ x∈ w)
+  ∣-lemma f₁ f₂ (left-sem  x∈) w = , left-sem  (proj₂ $ f₁ x∈ w)
+  ∣-lemma f₁ f₂ (right-sem x∈) w = , right-sem (proj₂ $ f₂ x∈ w)
 
   whitespace⋆-lemma :
     ∀ {A} {g : Grammar A} →
@@ -929,14 +929,14 @@ final-whitespace? = final?
               Final-whitespace (g₁ ⊛ (g₂₁ ∣ g₂₂))
   ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
             (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂}
-                   f∈ (∣-left-sem x∈)) w
+                   f∈ (left-sem x∈)) w
     with f x | (s₁ ++ s₂) ++ s₃ | f₁₂ (⊛-sem f∈ x∈) w
-  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (∣-left-sem x∈′)
+  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (left-sem x∈′)
   ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
             (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂}
-                   f∈ (∣-right-sem x∈)) w
+                   f∈ (right-sem x∈)) w
     with f x | (s₁ ++ s₂) ++ s₃ | f₁₃ (⊛-sem f∈ x∈) w
-  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (∣-right-sem x∈′)
+  ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (right-sem x∈′)
 
   ⊛-lemma : ∀ {c₁ c₂ A B}
               {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A} →
@@ -972,8 +972,8 @@ final-whitespace? = final?
             Final-whitespace (♭? g₁) →
             Final-whitespace (♭? g₂) →
             Final-whitespace (g₁ ∣ g₂)
-  ∣-lemma f₁ f₂ (∣-left-sem  x∈) w = ∣-left-sem  (f₁ x∈ w)
-  ∣-lemma f₁ f₂ (∣-right-sem x∈) w = ∣-right-sem (f₂ x∈ w)
+  ∣-lemma f₁ f₂ (left-sem  x∈) w = left-sem  (f₁ x∈ w)
+  ∣-lemma f₁ f₂ (right-sem x∈) w = right-sem (f₂ x∈ w)
 
   final? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Final-whitespace g)
 

@@ -71,16 +71,16 @@ data Grammar : Set → Set₁ where
 infix 4 _∈_∙_
 
 data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
-  return-sem  : ∀ {A} {x : A} → x ∈ return x ∙ []
-  token-sem   : ∀ {t} → t ∈ token ∙ [ t ]
-  >>=-sem     : ∀ {A B x y s₁ s₂} {g₁ : ∞ (Grammar A)}
-                  {g₂ : A → ∞ (Grammar B)} →
-                x ∈ ♭ g₁ ∙ s₁ → y ∈ ♭ (g₂ x) ∙ s₂ →
-                y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
-  ∣-left-sem  : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x s} →
-                x ∈ ♭ g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
-  ∣-right-sem : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x s} →
-                x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  return-sem : ∀ {A} {x : A} → x ∈ return x ∙ []
+  token-sem  : ∀ {t} → t ∈ token ∙ [ t ]
+  >>=-sem    : ∀ {A B x y s₁ s₂} {g₁ : ∞ (Grammar A)}
+                 {g₂ : A → ∞ (Grammar B)} →
+               x ∈ ♭ g₁ ∙ s₁ → y ∈ ♭ (g₂ x) ∙ s₂ →
+               y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
+  left-sem   : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x s} →
+               x ∈ ♭ g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+  right-sem  : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x s} →
+               x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
 
 ----------------------------------------------------------------------
 -- Some grammar and semantics combinators
@@ -97,8 +97,8 @@ fail : ∀ {A} → Grammar A
 fail = ♯ fail ∣ ♯ fail
 
 fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail ∙ s)
-fail-sem⁻¹ (∣-left-sem  ∈fail) = fail-sem⁻¹ ∈fail
-fail-sem⁻¹ (∣-right-sem ∈fail) = fail-sem⁻¹ ∈fail
+fail-sem⁻¹ (left-sem  ∈fail) = fail-sem⁻¹ ∈fail
+fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
 -- Map.
 
