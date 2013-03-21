@@ -22,9 +22,9 @@ open import Utilities
 
 module Expression₁ where
 
-  data E : Set where
-    one : E
-    sub : E → E → E
+  data Expr : Set where
+    one : Expr
+    sub : Expr → Expr → Expr
 
   module _ where
 
@@ -32,7 +32,7 @@ module Expression₁ where
 
     mutual
 
-      expr : Grammar E
+      expr : Grammar Expr
       expr = atom
            ∣ sub <$> ♯ expr ⊛ (
                      whitespace ⋆
@@ -40,7 +40,7 @@ module Expression₁ where
                   ⊛> whitespace ⋆
                   ⊛> atom)
 
-      atom : Grammar E
+      atom : Grammar Expr
       atom = one <$ string′ "1"
            ∣    string′ "("
              ⊛> whitespace ⋆
@@ -65,7 +65,7 @@ module Expression₁ where
     pprP one = one-doc
     pprP e   = right (text ⊛> ⋆-[] ⊛> ppr e <⊛ ⋆-[] <⊛ text)
 
-  example : E
+  example : Expr
   example = sub (sub one one) (sub one one)
 
   test₁ : render 80 (ppr example) ≡ "1 - 1 - (1 - 1)"
@@ -82,7 +82,7 @@ module Expression₁ where
 
 module Expression₂ where
 
-  open Expression₁ using (E; one; sub; example)
+  open Expression₁ using (Expr; one; sub; example)
 
   module _ where
 
@@ -90,11 +90,11 @@ module Expression₂ where
 
     mutual
 
-      expr : Grammar E
+      expr : Grammar Expr
       expr = atom
            ∣ sub <$> ♯ expr ⊛ (symbol′ "-" ⊛> atom)
 
-      atom : Grammar E
+      atom : Grammar Expr
       atom = one <$ symbol′ "1"
            ∣ symbol′ "(" ⊛> ♯ expr <⊛ symbol′ ")"
 
@@ -130,11 +130,11 @@ module Expression₃ where
 
   -- Expressions.
 
-  data E : Set where
-    one : E
-    sub : E → E → E
-    div : E → E → E
-    var : Name → E
+  data Expr : Set where
+    one : Expr
+    sub : Expr → Expr → Expr
+    div : Expr → Expr → Expr
+    var : Name → Expr
 
   -- Precedences.
 
@@ -147,7 +147,7 @@ module Expression₃ where
 
     -- One expression grammar for each precedence level.
 
-    expr : Prec → Grammar E
+    expr : Prec → Grammar Expr
     expr ′5 = ♯ expr ′6
             ∣ sub <$> ♯ expr ′5 ⊛ (symbol′ "-" ⊛> ♯ expr ′6)
     expr ′6 = ♯ expr ′7
@@ -208,7 +208,7 @@ module Expression₃ where
 
   -- Unit tests.
 
-  example : E
+  example : Expr
   example = sub (div (var (str "x")) one) (sub one (var (str "y")))
 
   test₁ : render 80 (expr-printer ′5 example) ≡ "x / 1 - (1 - y)"
