@@ -151,19 +151,19 @@ _⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ <$> d₂)
 
 _<⊛_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
        Doc (♭? g₁) x → Doc (♭? g₂) y → Doc (g₁ G.<⊛ g₂) x
-_<⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛ d₁ ⊛ d₂)
+_<⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ <$ d₂)
   where
   lemma : ∀ {x s} →
-          x ∈ return (λ x _ → x) G.⊛ g₁ G.⊛ g₂ ∙ s → x ∈ g₁ G.<⊛ g₂ ∙ s
-  lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = <⊛-sem x∈ y∈
+          x ∈ (g₁ >>= λ x → x G.<$ g₂) ∙ s → x ∈ g₁ G.<⊛ g₂ ∙ s
+  lemma (>>=-sem x∈ (<$-sem y∈)) = <⊛-sem x∈ y∈
 
 _⊛>_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
        Doc (♭? g₁) x → Doc (♭? g₂) y → Doc (g₁ G.⊛> g₂) y
-_⊛>_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (nil ⊛ d₁ ⊛ d₂)
+_⊛>_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ d₂)
   where
   lemma : ∀ {y s} →
-          y ∈ return (λ _ x → x) G.⊛ g₁ G.⊛ g₂ ∙ s → y ∈ g₁ G.⊛> g₂ ∙ s
-  lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = ⊛>-sem x∈ y∈
+          y ∈ (g₁ >>= λ _ → g₂) ∙ s → y ∈ g₁ G.⊛> g₂ ∙ s
+  lemma (>>=-sem x∈ y∈) = ⊛>-sem x∈ y∈
 
 -- Document combinators for choices.
 
