@@ -32,12 +32,10 @@ module Expression₁ where
 
     mutual
 
-      -- Note the use of "tt <$".
-
       expr : Grammar E
       expr = atom
            ∣ sub <$> ♯ expr ⊛ (
-                     (tt <$ whitespace ⋆)
+                     whitespace ⋆
                   ⊛> string′ "-"
                   ⊛> whitespace ⋆
                   ⊛> atom)
@@ -61,7 +59,7 @@ module Expression₁ where
     ppr one         = left one-doc
     ppr (sub e₁ e₂) =
       right (group
-        (<$> ppr e₁ ⊛ nest 2 (line⋆ ⊛> text ⊛> space ⊛> pprP e₂)))
+        (<$> ppr e₁ ⊛ nest 2 (line⋆ tt-⊛> text ⊛> space ⊛> pprP e₂)))
 
     pprP : Pretty-printer atom
     pprP one = one-doc

@@ -342,9 +342,9 @@ module Expr (g : Precedence-graph) where
       operators : ∀ {assoc} (os : List (Operator assoc)) →
                   Grammar (∃ λ op → op ∈ os)
       operators []         = fail
-      operators (op ∷ ops) =    (tt <$ whitespace ⋆)
+      operators (op ∷ ops) =    whitespace ⋆
                              ⊛> (Prod.map id here <$> operator op)
-                             <⊛ (tt <$ whitespace ⋆)
+                             <⊛ whitespace ⋆
                            ∣ Prod.map id there <$> operators ops
 
   open Pretty
@@ -406,7 +406,7 @@ module Expr (g : Precedence-graph) where
                         Pretty-printer (operators os)
     operators-printer {os = []}     (_  , ())
     operators-printer {os = ._ ∷ _} (op , here P.refl) =
-      left (line⋆ ⊛> <$> operator-printer op <⊛ <$ space)
+      left (line⋆ tt-⊛> <$> operator-printer op <⊛ space)
     operators-printer {os =  _ ∷ _} (_  , there op∈os) =
       right (<$> operators-printer (_ , op∈os))
 

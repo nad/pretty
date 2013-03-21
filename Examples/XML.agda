@@ -77,11 +77,8 @@ module _ where
     start-of-element : Grammar (Name × List Att)
     start-of-element = _,_ <$ symbol′ "<" ⊛ name ⊛ w-attrs
 
-    -- The following definition uses "tt <$" in order to make
-    -- pretty-printing easier.
-
     w-xmls : Grammar (List XML)
-    w-xmls = (tt <$ whitespace ⋆) ⊛> xmls
+    w-xmls = whitespace ⋆ ⊛> xmls
 
     xmls : Grammar (List XML)
     xmls = ♯ xml ⋆
@@ -89,11 +86,8 @@ module _ where
     tag : Grammar Name
     tag = name-w
 
-    -- The following definition uses "tt <$" in order to make
-    -- pretty-printing easier.
-
     w-attrs : Grammar (List Att)
-    w-attrs = (tt <$ whitespace ⋆) ⊛> attrs
+    w-attrs = whitespace ⋆ ⊛> attrs
 
     attrs : Grammar (List Att)
     attrs = attr ⋆
@@ -129,10 +123,10 @@ mutual
     <$ symbol ⊛ name-printer t ⊛ w-attrs-printer atts
 
   w-attrs-printer : Pretty-printer w-attrs
-  w-attrs-printer []       = <$ ⋆-[] ⊛> ⋆-[]
+  w-attrs-printer []       = ⋆-[] ⊛> ⋆-[]
   w-attrs-printer (a ∷ as) =
     group (nest 2 line⋆
-             ⊛>
+             tt-⊛>
            embed Grammar.⋆-+-sem
              (final-line 0 4
                 (nest 2 (map+-fill 2 attr-printer (a ∷ as)))))
@@ -142,10 +136,10 @@ mutual
     <$> name-w-printer n <⊛ symbol <⊛ text ⊛ name-printer v <⊛ symbol
 
   w-xmls-printer : Pretty-printer w-xmls
-  w-xmls-printer []       = <$ ⋆-[] ⊛> ⋆-[]
+  w-xmls-printer []       = ⋆-[] ⊛> ⋆-[]
   w-xmls-printer (x ∷ xs) =
     group (nest 2 line⋆
-             ⊛>
+             tt-⊛>
            embed Grammar.⋆-+-sem
              (final-line 0 5 (nest 2 (fill+ 3 (to-docs x xs)))))
     where
