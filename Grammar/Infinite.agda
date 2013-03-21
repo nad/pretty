@@ -203,6 +203,9 @@ string : List Char → Grammar (List Char)
 string []      = return []
 string (t ∷ s) = _∷_ <$> tok t ⊛ string s
 
+-- A variant of string that takes a String rather than a list of
+-- characters.
+
 string′ : String → Grammar (List Char)
 string′ = string ∘ String.toList
 
