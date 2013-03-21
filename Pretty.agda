@@ -31,7 +31,7 @@ mutual
   -- For convenience I have chosen to parametrise Doc by "extended"
   -- grammars rather than basic ones.
 
-  infixr 20 _·_
+  infixr 20 _◇_
 
   data Doc : ∀ {A} → Grammar A → A → Set₁ where
 
@@ -48,7 +48,7 @@ mutual
 
     -- Concatenation.
 
-    _·_   : ∀ {c₁ c₂ A B x y}
+    _◇_   : ∀ {c₁ c₂ A B x y}
               {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
             Doc (♭? g₁) x → Doc (♭? (g₂ x)) y → Doc (g₁ >>= g₂) y
 
@@ -143,7 +143,7 @@ infixl 20 _⊛_ _<⊛_ _⊛>_
 _⊛_ : ∀ {c₁ c₂ A B f x}
         {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A} →
       Doc (♭? g₁) f → Doc (♭? g₂) x → Doc (g₁ G.⊛ g₂) (f x)
-_⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ · <$> d₂)
+_⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ <$> d₂)
   where
   lemma : ∀ {x s} →
           x ∈ (g₁ >>= λ f → f G.<$> g₂) ∙ s → x ∈ g₁ G.⊛ g₂ ∙ s
@@ -203,7 +203,7 @@ if-true {false} {}
 
 sat : ∀ {p : Char → Bool} {t pt} →
       Doc (G.sat p) (t , pt)
-sat = token · <$> if-true
+sat = token ◇ <$> if-true
 
 tok-sat : {p : Char → Bool} → Pretty-printer-for (G.tok-sat p)
 tok-sat _ = <$ tok

@@ -114,7 +114,7 @@ ugly-renderer = record
     render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
     render nil            = []
     render (text {s = s}) = s
-    render (d₁ · d₂)      = render d₁ ++ render d₂
+    render (d₁ ◇ d₂)      = render d₁ ++ render d₂
     render line           = String.toList " "
     render (group d)      = render d
     render (nest _ d)     = render d
@@ -131,7 +131,7 @@ ugly-renderer = record
                (d : Doc g x) → x ∈ g ∙ render d
     parsable nil        = return-sem
     parsable text       = string-sem
-    parsable (d₁ · d₂)  = >>=-sem (parsable d₁) (parsable d₂)
+    parsable (d₁ ◇ d₂)  = >>=-sem (parsable d₁) (parsable d₂)
     parsable line       = <$-sem single-space-sem
     parsable (group d)  = parsable d
     parsable (nest _ d) = parsable d
@@ -164,12 +164,12 @@ wadler's-renderer w = record
 
   -- Documents with unions instead of groups, and no fills.
 
-  infixr 20 _·_
+  infixr 20 _◇_
 
   data DocU : ∀ {A} → Grammar A → A → Set₁ where
     nil   : ∀ {A} {x : A} → DocU (return x) x
     text  : ∀ {s} → DocU (string s) s
-    _·_   : ∀ {c₁ c₂ A B x y}
+    _◇_   : ∀ {c₁ c₂ A B x y}
               {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
             DocU (♭? g₁) x → DocU (♭? (g₂ x)) y → DocU (g₁ >>= g₂) y
     line  : DocU (tt <$ whitespace +) tt
@@ -194,7 +194,7 @@ wadler's-renderer w = record
   _⊛-docU_ : ∀ {c₁ c₂ A B f x} {g₁ : ∞Grammar c₁ (A → B)}
                {g₂ : ∞Grammar c₂ A} →
              DocU (♭? g₁) f → DocU (♭? g₂) x → DocU (g₁ ⊛ g₂) (f x)
-  _⊛-docU_ {g₁ = g₁} {g₂} d₁ d₂ = embedU lemma (d₁ · <$>-docU d₂)
+  _⊛-docU_ {g₁ = g₁} {g₂} d₁ d₂ = embedU lemma (d₁ ◇ <$>-docU d₂)
     where
     lemma : ∀ {x s} →
             x ∈ (g₁ >>= λ f → f <$> g₂) ∙ s → x ∈ g₁ ⊛ g₂ ∙ s
@@ -254,7 +254,7 @@ wadler's-renderer w = record
     flatten : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     flatten nil        = nil
     flatten text       = text
-    flatten (d₁ · d₂)  = flatten d₁ · flatten d₂
+    flatten (d₁ ◇ d₂)  = flatten d₁ ◇ flatten d₂
     flatten line       = space
     flatten (group d)  = flatten d
     flatten (nest i d) = nest i (flatten d)
@@ -273,7 +273,7 @@ wadler's-renderer w = record
     expand-groups : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     expand-groups nil        = nil
     expand-groups text       = text
-    expand-groups (d₁ · d₂)  = expand-groups d₁ · expand-groups d₂
+    expand-groups (d₁ ◇ d₂)  = expand-groups d₁ ◇ expand-groups d₂
     expand-groups line       = line
     expand-groups (group d)  = union (flatten d) (expand-groups d)
     expand-groups (nest i d) = nest i (expand-groups d)
@@ -342,7 +342,7 @@ wadler's-renderer w = record
          ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
   best i nil            = id
   best i (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
-  best i (d₁ · d₂)      = best i d₁ ∘ best i d₂
+  best i (d₁ ◇ d₂)      = best i d₁ ∘ best i d₂
   best i line           = λ κ _ → nest-line i ∷ κ i
   best i (union d₁ d₂)  = λ κ c → better c (best i d₁ κ c)
                                            (best i d₂ κ c)
@@ -392,7 +392,7 @@ wadler's-renderer w = record
                                      (best-lemma s d₂ hyp)
   best-lemma s (nest j d)    hyp = best-lemma s d hyp
   best-lemma s (emb f d)     hyp = best-lemma s d (hyp ∘ f)
-  best-lemma s (d₁ · d₂)     hyp =
+  best-lemma s (d₁ ◇ d₂)     hyp =
     best-lemma s d₁ λ {s′} f∈ →
       cast (LM.assoc s _ _)
         (best-lemma (s ++ s′) d₂ λ x∈ →
@@ -418,7 +418,7 @@ wadler's-renderer-ignores-emb {w} {d = d}
   with Wadler's-renderer.expand-groups w d
 ... | Wadler's-renderer.nil       = P.refl
 ... | Wadler's-renderer.text      = P.refl
-... | _ Wadler's-renderer.· _     = P.refl
+... | _ Wadler's-renderer.◇ _     = P.refl
 ... | Wadler's-renderer.line      = P.refl
 ... | Wadler's-renderer.union _ _ = P.refl
 ... | Wadler's-renderer.nest _ _  = P.refl

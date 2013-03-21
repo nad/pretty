@@ -111,11 +111,11 @@ mutual
 
   xml-printer : Pretty-printer xml
   xml-printer (elt t atts []) =
-    left ((start-of-element-printer (t , atts) ·
+    left ((start-of-element-printer (t , atts) ◇
            <$> left (<$ text))
           <⊛ symbol)
   xml-printer (elt t atts xs) =
-    left ((start-of-element-printer (t , atts) ·
+    left ((start-of-element-printer (t , atts) ◇
            <$> right (text ⊛> w-xmls-printer xs <⊛ symbol <⊛ symbol))
           <⊛ symbol)
   xml-printer (txt t) =
