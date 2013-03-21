@@ -66,7 +66,7 @@ name-w = name <⊛ whitespace ⋆
   where open Grammar
 
 name-w-printer : Pretty-printer name-w
-name-w-printer n = name-printer n <⊛ ⋆-[]
+name-w-printer n = name-printer n <⊛ nil-⋆
   where open Pretty
 
 test : render 80 (name-w-printer (str "aaa")) ≡ "aaa"

@@ -69,11 +69,10 @@ module Printer₁ where
       <$> tree-printer t ⊛ commas-and-trees-printer ts
 
     commas-and-trees-printer : Pretty-printer commas-and-trees
-    commas-and-trees-printer []       = ⋆-[]
+    commas-and-trees-printer []       = nil-⋆
     commas-and-trees-printer (t ∷ ts) =
-      (symbol-line ⊛> tree-printer t)
-        ⋆-∷
-      commas-and-trees-printer ts
+      cons-⋆ (symbol-line ⊛> tree-printer t)
+             (commas-and-trees-printer ts)
 
 module Printer₂ where
 
@@ -100,11 +99,10 @@ module Printer₂ where
       <$> tree-printer t ⊛ commas-and-trees-printer ts
 
     commas-and-trees-printer : Pretty-printer commas-and-trees
-    commas-and-trees-printer []       = ⋆-[]
+    commas-and-trees-printer []       = nil-⋆
     commas-and-trees-printer (t ∷ ts) =
-      (symbol-line ⊛> tree-printer t)
-        ⋆-∷
-      commas-and-trees-printer ts
+      cons-⋆ (symbol-line ⊛> tree-printer t)
+             (commas-and-trees-printer ts)
 
 t : Tree
 t = node (str "aaa")

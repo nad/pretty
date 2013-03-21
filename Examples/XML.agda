@@ -116,14 +116,14 @@ mutual
     -- Wadler pretty-prints text items in a different way. (The
     -- grammar that I use does not allow me to remove/modify
     -- whitespace like Wadler does.)
-    right (<$> text-printer t <⊛ ⋆-[])
+    right (<$> text-printer t <⊛ nil-⋆)
 
   start-of-element-printer : Pretty-printer start-of-element
   start-of-element-printer (t , atts) =
     <$ symbol ⊛ name-printer t ⊛ w-attrs-printer atts
 
   w-attrs-printer : Pretty-printer w-attrs
-  w-attrs-printer []       = ⋆-[] ⊛> ⋆-[]
+  w-attrs-printer []       = nil-⋆ ⊛> nil-⋆
   w-attrs-printer (a ∷ as) =
     group (nest 2 line⋆
              tt-⊛>
@@ -136,7 +136,7 @@ mutual
     <$> name-w-printer n <⊛ symbol <⊛ text ⊛ name-printer v <⊛ symbol
 
   w-xmls-printer : Pretty-printer w-xmls
-  w-xmls-printer []       = ⋆-[] ⊛> ⋆-[]
+  w-xmls-printer []       = nil-⋆ ⊛> nil-⋆
   w-xmls-printer (x ∷ xs) =
     group (nest 2 line⋆
              tt-⊛>

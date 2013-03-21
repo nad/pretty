@@ -355,7 +355,7 @@ module Expr (g : Precedence-graph) where
     -- I have not tried very hard to make it pretty.
 
     expr-printer : Pretty-printer expr
-    expr-printer e = ⋆-[] ⊛> precs-printer e <⊛ ⋆-[]
+    expr-printer e = nil-⋆ ⊛> precs-printer e <⊛ nil-⋆
 
     precs-printer : ∀ {ps} → Pretty-printer (precs ps)
     precs-printer e = group (precs-printer′ e)

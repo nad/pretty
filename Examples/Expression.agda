@@ -63,7 +63,7 @@ module Expression₁ where
 
     pprP : Pretty-printer term
     pprP one = one-doc
-    pprP e   = right (text ⊛> ⋆-[] ⊛> ppr e <⊛ ⋆-[] <⊛ text)
+    pprP e   = right (text ⊛> nil-⋆ ⊛> ppr e <⊛ nil-⋆ <⊛ text)
 
   example : Expr
   example = sub (sub one one) (sub one one)

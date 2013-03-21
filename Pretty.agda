@@ -191,21 +191,19 @@ right d = embed right-sem d
 
 -- Some Kleene star and plus combinators.
 
-⋆-[] : ∀ {c A} {g : ∞Grammar c A} → Doc (g ⋆) []
-⋆-[] {A = A} {g} = embed lemma nil
+nil-⋆ : ∀ {c A} {g : ∞Grammar c A} → Doc (g ⋆) []
+nil-⋆ {A = A} {g} = embed lemma nil
   where
   lemma : ∀ {s} → [] ∈ return {A = List A} [] ∙ s → [] ∈ g ⋆ ∙ s
   lemma return-sem = ⋆-[]-sem
 
-infixr 20 _+-∷-⋆_ _⋆-∷_
-
-_+-∷-⋆_ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
+cons-⋆+ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
           Doc (♭? g) x → Doc (g ⋆) xs → Doc (g +) (x ∷ xs)
-d₁ +-∷-⋆ d₂ = <$> d₁ ⊛ d₂
+cons-⋆+ d₁ d₂ = <$> d₁ ⊛ d₂
 
-_⋆-∷_ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
-        Doc (♭? g) x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
-d₁ ⋆-∷ d₂ = embed ⋆-+-sem (d₁ +-∷-⋆ d₂)
+cons-⋆ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
+         Doc (♭? g) x → Doc (g ⋆) xs → Doc (g ⋆) (x ∷ xs)
+cons-⋆ d₁ d₂ = embed ⋆-+-sem (cons-⋆+ d₁ d₂)
 
 -- A document for the empty string.
 
@@ -261,7 +259,7 @@ final-line i n {final} d =
 -- A document for the given symbol (and no following whitespace).
 
 symbol : ∀ {s} → Doc (G.symbol s) s
-symbol = text <⊛ ⋆-[]
+symbol = text <⊛ nil-⋆
 
 -- A document for the given symbol plus a "line".
 
@@ -293,12 +291,12 @@ mutual
 
   map⋆ : ∀ {c A} {g : ∞Grammar c A} →
          Pretty-printer (♭? g) → Pretty-printer (g ⋆)
-  map⋆ p []       = ⋆-[]
+  map⋆ p []       = nil-⋆
   map⋆ p (x ∷ xs) = embed ⋆-+-sem (map+ p (x ∷ xs))
 
   map+ : ∀ {c A} {g : ∞Grammar c A} →
          Pretty-printer (♭? g) → Pretty-printer (g +)
-  map+ p (x ∷ xs) = p x +-∷-⋆ map⋆ p xs
+  map+ p (x ∷ xs) = cons-⋆+ (p x) (map⋆ p xs)
 
 mutual
 
@@ -359,6 +357,6 @@ map⋆-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
             {final : IsJust (final-whitespace? n (♭? g))} →
             Pretty-printer (♭? g) →
             Pretty-printer (g ⋆)
-map⋆-fill n         p []       = ⋆-[]
+map⋆-fill n         p []       = nil-⋆
 map⋆-fill n {final} p (x ∷ xs) =
   embed ⋆-+-sem (map+-fill n {final = final} p (x ∷ xs))
