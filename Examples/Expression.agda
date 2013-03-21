@@ -33,15 +33,15 @@ module Expression₁ where
     mutual
 
       expr : Grammar Expr
-      expr = atom
+      expr = term
            ∣ sub <$> ♯ expr
                   <⊛ whitespace ⋆
                   <⊛ string′ "-"
                   <⊛ whitespace ⋆
-                  ⊛  atom
+                  ⊛  term
 
-      atom : Grammar Expr
-      atom = one <$ string′ "1"
+      term : Grammar Expr
+      term = one <$ string′ "1"
            ∣    string′ "("
              ⊛> whitespace ⋆
              ⊛> ♯ expr
@@ -50,7 +50,7 @@ module Expression₁ where
 
   open Pretty
 
-  one-doc : Doc atom one
+  one-doc : Doc term one
   one-doc = left (<$ text)
 
   mutual
@@ -61,7 +61,7 @@ module Expression₁ where
       right (group (<$> ppr e₁ <⊛-tt
                     nest 2 line⋆ <⊛ text <⊛ space ⊛ nest 2 (pprP e₂)))
 
-    pprP : Pretty-printer atom
+    pprP : Pretty-printer term
     pprP one = one-doc
     pprP e   = right (text ⊛> ⋆-[] ⊛> ppr e <⊛ ⋆-[] <⊛ text)
 
@@ -91,16 +91,16 @@ module Expression₂ where
     mutual
 
       expr : Grammar Expr
-      expr = atom
-           ∣ sub <$> ♯ expr <⊛ symbol′ "-" ⊛ atom
+      expr = term
+           ∣ sub <$> ♯ expr <⊛ symbol′ "-" ⊛ term
 
-      atom : Grammar Expr
-      atom = one <$ symbol′ "1"
+      term : Grammar Expr
+      term = one <$ symbol′ "1"
            ∣ symbol′ "(" ⊛> ♯ expr <⊛ symbol′ ")"
 
   open Pretty
 
-  one-doc : Doc atom one
+  one-doc : Doc term one
   one-doc = left (<$ symbol)
 
   mutual
@@ -111,7 +111,7 @@ module Expression₂ where
       right (group (<$> final-line 2 6 (ppr e₁) <⊛
                     symbol-space ⊛ nest 2 (pprP e₂)))
 
-    pprP : Pretty-printer atom
+    pprP : Pretty-printer term
     pprP one = one-doc
     pprP e   = right (symbol ⊛> ppr e <⊛ symbol)
 
