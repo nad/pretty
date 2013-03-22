@@ -58,7 +58,7 @@ module Expression₁ where
     expr-printer : Pretty-printer expr
     expr-printer one         = left one-doc
     expr-printer (sub e₁ e₂) =
-      right (group (<$> expr-printer e₁ <⊛-tt
+      group (right (<$> expr-printer e₁ <⊛-tt
                     nest 2 line⋆ <⊛ text <⊛ space ⊛
                     nest 2 (term-printer e₂)))
 
@@ -110,7 +110,7 @@ module Expression₂ where
     expr-printer : Pretty-printer expr
     expr-printer one         = left one-doc
     expr-printer (sub e₁ e₂) =
-      right (group (<$> final-line 2 6 (expr-printer e₁) <⊛
+      group (right (<$> final-line 2 6 (expr-printer e₁) <⊛
                     symbol-space ⊛ nest 2 (term-printer e₂)))
 
     term-printer : Pretty-printer term
@@ -200,12 +200,12 @@ module Expression₃ where
 
     sub-printer : ∀ e₁ e₂ → Doc (expr ′5) (sub e₁ e₂)
     sub-printer e₁ e₂ =
-      right (group (<$> final-line 2 10 (expr-printer ′5 e₁) <⊛
+      group (right (<$> final-line 2 10 (expr-printer ′5 e₁) <⊛
                     symbol-space ⊛ nest 2 (expr-printer ′6 e₂)))
 
     div-printer : ∀ e₁ e₂ → Doc (expr ′6) (div e₁ e₂)
     div-printer e₁ e₂ =
-      right (group (<$> final-line 2 10 (expr-printer ′6 e₁) <⊛
+      group (right (<$> final-line 2 10 (expr-printer ′6 e₁) <⊛
                     symbol-space ⊛ nest 2 (expr-printer ′7 e₂)))
 
   -- Unit tests.
