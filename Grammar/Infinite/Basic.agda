@@ -94,18 +94,8 @@ fail = ♯ fail ∣ ♯ fail
 
 infixl 20 _<$>_ _<$_
 
-private
-
-  -- A workaround for what I think is an Agda bug.
-
-  _<$>′_ : ∀ {A B} → (A → B) → ∞ (Grammar A) → Grammar B
-  f <$>′ g = g >>= λ x → ♯ return (f x)
-
-  delay : ∀ {A} → Grammar A → ∞ (Grammar A)
-  delay = ♯_
-
 _<$>_ : ∀ {A B} → (A → B) → Grammar A → Grammar B
-f <$> g = f <$>′ delay g
+f <$> g = ♯ g >>= λ x → ♯ return (f x)
 
 _<$_ : ∀ {A B} → A → Grammar B → Grammar A
 x <$ g = const x <$> g
@@ -143,22 +133,22 @@ fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
           y ∈ f <$> g ∙ s ↔ ∃ λ x → x ∈ g ∙ s × y ≡ f x
 <$>-sem {A} {B} {f} {g} = record
   { to         = P.→-to-⟶ to
-  ; from       = P.→-to-⟶ (from (delay g))
+  ; from       = P.→-to-⟶ from
   ; inverse-of = record
     { left-inverse-of  = from∘to
-    ; right-inverse-of = to∘from (delay g)
+    ; right-inverse-of = to∘from
     }
   }
   where
   lemma : ∀ s → s ++ [] ≡ s
   lemma s = proj₂ LM.identity s
 
-  to : ∀ {s g y} → y ∈ f <$>′ g ∙ s → ∃ λ x → x ∈ ♭ g ∙ s × y ≡ f x
+  to : ∀ {s g y} → y ∈ f <$> g ∙ s → ∃ λ x → x ∈ g ∙ s × y ≡ f x
   to (>>=-sem x∈ return-sem) =
     _ , cast (P.sym $ lemma _) x∈ , refl
 
-  from : ∀ {s y} g → (∃ λ x → x ∈ ♭ g ∙ s × y ≡ f x) → y ∈ f <$>′ g ∙ s
-  from _ (x , x∈ , refl) = cast (lemma _) (>>=-sem x∈ return-sem)
+  from : ∀ {s y g} → (∃ λ x → x ∈ g ∙ s × y ≡ f x) → y ∈ f <$> g ∙ s
+  from (x , x∈ , refl) = cast (lemma _) (>>=-sem x∈ return-sem)
 
   >>=-cast : ∀ {x y s₁ s₂ s}
                {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
@@ -173,7 +163,7 @@ fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
               cast eq₁ (cast eq₂ z∈) ≡ z∈
   cast-cast refl refl = refl
 
-  from∘to : ∀ {s g y} (y∈ : y ∈ f <$>′ g ∙ s) → from _ (to y∈) ≡ y∈
+  from∘to : ∀ {s g y} (y∈ : y ∈ f <$> g ∙ s) → from (to y∈) ≡ y∈
   from∘to (>>=-sem {s₁ = s} x∈ return-sem) = begin
     cast (lemma (s ++ []))
          (>>=-sem (cast (P.sym $ lemma s) x∈) return-sem)  ≡⟨ P.cong (cast (lemma (s ++ []))) $
@@ -185,15 +175,15 @@ fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
     >>=-sem x∈ return-sem                                  ∎
     where open P.≡-Reasoning
 
-  to-cast : ∀ {s₁ s₂ y} g (eq : s₁ ≡ s₂) (y∈ : y ∈ f <$>′ g ∙ s₁) →
+  to-cast : ∀ {s₁ s₂ y g} (eq : s₁ ≡ s₂) (y∈ : y ∈ f <$> g ∙ s₁) →
             to (cast eq y∈) ≡
-            P.subst (λ s → ∃ λ x → x ∈ ♭ g ∙ s × y ≡ f x) eq (to y∈)
-  to-cast _ refl y∈ = refl
+            P.subst (λ s → ∃ λ x → x ∈ g ∙ s × y ≡ f x) eq (to y∈)
+  to-cast refl y∈ = refl
 
-  to∘from : ∀ {s y} g
-            (x∈ : ∃ λ x → x ∈ ♭ g ∙ s × y ≡ f x) → to (from g x∈) ≡ x∈
-  to∘from {s} g (x , x∈ , refl)
-    rewrite to-cast g (lemma s) (>>=-sem x∈ return-sem)
+  to∘from : ∀ {s y g}
+            (x∈ : ∃ λ x → x ∈ g ∙ s × y ≡ f x) → to (from x∈) ≡ x∈
+  to∘from {s} (x , x∈ , refl)
+    rewrite to-cast (lemma s) (>>=-sem x∈ return-sem)
           | lemma s
     = refl
 

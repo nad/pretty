@@ -524,10 +524,9 @@ isomorphic {g = g} = record
   sound∘complete (g ⋆) (left-sem return-sem) = refl
   sound∘complete (g ⋆)
     (right-sem
-       (>>=-sem {x = ._}
-          (>>=-sem {y = ._} (>>=-sem          x∈  return-sem)
-                            (>>=-sem {y = ._} xs∈ return-sem))
-          return-sem))
+       (>>=-sem (>>=-sem (>>=-sem x∈  return-sem)
+                         (>>=-sem xs∈ return-sem))
+                return-sem))
     with complete (♭? g) x∈ | sound∘complete (♭? g) x∈
        | complete (g ⋆) xs∈ | sound∘complete (g ⋆) xs∈
   sound∘complete (g ⋆)
