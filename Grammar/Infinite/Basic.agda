@@ -83,22 +83,12 @@ data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
                x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
 
 ----------------------------------------------------------------------
--- Some grammar and semantics combinators
-
--- Cast lemma.
-
-cast : ∀ {A} {g : Grammar A} {x s₁ s₂} →
-       s₁ ≡ s₂ → x ∈ g ∙ s₁ → x ∈ g ∙ s₂
-cast refl = id
+-- Some grammar combinators
 
 -- Failure.
 
 fail : ∀ {A} → Grammar A
 fail = ♯ fail ∣ ♯ fail
-
-fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail ∙ s)
-fail-sem⁻¹ (left-sem  ∈fail) = fail-sem⁻¹ ∈fail
-fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
 -- Map.
 
@@ -119,6 +109,35 @@ f <$> g = f <$>′ delay g
 
 _<$_ : ∀ {A B} → A → Grammar B → Grammar A
 x <$ g = const x <$> g
+
+-- The empty string if the argument is true, otherwise failure.
+
+if-true : (b : Bool) → Grammar (T b)
+if-true true  = return tt
+if-true false = fail
+
+-- A token satisfying a given predicate.
+
+sat : (p : Char → Bool) → Grammar (∃ λ t → T (p t))
+sat p = ♯ token >>= λ t → ♯ (_,_ t <$> if-true (p t))
+
+-- A specific token.
+
+tok : Char → Grammar Char
+tok t = t <$ sat (λ t′ → t ≟C t′)
+
+------------------------------------------------------------------------
+-- Some semantics combinators
+
+-- Cast lemma.
+
+cast : ∀ {A} {g : Grammar A} {x s₁ s₂} →
+       s₁ ≡ s₂ → x ∈ g ∙ s₁ → x ∈ g ∙ s₂
+cast refl = id
+
+fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail ∙ s)
+fail-sem⁻¹ (left-sem  ∈fail) = fail-sem⁻¹ ∈fail
+fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
 <$>-sem : ∀ {A B} {f : A → B} {g : Grammar A} {y s} →
           y ∈ f <$> g ∙ s ↔ ∃ λ x → x ∈ g ∙ s × y ≡ f x
@@ -178,12 +197,6 @@ x <$ g = const x <$> g
           | lemma s
     = refl
 
--- The empty string if the argument is true, otherwise failure.
-
-if-true : (b : Bool) → Grammar (T b)
-if-true true  = return tt
-if-true false = fail
-
 if-true-sem : ∀ {b} x {s} → x ∈ if-true b ∙ s ↔ s ≡ []
 if-true-sem x = record
   { to         = P.→-to-⟶ (to _)
@@ -209,11 +222,6 @@ if-true-sem x = record
   to∘from : ∀ b x {s} (eq : s ≡ []) → to b (from b x eq) ≡ eq
   to∘from true  _  refl = refl
   to∘from false () refl
-
--- A token satisfying a given predicate.
-
-sat : (p : Char → Bool) → Grammar (∃ λ t → T (p t))
-sat p = ♯ token >>= λ t → ♯ (_,_ t <$> if-true (p t))
 
 sat-sem : ∀ {p : Char → Bool} {t pt s} →
           (t , pt) ∈ sat p ∙ s ↔ s ≡ [ t ]
@@ -249,11 +257,6 @@ sat-sem {p} {t} {pt} = record
   to∘from refl
     rewrite Inverse.right-inverse-of (if-true-sem pt) refl
     = refl
-
--- A specific token.
-
-tok : Char → Grammar Char
-tok t = t <$ sat (λ t′ → t ≟C t′)
 
 abstract
 
