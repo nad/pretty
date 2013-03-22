@@ -12,21 +12,17 @@ open import Data.List.NonEmpty as List⁺
 open import Data.Nat as Nat
 open import Data.Product
 open import Data.String as String using (String)
-open import Data.Unit
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using () renaming (module Equivalence to Eq)
-open import Function.Inverse using (_↔_)
-open import Function.Related.TypeIsomorphisms
 open import Relation.Binary
 import Relation.Binary.Props.DecTotalOrder as DTO
 import Relation.Binary.Props.StrictTotalOrder as STO
-open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary.Decidable
 
 ------------------------------------------------------------------------
--- Some boolean-valued operators (equality, less than, …)
+-- Some comparison operators
 
 -- Is one number strictly smaller than another?
 
@@ -41,16 +37,6 @@ _≤?C_ : Char → Char → Bool
 c₁ ≤?C c₂ = ⌊ DecTotalOrder._≤?_
                 (STO.decTotalOrder Char.strictTotalOrder)
                 c₁ c₂ ⌋
-
--- Is one character equal to another?
-
-_≟C_ : Char → Char → Bool
-c₁ ≟C c₂ = ⌊ c₁ Char.≟ c₂ ⌋
-
--- A lemma related to _≟C_.
-
-≟C↔≡ : ∀ {c c′} → T (c ≟C c′) ↔ c ≡ c′
-≟C↔≡ = True↔ (_ Char.≟ _) P.proof-irrelevance
 
 ------------------------------------------------------------------------
 -- Conversion of strings satisfying given predicates to annotated

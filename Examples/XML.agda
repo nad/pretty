@@ -25,7 +25,7 @@ open import Utilities
 -- Text.
 
 is-space : Char → Bool
-is-space t = (t ≟C ' ') ∨ (t ≟C '\n')
+is-space t = (t == ' ') ∨ (t == '\n')
 
 is-text-char : Char → Bool
 is-text-char t = is-name-char t ∨ is-space t

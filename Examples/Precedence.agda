@@ -12,7 +12,7 @@ module Examples.Precedence where
 open import Coinduction
 open import Data.Bool using (Bool; T)
 import Data.Bool.Properties as Bool-prop
-open import Data.Char as Char using (Char)
+open import Data.Char as Char using (Char; _==_)
 open import Data.Fin using (Fin; zero; suc; #_)
 import Data.Fin.Dec as Fin-dec
 open import Data.Fin.Props using () renaming (_≟_ to _≟F_)
@@ -67,7 +67,7 @@ _≟A_ : Decidable (_≡_ {A = Associativity})
 
 is-operator-char : Char → Bool
 is-operator-char t =
-  List.any (_≟C_ t) (String.toList "+-*/.:^<>=!&|")
+  List.any (_==_ t) (String.toList "+-*/.:^<>=!&|")
 
 Operator-name : Set
 Operator-name = List⁺ (∃ (T ∘ is-operator-char))

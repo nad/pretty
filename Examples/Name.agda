@@ -26,11 +26,11 @@ is-name-char t =
     ∨
   ('0' ≤?C t) ∧ (t ≤?C '9')
     ∨
-  (t ≟C ':')
+  (t == ':')
     ∨
-  (t ≟C '.')
+  (t == '.')
     ∨
-  (t ≟C '/')
+  (t == '/')
 
 Name-char : Set
 Name-char = ∃ λ (t : Char) → T (is-name-char t)

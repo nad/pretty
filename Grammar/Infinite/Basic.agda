@@ -27,8 +27,6 @@ open import Relation.Nullary
 
 private module LM {A : Set} = Monoid (List.monoid A)
 
-open import Utilities
-
 ------------------------------------------------------------------------
 -- Simple, potentially infinite grammars
 
@@ -114,7 +112,7 @@ sat p = ♯ token >>= λ t → ♯ (_,_ t <$> if-true (p t))
 -- A specific token.
 
 tok : Char → Grammar Char
-tok t = t <$ sat (λ t′ → t ≟C t′)
+tok t = t <$ sat (λ t′ → t == t′)
 
 ------------------------------------------------------------------------
 -- Some semantics combinators
@@ -256,9 +254,9 @@ abstract
   tok-sem : ∀ {t′ t s} → t′ ∈ tok t ∙ s ↔ (t ≡ t′ × s ≡ [ t ])
   tok-sem {t′} {t} {s} =
     t′ ∈ tok t ∙ s                                   ↔⟨ <$>-sem ⟩
-    (∃ λ p → p ∈ sat (λ t′ → t ≟C t′) ∙ s × t′ ≡ t)  ↔⟨ Σ.cong Inv.id (sat-sem ×-cong Inv.id) ⟩
+    (∃ λ p → p ∈ sat (λ t′ → t == t′) ∙ s × t′ ≡ t)  ↔⟨ Σ.cong Inv.id (sat-sem ×-cong Inv.id) ⟩
     (∃ λ p → s ≡ [ proj₁ p ] × t′ ≡ t)               ↔⟨ Σ-assoc ⟩
-    (∃ λ t″ → T (t ≟C t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (≟C↔≡ ×-cong Inv.id) ⟩
+    (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (True↔ _ P.proof-irrelevance ×-cong Inv.id) ⟩
     (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t)          ↔⟨ lemma ⟩
     (t ≡ t′ × s ≡ [ t ])                             ∎
     where
