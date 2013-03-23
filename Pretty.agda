@@ -245,10 +245,7 @@ line⋆ = embed lemma line
 
 final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
               Trailing-whitespace g → Doc g x → Doc g x
-final-line′ {g = g} i trailing d = embed lemma (d <⊛-tt nest i line⋆)
-  where
-  lemma : ∀ {x s} → x ∈ g G.<⊛ whitespace ⋆ ∙ s → x ∈ g ∙ s
-  lemma (<⊛-sem x∈ white) = trailing x∈ white
+final-line′ i trailing d = embed trailing (d <⊛-tt nest i line⋆)
 
 final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
              {trailing : IsJust (trailing-whitespace? n g)} →
@@ -334,7 +331,7 @@ fill+ {g = g} n {trailing} ds = embed lemma (fill ds)
   lemma′           x∈ ⋆-[]-sem = +-sem x∈ ⋆-[]-sem
   lemma′ {s₁ = s₁} x∈ (⋆-+-sem (⊛-sem (<$>-sem (⊛>-sem w+ x′∈)) xs∈)) =
     cast (lemma″ s₁ _ _ _)
-         (+-∷-sem (trailing! x∈ (⋆-+-sem w+)) (lemma′ x′∈ xs∈))
+         (+-∷-sem (trailing! (<⊛-sem x∈ (⋆-+-sem w+))) (lemma′ x′∈ xs∈))
 
   lemma : ∀ {s xs} → xs ∈ ♭? g sep-by whitespace + ∙ s → xs ∈ g + ∙ s
   lemma (⊛-sem (<$>-sem x∈) xs∈) = lemma′ x∈ xs∈

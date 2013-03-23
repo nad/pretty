@@ -474,9 +474,7 @@ is-whitespace? _ = nothing
 
 Trailing-whitespace : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
 Trailing-whitespace g p =
-  ∀ {x s₁ s₂ s} →
-  [ g ] x ∈ p ∙ s₁ → [ g ] s ∈ whitespace ⋆ ∙ s₂ →
-  [ g ] x ∈ p ∙ s₁ ++ s₂
+  ∀ {x s} → [ g ] x ∈ p <⊛ whitespace ⋆ ∙ s → [ g ] x ∈ p ∙ s
 
 -- A heuristic procedure that either proves that a production can
 -- swallow trailing whitespace, or returns "don't know" as the answer.
@@ -485,26 +483,38 @@ trailing-whitespace? :
   ∀ {NT A} (n : ℕ) (g : Grammar NT) (p : Prod NT A) →
   Maybe (Trailing-whitespace g p)
 trailing-whitespace? {NT} n g p =
-  unfold-lemma <$>M trailing? (unfold n g p)
+  convert ∘ unfold-lemma <$>M trailing? (unfold n g p)
   where
+  -- An alternative formulation of Trailing-whitespace.
+
+  Trailing-whitespace′ : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
+  Trailing-whitespace′ g p =
+    ∀ {x s₁ s₂ s} →
+    [ g ] x ∈ p ∙ s₁ → [ g ] s ∈ whitespace ⋆ ∙ s₂ →
+    [ g ] x ∈ p ∙ s₁ ++ s₂
+
+  convert : ∀ {NT A} {g : Grammar NT} {p : Prod NT A} →
+            Trailing-whitespace′ g p → Trailing-whitespace g p
+  convert t (<⊛-sem x∈ w) = t x∈ w
+
   ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) P.refl
     where open List-solver
 
-  unfold-lemma : Trailing-whitespace g (unfold n g p) →
-                 Trailing-whitespace g p
+  unfold-lemma : Trailing-whitespace′ g (unfold n g p) →
+                 Trailing-whitespace′ g p
   unfold-lemma t x∈ white = unfold-from n _ (t (unfold-to n _ x∈) white)
 
   ⊛-return-lemma :
     ∀ {A B} {p : Prod NT (A → B)} {x} →
-    Trailing-whitespace g p →
-    Trailing-whitespace g (p ⊛ return x)
+    Trailing-whitespace′ g p →
+    Trailing-whitespace′ g (p ⊛ return x)
   ⊛-return-lemma t (⊛-sem {s₁ = s₁} f∈ return-sem) white =
     cast (++-lemma s₁ _) (⊛-sem (t f∈ white) return-sem)
 
   +-lemma :
     ∀ {A} {p : Prod NT A} →
-    Trailing-whitespace g p →
-    Trailing-whitespace g (p +)
+    Trailing-whitespace′ g p →
+    Trailing-whitespace′ g (p +)
   +-lemma t (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) ⋆-[]-sem) white =
     cast (++-lemma s₁ _) (+-sem (t x∈ white) ⋆-[]-sem)
   +-lemma t (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) (⋆-+-sem xs∈))
@@ -514,9 +524,9 @@ trailing-whitespace? {NT} n g p =
 
   ⊛-⋆-lemma :
     ∀ {A B} {p₁ : Prod NT (List A → B)} {p₂ : Prod NT A} →
-    Trailing-whitespace g p₁ →
-    Trailing-whitespace g p₂ →
-    Trailing-whitespace g (p₁ ⊛ p₂ ⋆)
+    Trailing-whitespace′ g p₁ →
+    Trailing-whitespace′ g p₂ →
+    Trailing-whitespace′ g (p₁ ⊛ p₂ ⋆)
   ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) white =
     cast (++-lemma s₁ _) (⊛-sem (t₁ f∈ white) ⋆-[]-sem)
   ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) white =
@@ -524,9 +534,9 @@ trailing-whitespace? {NT} n g p =
          (⊛-sem f∈ (⋆-+-sem (+-lemma t₂ xs∈ white)))
 
   ⊛-∣-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ p₃ : Prod NT A} →
-              Trailing-whitespace g (p₁ ⊛ p₂) →
-              Trailing-whitespace g (p₁ ⊛ p₃) →
-              Trailing-whitespace g (p₁ ⊛ (p₂ ∣ p₃))
+              Trailing-whitespace′ g (p₁ ⊛ p₂) →
+              Trailing-whitespace′ g (p₁ ⊛ p₃) →
+              Trailing-whitespace′ g (p₁ ⊛ (p₂ ∣ p₃))
   ⊛-∣-lemma t₁₂ t₁₃ {s₂ = s₃}
     (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (left-sem x∈))
     white
@@ -539,59 +549,59 @@ trailing-whitespace? {NT} n g p =
   ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (right-sem x∈′)
 
   ⊛-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ : Prod NT A} →
-            Trailing-whitespace g p₂ →
-            Trailing-whitespace g (p₁ ⊛ p₂)
+            Trailing-whitespace′ g p₂ →
+            Trailing-whitespace′ g (p₁ ⊛ p₂)
   ⊛-lemma t₂ (⊛-sem {s₁ = s₁} f∈ x∈) white =
     cast (P.sym $ LM.assoc s₁ _ _)
          (⊛-sem f∈ (t₂ x∈ white))
 
   <⊛-return-lemma :
     ∀ {A B} {p : Prod NT A} {x : B} →
-    Trailing-whitespace g p →
-    Trailing-whitespace g (p <⊛ return x)
+    Trailing-whitespace′ g p →
+    Trailing-whitespace′ g (p <⊛ return x)
   <⊛-return-lemma t (<⊛-sem {s₁ = s₁} f∈ return-sem) white =
     cast (++-lemma s₁ _) (<⊛-sem (t f∈ white) return-sem)
 
   <⊛-⋆-lemma :
     ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
     Is-whitespace p₂ →
-    Trailing-whitespace g (p₁ <⊛ p₂ ⋆)
+    Trailing-whitespace′ g (p₁ <⊛ p₂ ⋆)
   <⊛-⋆-lemma is-whitespace (<⊛-sem {s₁ = s₁} x∈ white₁) white₂ =
     cast (P.sym $ LM.assoc s₁ _ _)
          (<⊛-sem x∈ (⋆-⋆-sem white₁ white₂))
 
   <⊛-lemma : ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
-             Trailing-whitespace g p₂ →
-             Trailing-whitespace g (p₁ <⊛ p₂)
+             Trailing-whitespace′ g p₂ →
+             Trailing-whitespace′ g (p₁ <⊛ p₂)
   <⊛-lemma t₂ (<⊛-sem {s₁ = s₁} f∈ x∈) white =
     cast (P.sym $ LM.assoc s₁ _ _)
          (<⊛-sem f∈ (t₂ x∈ white))
 
   fail->>=-lemma : ∀ {A B} {p : A → Prod NT B} →
-                   Trailing-whitespace g (fail >>= p)
+                   Trailing-whitespace′ g (fail >>= p)
   fail->>=-lemma (>>=-sem () _)
 
   return->>=-lemma : ∀ {A B} {p : A → Prod NT B} {x} →
-                     Trailing-whitespace g (p x) →
-                     Trailing-whitespace g (return x >>= p)
+                     Trailing-whitespace′ g (p x) →
+                     Trailing-whitespace′ g (return x >>= p)
   return->>=-lemma t (>>=-sem return-sem y∈) white =
     >>=-sem return-sem (t y∈ white)
 
   tok->>=-lemma : ∀ {A} {p : Char → Prod NT A} {t} →
-                  Trailing-whitespace g (p t) →
-                  Trailing-whitespace g (tok t >>= p)
+                  Trailing-whitespace′ g (p t) →
+                  Trailing-whitespace′ g (tok t >>= p)
   tok->>=-lemma t (>>=-sem tok-sem y∈) white =
     >>=-sem tok-sem (t y∈ white)
 
   ∣-lemma : ∀ {A} {p₁ p₂ : Prod NT A} →
-            Trailing-whitespace g p₁ →
-            Trailing-whitespace g p₂ →
-            Trailing-whitespace g (p₁ ∣ p₂)
+            Trailing-whitespace′ g p₁ →
+            Trailing-whitespace′ g p₂ →
+            Trailing-whitespace′ g (p₁ ∣ p₂)
   ∣-lemma t₁ t₂ (left-sem  x∈) white = left-sem  (t₁ x∈ white)
   ∣-lemma t₁ t₂ (right-sem x∈) white = right-sem (t₂ x∈ white)
 
   trailing? : ∀ {A} (p : Prod NT A) →
-              Maybe (Trailing-whitespace g p)
+              Maybe (Trailing-whitespace′ g p)
   trailing? fail             = just (λ ())
   trailing? (p ⊛ return x)   = ⊛-return-lemma <$>M trailing? p
   trailing? (p₁ ⊛ p₂ ⋆)      = ⊛-⋆-lemma <$>M trailing? p₁ ⊛M trailing? p₂
