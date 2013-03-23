@@ -207,15 +207,15 @@ cons-⋆ d₁ d₂ = embed ⋆-+-sem (cons-⋆+ d₁ d₂)
 
 -- A document for the empty string.
 
-if-true : ∀ {b} {t : T b} → Doc (G.if-true b) t
-if-true {true}     = nil
-if-true {false} {}
+if-true : ∀ b (t : T b) → Doc (G.if-true b) t
+if-true true  _  = nil
+if-true false ()
 
 -- Documents for the given character.
 
 sat : ∀ {p : Char → Bool} {t pt} →
       Doc (G.sat p) (t , pt)
-sat = token ◇ <$> if-true
+sat = token ◇ <$> if-true _ _
 
 tok-sat : {p : Char → Bool} → Pretty-printer-for (G.tok-sat p)
 tok-sat _ = <$ tok
