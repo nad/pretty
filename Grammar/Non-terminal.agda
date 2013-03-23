@@ -616,3 +616,11 @@ trailing-whitespace? {NT} n g p =
   trailing? (tok t >>= p)    = tok->>=-lemma <$>M trailing? (p t)
   trailing? (p₁ ∣ p₂)        = ∣-lemma <$>M trailing? p₁ ⊛M trailing? p₂
   trailing? _                = nothing
+
+private
+
+  -- A unit test.
+
+  test : IsJust (trailing-whitespace?
+                   0 empty-grammar (tt <$ whitespace ⋆))
+  test = _
