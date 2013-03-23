@@ -785,235 +785,235 @@ is-whitespace? (_∣_ {c₁ = false} {c₂ = false} (tok ' ') g) =
 is-whitespace? _ = nothing
 
 ------------------------------------------------------------------------
--- Final whitespace
+-- Trailing whitespace
 
--- A predicate for grammars that can "swallow" extra whitespace at the
--- end.
+-- A predicate for grammars that can "swallow" extra trailing
+-- whitespace.
 
-Final-whitespace : ∀ {A} → Grammar A → Set₁
-Final-whitespace g =
+Trailing-whitespace : ∀ {A} → Grammar A → Set₁
+Trailing-whitespace g =
   ∀ {x s₁ s₂ s} →
   x ∈ g ∙ s₁ → s ∈ whitespace ⋆ ∙ s₂ → x ∈ g ∙ s₁ ++ s₂
 
 -- A similar but weaker property.
 
-Final-whitespace′ : ∀ {A} → Grammar A → Set₁
-Final-whitespace′ g =
+Trailing-whitespace′ : ∀ {A} → Grammar A → Set₁
+Trailing-whitespace′ g =
   ∀ {x s₁ s₂ s} →
   x ∈ g ∙ s₁ → s ∈ whitespace ⋆ ∙ s₂ → ∃ λ y → y ∈ g ∙ s₁ ++ s₂
 
 -- A heuristic (and rather incomplete) procedure that either proves
--- that a production can swallow final whitespace (in the weaker
+-- that a production can swallow trailing whitespace (in the weaker
 -- sense), or returns "don't know" as the answer.
 --
 -- The natural number n is used to ensure termination.
 
-final-whitespace′? : ∀ (n : ℕ) {A} (g : Grammar A) →
-                     Maybe (Final-whitespace′ g)
-final-whitespace′? = final?
+trailing-whitespace′? : ∀ (n : ℕ) {A} (g : Grammar A) →
+                        Maybe (Trailing-whitespace′ g)
+trailing-whitespace′? = trailing?
   where
   <$>-lemma : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} →
-              Final-whitespace′ (♭? g) →
-              Final-whitespace′ (f <$> g)
-  <$>-lemma f (<$>-sem x∈) w = , <$>-sem (proj₂ $ f x∈ w)
+              Trailing-whitespace′ (♭? g) →
+              Trailing-whitespace′ (f <$> g)
+  <$>-lemma t (<$>-sem x∈) w = , <$>-sem (proj₂ $ t x∈ w)
 
   <$-lemma : ∀ {c A B} {x : A} {g : ∞Grammar c B} →
-             Final-whitespace′ (♭? g) →
-             Final-whitespace′ (x <$ g)
-  <$-lemma f (<$-sem x∈) w = , <$-sem (proj₂ $ f x∈ w)
+             Trailing-whitespace′ (♭? g) →
+             Trailing-whitespace′ (x <$ g)
+  <$-lemma t (<$-sem x∈) w = , <$-sem (proj₂ $ t x∈ w)
 
   ⊛-lemma : ∀ {c₁ c₂ A B}
               {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A} →
-            Final-whitespace′ (♭? g₂) →
-            Final-whitespace′ (g₁ ⊛ g₂)
-  ⊛-lemma f₂ (⊛-sem {s₁ = s₁} f∈ x∈) w =
+            Trailing-whitespace′ (♭? g₂) →
+            Trailing-whitespace′ (g₁ ⊛ g₂)
+  ⊛-lemma t₂ (⊛-sem {s₁ = s₁} f∈ x∈) w =
     , cast (P.sym $ LM.assoc s₁ _ _)
-           (⊛-sem f∈ (proj₂ $ f₂ x∈ w))
+           (⊛-sem f∈ (proj₂ $ t₂ x∈ w))
 
   <⊛-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
-             Final-whitespace′ (♭? g₂) →
-             Final-whitespace′ (g₁ <⊛ g₂)
-  <⊛-lemma f₂ (<⊛-sem {s₁ = s₁} x∈ y∈) w =
+             Trailing-whitespace′ (♭? g₂) →
+             Trailing-whitespace′ (g₁ <⊛ g₂)
+  <⊛-lemma t₂ (<⊛-sem {s₁ = s₁} x∈ y∈) w =
     , cast (P.sym $ LM.assoc s₁ _ _)
-           (<⊛-sem x∈ (proj₂ $ f₂ y∈ w))
+           (<⊛-sem x∈ (proj₂ $ t₂ y∈ w))
 
   ⊛>-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
-             Final-whitespace′ (♭? g₂) →
-             Final-whitespace′ (g₁ ⊛> g₂)
-  ⊛>-lemma f₂ (⊛>-sem {s₁ = s₁} x∈ y∈) w =
+             Trailing-whitespace′ (♭? g₂) →
+             Trailing-whitespace′ (g₁ ⊛> g₂)
+  ⊛>-lemma t₂ (⊛>-sem {s₁ = s₁} x∈ y∈) w =
     , cast (P.sym $ LM.assoc s₁ _ _)
-           (⊛>-sem x∈ (proj₂ $ f₂ y∈ w))
+           (⊛>-sem x∈ (proj₂ $ t₂ y∈ w))
 
   ∣-lemma : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
-            Final-whitespace′ (♭? g₁) →
-            Final-whitespace′ (♭? g₂) →
-            Final-whitespace′ (g₁ ∣ g₂)
-  ∣-lemma f₁ f₂ (left-sem  x∈) w = , left-sem  (proj₂ $ f₁ x∈ w)
-  ∣-lemma f₁ f₂ (right-sem x∈) w = , right-sem (proj₂ $ f₂ x∈ w)
+            Trailing-whitespace′ (♭? g₁) →
+            Trailing-whitespace′ (♭? g₂) →
+            Trailing-whitespace′ (g₁ ∣ g₂)
+  ∣-lemma t₁ t₂ (left-sem  x∈) w = , left-sem  (proj₂ $ t₁ x∈ w)
+  ∣-lemma t₁ t₂ (right-sem x∈) w = , right-sem (proj₂ $ t₂ x∈ w)
 
   whitespace⋆-lemma :
     ∀ {A} {g : Grammar A} →
     Is-whitespace g →
-    Final-whitespace′ (g ⋆)
+    Trailing-whitespace′ (g ⋆)
   whitespace⋆-lemma is-whitespace xs∈ w = , ⋆-⋆-sem xs∈ w
 
-  final? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Final-whitespace′ g)
-  final? (suc n) fail               = just (λ ())
-  final? (suc n) (f <$> g)          = <$>-lemma <$>M final? n (♭? g)
-  final? (suc n) (x <$ g)           = <$-lemma  <$>M final? n (♭? g)
-  final? (suc n) (g₁ ⊛ g₂)          = ⊛-lemma   <$>M final? n (♭? g₂)
-  final? (suc n) (g₁ <⊛ g₂)         = <⊛-lemma  <$>M final? n (♭? g₂)
-  final? (suc n) (g₁ ⊛> g₂)         = ⊛>-lemma  <$>M final? n (♭? g₂)
-  final? (suc n) (g₁ ∣ g₂)          = ∣-lemma   <$>M final? n (♭? g₁)
-                                                  ⊛M final? n (♭? g₂)
-  final? (suc n) (_⋆ {c = false} g) = whitespace⋆-lemma <$>M
-                                        is-whitespace? g
-  final? _       _                  = nothing
+  trailing? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Trailing-whitespace′ g)
+  trailing? (suc n) fail               = just (λ ())
+  trailing? (suc n) (f <$> g)          = <$>-lemma <$>M trailing? n (♭? g)
+  trailing? (suc n) (x <$ g)           = <$-lemma  <$>M trailing? n (♭? g)
+  trailing? (suc n) (g₁ ⊛ g₂)          = ⊛-lemma   <$>M trailing? n (♭? g₂)
+  trailing? (suc n) (g₁ <⊛ g₂)         = <⊛-lemma  <$>M trailing? n (♭? g₂)
+  trailing? (suc n) (g₁ ⊛> g₂)         = ⊛>-lemma  <$>M trailing? n (♭? g₂)
+  trailing? (suc n) (g₁ ∣ g₂)          = ∣-lemma   <$>M trailing? n (♭? g₁)
+                                                     ⊛M trailing? n (♭? g₂)
+  trailing? (suc n) (_⋆ {c = false} g) = whitespace⋆-lemma <$>M
+                                           is-whitespace? g
+  trailing? _       _                  = nothing
 
 -- A heuristic (and rather incomplete) procedure that either proves
--- that a production can swallow final whitespace, or returns "don't
--- know" as the answer.
+-- that a production can swallow trailing whitespace, or returns
+-- "don't know" as the answer.
 --
 -- The natural number n is used to ensure termination.
 
-final-whitespace? : ∀ (n : ℕ) {A} (g : Grammar A) →
-                    Maybe (Final-whitespace g)
-final-whitespace? = final?
+trailing-whitespace? : ∀ (n : ℕ) {A} (g : Grammar A) →
+                       Maybe (Trailing-whitespace g)
+trailing-whitespace? = trailing?
   where
   ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) refl
     where open List-solver
 
   <$>-lemma : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} →
-              Final-whitespace (♭? g) →
-              Final-whitespace (f <$> g)
-  <$>-lemma f (<$>-sem x∈) w = <$>-sem (f x∈ w)
+              Trailing-whitespace (♭? g) →
+              Trailing-whitespace (f <$> g)
+  <$>-lemma t (<$>-sem x∈) w = <$>-sem (t x∈ w)
 
   <$-lemma : ∀ {c A B} {x : A} {g : ∞Grammar c B} →
-             Final-whitespace′ (♭? g) →
-             Final-whitespace (x <$ g)
-  <$-lemma f (<$-sem x∈) w = <$-sem (proj₂ $ f x∈ w)
+             Trailing-whitespace′ (♭? g) →
+             Trailing-whitespace (x <$ g)
+  <$-lemma t (<$-sem x∈) w = <$-sem (proj₂ $ t x∈ w)
 
   ⊛-return-lemma :
     ∀ {c A B} {g : ∞Grammar c (A → B)} {x} →
-    Final-whitespace (♭? g) →
-    Final-whitespace (g ⊛ return x)
-  ⊛-return-lemma f (⊛-sem {s₁ = s₁} f∈ return-sem) w =
+    Trailing-whitespace (♭? g) →
+    Trailing-whitespace (g ⊛ return x)
+  ⊛-return-lemma t (⊛-sem {s₁ = s₁} f∈ return-sem) w =
     cast (++-lemma s₁ _)
-         (⊛-sem (f f∈ w) return-sem)
+         (⊛-sem (t f∈ w) return-sem)
 
   +-lemma :
     ∀ {c A} {g : ∞Grammar c A} →
-    Final-whitespace (♭? g) →
-    Final-whitespace (g +)
-  +-lemma f (⊛-sem {s₁ = s₁} (<$>-sem x∈) ⋆-[]-sem) w =
+    Trailing-whitespace (♭? g) →
+    Trailing-whitespace (g +)
+  +-lemma t (⊛-sem {s₁ = s₁} (<$>-sem x∈) ⋆-[]-sem) w =
     cast (++-lemma s₁ _)
-         (+-sem (f x∈ w) ⋆-[]-sem)
-  +-lemma f (⊛-sem {s₁ = s₁} (<$>-sem x∈) (⋆-+-sem xs∈)) w =
+         (+-sem (t x∈ w) ⋆-[]-sem)
+  +-lemma t (⊛-sem {s₁ = s₁} (<$>-sem x∈) (⋆-+-sem xs∈)) w =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (+-∷-sem x∈ (+-lemma f xs∈ w))
+         (+-∷-sem x∈ (+-lemma t xs∈ w))
 
   ⊛-⋆-lemma :
     ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ (List A → B)} {g₂ : ∞Grammar c₂ A} →
-    Final-whitespace (♭? g₁) →
-    Final-whitespace (♭? g₂) →
-    Final-whitespace (g₁ ⊛ g₂ ⋆)
-  ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) w =
+    Trailing-whitespace (♭? g₁) →
+    Trailing-whitespace (♭? g₂) →
+    Trailing-whitespace (g₁ ⊛ g₂ ⋆)
+  ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) w =
     cast (++-lemma s₁ _)
-         (⊛-sem (f₁ f∈ w) ⋆-[]-sem)
-  ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) w =
+         (⊛-sem (t₁ f∈ w) ⋆-[]-sem)
+  ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) w =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (⊛-sem f∈ (⋆-+-sem (+-lemma f₂ xs∈ w)))
+         (⊛-sem f∈ (⋆-+-sem (+-lemma t₂ xs∈ w)))
 
   ⊛-∣-lemma : ∀ {c₁ c₂₁ c₂₂ A B} {g₁ : ∞Grammar c₁ (A → B)}
                 {g₂₁ : ∞Grammar c₂₁ A} {g₂₂ : ∞Grammar c₂₂ A} →
-              Final-whitespace (g₁ ⊛ g₂₁) →
-              Final-whitespace (g₁ ⊛ g₂₂) →
-              Final-whitespace (g₁ ⊛ (g₂₁ ∣ g₂₂))
-  ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
+              Trailing-whitespace (g₁ ⊛ g₂₁) →
+              Trailing-whitespace (g₁ ⊛ g₂₂) →
+              Trailing-whitespace (g₁ ⊛ (g₂₁ ∣ g₂₂))
+  ⊛-∣-lemma t₁₂ t₁₃ {s₂ = s₃}
             (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂}
                    f∈ (left-sem x∈)) w
-    with f x | (s₁ ++ s₂) ++ s₃ | f₁₂ (⊛-sem f∈ x∈) w
+    with f x | (s₁ ++ s₂) ++ s₃ | t₁₂ (⊛-sem f∈ x∈) w
   ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (left-sem x∈′)
-  ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
+  ⊛-∣-lemma t₁₂ t₁₃ {s₂ = s₃}
             (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂}
                    f∈ (right-sem x∈)) w
-    with f x | (s₁ ++ s₂) ++ s₃ | f₁₃ (⊛-sem f∈ x∈) w
+    with f x | (s₁ ++ s₂) ++ s₃ | t₁₃ (⊛-sem f∈ x∈) w
   ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (right-sem x∈′)
 
   ⊛-lemma : ∀ {c₁ c₂ A B}
               {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A} →
-            Final-whitespace (♭? g₂) →
-            Final-whitespace (g₁ ⊛ g₂)
-  ⊛-lemma f₂ (⊛-sem {s₁ = s₁} f∈ x∈) w =
+            Trailing-whitespace (♭? g₂) →
+            Trailing-whitespace (g₁ ⊛ g₂)
+  ⊛-lemma t₂ (⊛-sem {s₁ = s₁} f∈ x∈) w =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (⊛-sem f∈ (f₂ x∈ w))
+         (⊛-sem f∈ (t₂ x∈ w))
 
   <⊛-return-lemma :
     ∀ {c A B} {g : ∞Grammar c A} {x : B} →
-    Final-whitespace (♭? g) →
-    Final-whitespace (g <⊛ return x)
-  <⊛-return-lemma f (<⊛-sem {s₁ = s₁} f∈ return-sem) w =
+    Trailing-whitespace (♭? g) →
+    Trailing-whitespace (g <⊛ return x)
+  <⊛-return-lemma t (<⊛-sem {s₁ = s₁} f∈ return-sem) w =
     cast (++-lemma s₁ _)
-         (<⊛-sem (f f∈ w) return-sem)
+         (<⊛-sem (t f∈ w) return-sem)
 
   <⊛-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
-             Final-whitespace′ (♭? g₂) →
-             Final-whitespace (g₁ <⊛ g₂)
-  <⊛-lemma f₂ (<⊛-sem {s₁ = s₁} x∈ y∈) w =
+             Trailing-whitespace′ (♭? g₂) →
+             Trailing-whitespace (g₁ <⊛ g₂)
+  <⊛-lemma t₂ (<⊛-sem {s₁ = s₁} x∈ y∈) w =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (<⊛-sem x∈ (proj₂ $ f₂ y∈ w))
+         (<⊛-sem x∈ (proj₂ $ t₂ y∈ w))
 
   ⊛>-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
-             Final-whitespace (♭? g₂) →
-             Final-whitespace (g₁ ⊛> g₂)
-  ⊛>-lemma f₂ (⊛>-sem {s₁ = s₁} x∈ y∈) w =
+             Trailing-whitespace (♭? g₂) →
+             Trailing-whitespace (g₁ ⊛> g₂)
+  ⊛>-lemma t₂ (⊛>-sem {s₁ = s₁} x∈ y∈) w =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (⊛>-sem x∈ (f₂ y∈ w))
+         (⊛>-sem x∈ (t₂ y∈ w))
 
   ∣-lemma : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
-            Final-whitespace (♭? g₁) →
-            Final-whitespace (♭? g₂) →
-            Final-whitespace (g₁ ∣ g₂)
-  ∣-lemma f₁ f₂ (left-sem  x∈) w = left-sem  (f₁ x∈ w)
-  ∣-lemma f₁ f₂ (right-sem x∈) w = right-sem (f₂ x∈ w)
+            Trailing-whitespace (♭? g₁) →
+            Trailing-whitespace (♭? g₂) →
+            Trailing-whitespace (g₁ ∣ g₂)
+  ∣-lemma t₁ t₂ (left-sem  x∈) w = left-sem  (t₁ x∈ w)
+  ∣-lemma t₁ t₂ (right-sem x∈) w = right-sem (t₂ x∈ w)
 
-  final? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Final-whitespace g)
+  trailing? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Trailing-whitespace g)
 
-  final? (suc n) fail = just (λ ())
+  trailing? (suc n) fail = just (λ ())
 
-  final? (suc n) (f <$> g) = <$>-lemma <$>M final? n (♭? g)
-  final? (suc n) (x <$ g)  = <$-lemma  <$>M final-whitespace′? (suc n) (♭? g)
+  trailing? (suc n) (f <$> g) = <$>-lemma <$>M trailing? n (♭? g)
+  trailing? (suc n) (x <$ g)  = <$-lemma  <$>M trailing-whitespace′? (suc n) (♭? g)
 
-  final? (suc n) (_⊛_ {c₂ = false} g  (return x))  = ⊛-return-lemma <$>M final? n (♭? g)
-  final? (suc n) (_⊛_ {c₂ = false} g₁ (g₂ ⋆))      = ⊛-⋆-lemma      <$>M final? n (♭? g₁)
-                                                                      ⊛M final? n (♭? g₂)
-  final? (suc n) (_⊛_ {c₂ = false} g₁ (g₂₁ ∣ g₂₂)) = ⊛-∣-lemma      <$>M final? n (g₁ ⊛ g₂₁)
-                                                                      ⊛M final? n (g₁ ⊛ g₂₂)
-  final? (suc n) (_⊛_              g₁ g₂)          = ⊛-lemma        <$>M final? n (♭? g₂)
+  trailing? (suc n) (_⊛_ {c₂ = false} g  (return x))  = ⊛-return-lemma <$>M trailing? n (♭? g)
+  trailing? (suc n) (_⊛_ {c₂ = false} g₁ (g₂ ⋆))      = ⊛-⋆-lemma      <$>M trailing? n (♭? g₁)
+                                                                         ⊛M trailing? n (♭? g₂)
+  trailing? (suc n) (_⊛_ {c₂ = false} g₁ (g₂₁ ∣ g₂₂)) = ⊛-∣-lemma      <$>M trailing? n (g₁ ⊛ g₂₁)
+                                                                         ⊛M trailing? n (g₁ ⊛ g₂₂)
+  trailing? (suc n) (_⊛_              g₁ g₂)          = ⊛-lemma        <$>M trailing? n (♭? g₂)
 
-  final? (suc n) (_<⊛_ {c₂ = false} g  (return x)) = <⊛-return-lemma <$>M final? n (♭? g)
-  final? (suc n) (_<⊛_              g₁ g₂)         = <⊛-lemma <$>M
-                                                       final-whitespace′? (suc n) (♭? g₂)
+  trailing? (suc n) (_<⊛_ {c₂ = false} g  (return x)) = <⊛-return-lemma <$>M trailing? n (♭? g)
+  trailing? (suc n) (_<⊛_              g₁ g₂)         = <⊛-lemma <$>M
+                                                          trailing-whitespace′? (suc n) (♭? g₂)
 
-  final? (suc n) (g₁ ⊛> g₂) = ⊛>-lemma <$>M final? n (♭? g₂)
+  trailing? (suc n) (g₁ ⊛> g₂) = ⊛>-lemma <$>M trailing? n (♭? g₂)
 
-  final? (suc n) (g₁ ∣ g₂) = ∣-lemma <$>M final? n (♭? g₁)
-                                       ⊛M final? n (♭? g₂)
+  trailing? (suc n) (g₁ ∣ g₂) = ∣-lemma <$>M trailing? n (♭? g₁)
+                                          ⊛M trailing? n (♭? g₂)
 
-  final? _ _ = nothing
+  trailing? _ _ = nothing
 
 private
 
   -- Some unit tests.
 
-  test₁ : IsJust (final-whitespace′? 1 (whitespace ⋆))
+  test₁ : IsJust (trailing-whitespace′? 1 (whitespace ⋆))
   test₁ = _
 
-  test₂ : IsJust (final-whitespace′? 2 (whitespace +))
+  test₂ : IsJust (trailing-whitespace′? 2 (whitespace +))
   test₂ = _
 
-  test₃ : IsJust (final-whitespace? 1 (tt <$ whitespace ⋆))
+  test₃ : IsJust (trailing-whitespace? 1 (tt <$ whitespace ⋆))
   test₃ = _
 
-  test₄ : IsJust (final-whitespace? 2 (tt <$ whitespace +))
+  test₄ : IsJust (trailing-whitespace? 2 (tt <$ whitespace +))
   test₄ = _

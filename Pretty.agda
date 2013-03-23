@@ -244,17 +244,17 @@ line⋆ = embed lemma line
 -- steps. (The grammars have to satisfy certain predicates.)
 
 final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
-              Final-whitespace g → Doc g x → Doc g x
-final-line′ {g = g} i final d = embed lemma (d <⊛-tt nest i line⋆)
+              Trailing-whitespace g → Doc g x → Doc g x
+final-line′ {g = g} i trailing d = embed lemma (d <⊛-tt nest i line⋆)
   where
   lemma : ∀ {x s} → x ∈ g G.<⊛ whitespace ⋆ ∙ s → x ∈ g ∙ s
-  lemma (<⊛-sem x∈ white) = final x∈ white
+  lemma (<⊛-sem x∈ white) = trailing x∈ white
 
 final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
-             {final : IsJust (final-whitespace? n g)} →
+             {trailing : IsJust (trailing-whitespace? n g)} →
              Doc g x → Doc g x
-final-line i n {final} d =
-  final-line′ i (toWitness (final-whitespace? n _) final) d
+final-line i n {trailing} d =
+  final-line′ i (toWitness (trailing-whitespace? n _) trailing) d
 
 -- A document for the given symbol (and no following whitespace).
 
@@ -275,12 +275,12 @@ symbol-space = text <⊛ space
 -- prettier printer".
 
 bracket : ∀ {c A x s₁ s₂} {g : ∞Grammar c A} (n : ℕ) →
-          {final : IsJust (final-whitespace? n (♭? g))} →
+          {trailing : IsJust (trailing-whitespace? n (♭? g))} →
           Doc (♭? g) x → Doc (G.symbol s₁ G.⊛> g G.<⊛ G.symbol s₂) x
-bracket n {final} d =
+bracket n {trailing} d =
   group (nest 2 symbol-line
            ⊛>
-         final-line 0 n {final = final} (nest 2 d)
+         final-line 0 n {trailing = trailing} (nest 2 d)
            <⊛
          symbol)
 
@@ -318,13 +318,13 @@ mutual
 -- predicate.)
 
 fill+ : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
-        {final : IsJust (final-whitespace? n (♭? g))} →
+        {trailing : IsJust (trailing-whitespace? n (♭? g))} →
         ∀ {xs} → Docs (♭? g) xs → Doc (g +) xs
-fill+ {g = g} n {final} ds = embed lemma (fill ds)
+fill+ {g = g} n {trailing} ds = embed lemma (fill ds)
   where
   open List-solver
 
-  final! = toWitness (final-whitespace? n (♭? g)) final
+  trailing! = toWitness (trailing-whitespace? n (♭? g)) trailing
 
   lemma″ = solve 4 (λ a b c d → (a ⊕ b) ⊕ c ⊕ d ⊜ a ⊕ (b ⊕ c) ⊕ d) refl
 
@@ -334,7 +334,7 @@ fill+ {g = g} n {final} ds = embed lemma (fill ds)
   lemma′           x∈ ⋆-[]-sem = +-sem x∈ ⋆-[]-sem
   lemma′ {s₁ = s₁} x∈ (⋆-+-sem (⊛-sem (<$>-sem (⊛>-sem w+ x′∈)) xs∈)) =
     cast (lemma″ s₁ _ _ _)
-         (+-∷-sem (final! x∈ (⋆-+-sem w+)) (lemma′ x′∈ xs∈))
+         (+-∷-sem (trailing! x∈ (⋆-+-sem w+)) (lemma′ x′∈ xs∈))
 
   lemma : ∀ {s xs} → xs ∈ ♭? g sep-by whitespace + ∙ s → xs ∈ g + ∙ s
   lemma (⊛-sem (<$>-sem x∈) xs∈) = lemma′ x∈ xs∈
@@ -343,20 +343,20 @@ fill+ {g = g} n {final} ds = embed lemma (fill ds)
 -- a certain predicate.)
 
 map+-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
-            {final : IsJust (final-whitespace? n (♭? g))} →
+            {trailing : IsJust (trailing-whitespace? n (♭? g))} →
             Pretty-printer (♭? g) →
             Pretty-printer (g +)
-map+-fill {g = g} n {final} p xs =
-  fill+ n {final = final} (uncurry to-docs xs)
+map+-fill {g = g} n {trailing} p xs =
+  fill+ n {trailing = trailing} (uncurry to-docs xs)
   where
   to-docs : ∀ x xs → Docs (♭? g) (x ∷ xs)
   to-docs x []        = [ p x ]
   to-docs x (x′ ∷ xs) = p x ∷ to-docs x′ xs
 
 map⋆-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
-            {final : IsJust (final-whitespace? n (♭? g))} →
+            {trailing : IsJust (trailing-whitespace? n (♭? g))} →
             Pretty-printer (♭? g) →
             Pretty-printer (g ⋆)
 map⋆-fill n         p []       = nil-⋆
-map⋆-fill n {final} p (x ∷ xs) =
-  embed ⋆-+-sem (map+-fill n {final = final} p (x ∷ xs))
+map⋆-fill n {trailing} p (x ∷ xs) =
+  embed ⋆-+-sem (map+-fill n {trailing = trailing} p (x ∷ xs))

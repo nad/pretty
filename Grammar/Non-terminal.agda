@@ -467,140 +467,142 @@ is-whitespace? {NT} (tok ' ' ∣ p) = helper p P.refl
 is-whitespace? _ = nothing
 
 ------------------------------------------------------------------------
--- Final whitespace
+-- Trailing whitespace
 
--- A predicate for productions that can "swallow" extra whitespace at
--- the end.
+-- A predicate for productions that can "swallow" extra trailing
+-- whitespace.
 
-Final-whitespace : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
-Final-whitespace g p =
+Trailing-whitespace : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
+Trailing-whitespace g p =
   ∀ {x s₁ s₂ s} →
   [ g ] x ∈ p ∙ s₁ → [ g ] s ∈ whitespace ⋆ ∙ s₂ →
   [ g ] x ∈ p ∙ s₁ ++ s₂
 
 -- A heuristic procedure that either proves that a production can
--- swallow final whitespace, or returns "don't know" as the answer.
+-- swallow trailing whitespace, or returns "don't know" as the answer.
 
-final-whitespace? : ∀ {NT A} (n : ℕ) (g : Grammar NT) (p : Prod NT A) →
-                    Maybe (Final-whitespace g p)
-final-whitespace? {NT} n g p = unfold-lemma <$>M final? (unfold n g p)
+trailing-whitespace? :
+  ∀ {NT A} (n : ℕ) (g : Grammar NT) (p : Prod NT A) →
+  Maybe (Trailing-whitespace g p)
+trailing-whitespace? {NT} n g p =
+  unfold-lemma <$>M trailing? (unfold n g p)
   where
   ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) P.refl
     where open List-solver
 
-  unfold-lemma : Final-whitespace g (unfold n g p) →
-                 Final-whitespace g p
-  unfold-lemma f x∈ white = unfold-from n _ (f (unfold-to n _ x∈) white)
+  unfold-lemma : Trailing-whitespace g (unfold n g p) →
+                 Trailing-whitespace g p
+  unfold-lemma t x∈ white = unfold-from n _ (t (unfold-to n _ x∈) white)
 
   ⊛-return-lemma :
     ∀ {A B} {p : Prod NT (A → B)} {x} →
-    Final-whitespace g p →
-    Final-whitespace g (p ⊛ return x)
-  ⊛-return-lemma f (⊛-sem {s₁ = s₁} f∈ return-sem) white =
-    cast (++-lemma s₁ _) (⊛-sem (f f∈ white) return-sem)
+    Trailing-whitespace g p →
+    Trailing-whitespace g (p ⊛ return x)
+  ⊛-return-lemma t (⊛-sem {s₁ = s₁} f∈ return-sem) white =
+    cast (++-lemma s₁ _) (⊛-sem (t f∈ white) return-sem)
 
   +-lemma :
     ∀ {A} {p : Prod NT A} →
-    Final-whitespace g p →
-    Final-whitespace g (p +)
-  +-lemma f (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) ⋆-[]-sem) white =
-    cast (++-lemma s₁ _) (+-sem (f x∈ white) ⋆-[]-sem)
-  +-lemma f (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) (⋆-+-sem xs∈))
+    Trailing-whitespace g p →
+    Trailing-whitespace g (p +)
+  +-lemma t (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) ⋆-[]-sem) white =
+    cast (++-lemma s₁ _) (+-sem (t x∈ white) ⋆-[]-sem)
+  +-lemma t (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) (⋆-+-sem xs∈))
           white =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (+-∷-sem x∈ (+-lemma f xs∈ white))
+         (+-∷-sem x∈ (+-lemma t xs∈ white))
 
   ⊛-⋆-lemma :
     ∀ {A B} {p₁ : Prod NT (List A → B)} {p₂ : Prod NT A} →
-    Final-whitespace g p₁ →
-    Final-whitespace g p₂ →
-    Final-whitespace g (p₁ ⊛ p₂ ⋆)
-  ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) white =
-    cast (++-lemma s₁ _) (⊛-sem (f₁ f∈ white) ⋆-[]-sem)
-  ⊛-⋆-lemma f₁ f₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) white =
+    Trailing-whitespace g p₁ →
+    Trailing-whitespace g p₂ →
+    Trailing-whitespace g (p₁ ⊛ p₂ ⋆)
+  ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) white =
+    cast (++-lemma s₁ _) (⊛-sem (t₁ f∈ white) ⋆-[]-sem)
+  ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) white =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (⊛-sem f∈ (⋆-+-sem (+-lemma f₂ xs∈ white)))
+         (⊛-sem f∈ (⋆-+-sem (+-lemma t₂ xs∈ white)))
 
   ⊛-∣-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ p₃ : Prod NT A} →
-              Final-whitespace g (p₁ ⊛ p₂) →
-              Final-whitespace g (p₁ ⊛ p₃) →
-              Final-whitespace g (p₁ ⊛ (p₂ ∣ p₃))
-  ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
+              Trailing-whitespace g (p₁ ⊛ p₂) →
+              Trailing-whitespace g (p₁ ⊛ p₃) →
+              Trailing-whitespace g (p₁ ⊛ (p₂ ∣ p₃))
+  ⊛-∣-lemma t₁₂ t₁₃ {s₂ = s₃}
     (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (left-sem x∈))
     white
-    with f x | (s₁ ++ s₂) ++ s₃ | f₁₂ (⊛-sem f∈ x∈) white
+    with f x | (s₁ ++ s₂) ++ s₃ | t₁₂ (⊛-sem f∈ x∈) white
   ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (left-sem x∈′)
-  ⊛-∣-lemma f₁₂ f₁₃ {s₂ = s₃}
+  ⊛-∣-lemma t₁₂ t₁₃ {s₂ = s₃}
     (⊛-sem {f = f} {x = x} {s₁ = s₁} {s₂ = s₂} f∈ (right-sem x∈))
     white
-    with f x | (s₁ ++ s₂) ++ s₃ | f₁₃ (⊛-sem f∈ x∈) white
+    with f x | (s₁ ++ s₂) ++ s₃ | t₁₃ (⊛-sem f∈ x∈) white
   ... | ._ | ._ | ⊛-sem f∈′ x∈′ = ⊛-sem f∈′ (right-sem x∈′)
 
   ⊛-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ : Prod NT A} →
-            Final-whitespace g p₂ →
-            Final-whitespace g (p₁ ⊛ p₂)
-  ⊛-lemma f₂ (⊛-sem {s₁ = s₁} f∈ x∈) white =
+            Trailing-whitespace g p₂ →
+            Trailing-whitespace g (p₁ ⊛ p₂)
+  ⊛-lemma t₂ (⊛-sem {s₁ = s₁} f∈ x∈) white =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (⊛-sem f∈ (f₂ x∈ white))
+         (⊛-sem f∈ (t₂ x∈ white))
 
   <⊛-return-lemma :
     ∀ {A B} {p : Prod NT A} {x : B} →
-    Final-whitespace g p →
-    Final-whitespace g (p <⊛ return x)
-  <⊛-return-lemma f (<⊛-sem {s₁ = s₁} f∈ return-sem) white =
-    cast (++-lemma s₁ _) (<⊛-sem (f f∈ white) return-sem)
+    Trailing-whitespace g p →
+    Trailing-whitespace g (p <⊛ return x)
+  <⊛-return-lemma t (<⊛-sem {s₁ = s₁} f∈ return-sem) white =
+    cast (++-lemma s₁ _) (<⊛-sem (t f∈ white) return-sem)
 
   <⊛-⋆-lemma :
     ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
     Is-whitespace p₂ →
-    Final-whitespace g (p₁ <⊛ p₂ ⋆)
+    Trailing-whitespace g (p₁ <⊛ p₂ ⋆)
   <⊛-⋆-lemma is-whitespace (<⊛-sem {s₁ = s₁} x∈ white₁) white₂ =
     cast (P.sym $ LM.assoc s₁ _ _)
          (<⊛-sem x∈ (⋆-⋆-sem white₁ white₂))
 
   <⊛-lemma : ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →
-             Final-whitespace g p₂ →
-             Final-whitespace g (p₁ <⊛ p₂)
-  <⊛-lemma f₂ (<⊛-sem {s₁ = s₁} f∈ x∈) white =
+             Trailing-whitespace g p₂ →
+             Trailing-whitespace g (p₁ <⊛ p₂)
+  <⊛-lemma t₂ (<⊛-sem {s₁ = s₁} f∈ x∈) white =
     cast (P.sym $ LM.assoc s₁ _ _)
-         (<⊛-sem f∈ (f₂ x∈ white))
+         (<⊛-sem f∈ (t₂ x∈ white))
 
   fail->>=-lemma : ∀ {A B} {p : A → Prod NT B} →
-                   Final-whitespace g (fail >>= p)
+                   Trailing-whitespace g (fail >>= p)
   fail->>=-lemma (>>=-sem () _)
 
   return->>=-lemma : ∀ {A B} {p : A → Prod NT B} {x} →
-                     Final-whitespace g (p x) →
-                     Final-whitespace g (return x >>= p)
-  return->>=-lemma f (>>=-sem return-sem y∈) white =
-    >>=-sem return-sem (f y∈ white)
+                     Trailing-whitespace g (p x) →
+                     Trailing-whitespace g (return x >>= p)
+  return->>=-lemma t (>>=-sem return-sem y∈) white =
+    >>=-sem return-sem (t y∈ white)
 
   tok->>=-lemma : ∀ {A} {p : Char → Prod NT A} {t} →
-                  Final-whitespace g (p t) →
-                  Final-whitespace g (tok t >>= p)
-  tok->>=-lemma f (>>=-sem tok-sem y∈) white =
-    >>=-sem tok-sem (f y∈ white)
+                  Trailing-whitespace g (p t) →
+                  Trailing-whitespace g (tok t >>= p)
+  tok->>=-lemma t (>>=-sem tok-sem y∈) white =
+    >>=-sem tok-sem (t y∈ white)
 
   ∣-lemma : ∀ {A} {p₁ p₂ : Prod NT A} →
-            Final-whitespace g p₁ →
-            Final-whitespace g p₂ →
-            Final-whitespace g (p₁ ∣ p₂)
-  ∣-lemma f₁ f₂ (left-sem  x∈) white = left-sem  (f₁ x∈ white)
-  ∣-lemma f₁ f₂ (right-sem x∈) white = right-sem (f₂ x∈ white)
+            Trailing-whitespace g p₁ →
+            Trailing-whitespace g p₂ →
+            Trailing-whitespace g (p₁ ∣ p₂)
+  ∣-lemma t₁ t₂ (left-sem  x∈) white = left-sem  (t₁ x∈ white)
+  ∣-lemma t₁ t₂ (right-sem x∈) white = right-sem (t₂ x∈ white)
 
-  final? : ∀ {A} (p : Prod NT A) →
-           Maybe (Final-whitespace g p)
-  final? fail             = just (λ ())
-  final? (p ⊛ return x)   = ⊛-return-lemma <$>M final? p
-  final? (p₁ ⊛ p₂ ⋆)      = ⊛-⋆-lemma <$>M final? p₁ ⊛M final? p₂
-  final? (p₁ ⊛ (p₂ ∣ p₃)) = ⊛-∣-lemma <$>M final? (p₁ ⊛ p₂)
-                                        ⊛M final? (p₁ ⊛ p₃)
-  final? (p₁ ⊛ p₂)        = ⊛-lemma <$>M final? p₂
-  final? (p <⊛ return x)  = <⊛-return-lemma <$>M final? p
-  final? (p₁ <⊛ p₂ ⋆)     = <⊛-⋆-lemma <$>M is-whitespace? p₂
-  final? (p₁ <⊛ p₂)       = <⊛-lemma <$>M final? p₂
-  final? (fail >>= p)     = just fail->>=-lemma
-  final? (return x >>= p) = return->>=-lemma <$>M final? (p x)
-  final? (tok t >>= p)    = tok->>=-lemma <$>M final? (p t)
-  final? (p₁ ∣ p₂)        = ∣-lemma <$>M final? p₁ ⊛M final? p₂
-  final? _                = nothing
+  trailing? : ∀ {A} (p : Prod NT A) →
+              Maybe (Trailing-whitespace g p)
+  trailing? fail             = just (λ ())
+  trailing? (p ⊛ return x)   = ⊛-return-lemma <$>M trailing? p
+  trailing? (p₁ ⊛ p₂ ⋆)      = ⊛-⋆-lemma <$>M trailing? p₁ ⊛M trailing? p₂
+  trailing? (p₁ ⊛ (p₂ ∣ p₃)) = ⊛-∣-lemma <$>M trailing? (p₁ ⊛ p₂)
+                                           ⊛M trailing? (p₁ ⊛ p₃)
+  trailing? (p₁ ⊛ p₂)        = ⊛-lemma <$>M trailing? p₂
+  trailing? (p <⊛ return x)  = <⊛-return-lemma <$>M trailing? p
+  trailing? (p₁ <⊛ p₂ ⋆)     = <⊛-⋆-lemma <$>M is-whitespace? p₂
+  trailing? (p₁ <⊛ p₂)       = <⊛-lemma <$>M trailing? p₂
+  trailing? (fail >>= p)     = just fail->>=-lemma
+  trailing? (return x >>= p) = return->>=-lemma <$>M trailing? (p x)
+  trailing? (tok t >>= p)    = tok->>=-lemma <$>M trailing? (p t)
+  trailing? (p₁ ∣ p₂)        = ∣-lemma <$>M trailing? p₁ ⊛M trailing? p₂
+  trailing? _                = nothing
