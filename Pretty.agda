@@ -245,10 +245,10 @@ line⋆ = embed lemma line
 
 final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
               Final-whitespace g → Doc g x → Doc g x
-final-line′ {g = g} i final d = embed lemma (d <⊛ nest i line⋆)
+final-line′ {g = g} i final d = embed lemma (d <⊛-tt nest i line⋆)
   where
-  lemma : ∀ {x s} → x ∈ g G.<⊛ (tt G.<$ whitespace ⋆) ∙ s → x ∈ g ∙ s
-  lemma (<⊛-sem x∈ (<$-sem white)) = final x∈ white
+  lemma : ∀ {x s} → x ∈ g G.<⊛ whitespace ⋆ ∙ s → x ∈ g ∙ s
+  lemma (<⊛-sem x∈ white) = final x∈ white
 
 final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
              {final : IsJust (final-whitespace? n g)} →
