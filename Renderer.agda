@@ -22,8 +22,8 @@ open import Relation.Nullary
 
 private module LM {A : Set} = Monoid (List.monoid A)
 
-open import Grammar.Infinite
-open import Pretty using (Doc; Docs; Pretty-printer; embed)
+open import Grammar.Infinite as G hiding (_⊛_; _<⊛_; _⊛>_)
+open import Pretty using (Doc; Docs; Pretty-printer)
 open Pretty.Doc
 open Pretty.Docs
 open import Utilities
@@ -85,7 +85,7 @@ record Renderer : Set₁ where
     ∀ {A} {g : Grammar A} {x s} →
     x ∈ g ∙ s → ∃ λ (d : Doc g x) → render d ≡ s
   every-string-possible ignores-emb {g = g} {x} {s} x∈ =
-    (embed lemma₁ text , lemma₂)
+    (Pretty.embed lemma₁ text , lemma₂)
     where
     open P.≡-Reasoning
 
@@ -93,9 +93,9 @@ record Renderer : Set₁ where
     lemma₁ s∈ = cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈)) x∈
 
     lemma₂ = begin
-      render (embed lemma₁ text)  ≡⟨ ignores-emb ⟩
-      render text                 ≡⟨ render-string _ ⟩
-      s                           ∎
+      render (Pretty.embed lemma₁ text)  ≡⟨ ignores-emb ⟩
+      render text                        ≡⟨ render-string _ ⟩
+      s                                  ∎
 
 ------------------------------------------------------------------------
 -- An example renderer
@@ -198,58 +198,61 @@ wadler's-renderer w = record
 
   -- Some derived combinators.
 
-  infixl 20 _⊛-docU_ _<⊛-docU_ _⊛>-docU_
+  infixl 20 _⊛_ _<⊛_ _⊛>_
+  infix  20 <$>_ <$_
 
-  embedU : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
-           (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
-  embedU f (emb g d) = emb (f ∘ g) d
-  embedU f d         = emb f d
+  embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
+          (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
+  embed f (emb g d) = emb (f ∘ g) d
+  embed f d         = emb f d
 
-  <$>-docU : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
-             DocU (♭? g) x → DocU (f <$> g) (f x)
-  <$>-docU d = embedU <$>-sem d
+  <$>_ : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
+         DocU (♭? g) x → DocU (f <$> g) (f x)
+  <$> d = embed <$>-sem d
 
-  _⊛-docU_ : ∀ {c₁ c₂ A B f x} {g₁ : ∞Grammar c₁ (A → B)}
-               {g₂ : ∞Grammar c₂ A} →
-             DocU (♭? g₁) f → DocU (♭? g₂) x → DocU (g₁ ⊛ g₂) (f x)
-  _⊛-docU_ {g₁ = g₁} {g₂} d₁ d₂ = embedU lemma (d₁ ◇ <$>-docU d₂)
+  <$_ : ∀ {A B : Set} {x : A} {y : B} {g} →
+        DocU g y → DocU (x <$ g) x
+  <$ d = embed <$-sem d
+
+  _⊛_ : ∀ {c₁ c₂ A B f x} {g₁ : ∞Grammar c₁ (A → B)}
+          {g₂ : ∞Grammar c₂ A} →
+        DocU (♭? g₁) f → DocU (♭? g₂) x → DocU (g₁ G.⊛ g₂) (f x)
+  _⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ <$> d₂)
     where
     lemma : ∀ {x s} →
-            x ∈ (g₁ >>= λ f → f <$> g₂) ∙ s → x ∈ g₁ ⊛ g₂ ∙ s
+            x ∈ (g₁ >>= λ f → f <$> g₂) ∙ s → x ∈ g₁ G.⊛ g₂ ∙ s
     lemma (>>=-sem f∈ (<$>-sem x∈)) = ⊛-sem f∈ x∈
 
-  _<⊛-docU_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
-                {g₂ : ∞Grammar c₂ B} →
-              DocU (♭? g₁) x → DocU (♭? g₂) y → DocU (g₁ <⊛ g₂) x
-  _<⊛-docU_ {g₁ = g₁} {g₂} d₁ d₂ =
-    embedU lemma (nil ⊛-docU d₁ ⊛-docU d₂)
+  _<⊛_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
+           {g₂ : ∞Grammar c₂ B} →
+         DocU (♭? g₁) x → DocU (♭? g₂) y → DocU (g₁ G.<⊛ g₂) x
+  _<⊛_ {g₁ = g₁} {g₂} d₁ d₂ =
+    embed lemma (nil ⊛ d₁ ⊛ d₂)
     where
     lemma : ∀ {x s} →
-            x ∈ return (λ x _ → x) ⊛ g₁ ⊛ g₂ ∙ s → x ∈ g₁ <⊛ g₂ ∙ s
+            x ∈ return (λ x _ → x) G.⊛ g₁ G.⊛ g₂ ∙ s →
+            x ∈ g₁ G.<⊛ g₂ ∙ s
     lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = <⊛-sem x∈ y∈
 
-  _⊛>-docU_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
-                {g₂ : ∞Grammar c₂ B} →
-              DocU (♭? g₁) x → DocU (♭? g₂) y → DocU (g₁ ⊛> g₂) y
-  _⊛>-docU_ {g₁ = g₁} {g₂} d₁ d₂ =
-    embedU lemma (nil ⊛-docU d₁ ⊛-docU d₂)
+  _⊛>_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
+           {g₂ : ∞Grammar c₂ B} →
+         DocU (♭? g₁) x → DocU (♭? g₂) y → DocU (g₁ G.⊛> g₂) y
+  _⊛>_ {g₁ = g₁} {g₂} d₁ d₂ =
+    embed lemma (nil ⊛ d₁ ⊛ d₂)
     where
     lemma : ∀ {y s} →
-            y ∈ return (λ _ x → x) ⊛ g₁ ⊛ g₂ ∙ s → y ∈ g₁ ⊛> g₂ ∙ s
+            y ∈ return (λ _ x → x) G.⊛ g₁ G.⊛ g₂ ∙ s →
+            y ∈ g₁ G.⊛> g₂ ∙ s
     lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = ⊛>-sem x∈ y∈
-
-  <$-docU : ∀ {A B : Set} {x : A} {y : B} {g} →
-            DocU g y → DocU (x <$ g) x
-  <$-docU d = embedU <$-sem d
 
   cons : ∀ {A B} {g : Grammar A} {sep : Grammar B} {x xs} →
          DocU g x → DocU (tt <$ sep) tt → DocU (g sep-by sep) xs →
          DocU (g sep-by sep) (x ∷⁺ xs)
   cons {g = g} {sep} d₁ d₂ d₃ =
-    embedU lemma (<$>-docU d₁ ⊛-docU (d₂ ⊛>-docU d₃))
+    embed lemma (<$> d₁ ⊛ (d₂ ⊛> d₃))
     where
     lemma : ∀ {ys s} →
-            ys ∈ _∷⁺_ <$> g ⊛ ((tt <$ sep) ⊛> (g sep-by sep)) ∙ s →
+            ys ∈ _∷⁺_ <$> g G.⊛ ((tt <$ sep) G.⊛> (g sep-by sep)) ∙ s →
             ys ∈ g sep-by sep ∙ s
     lemma (⊛-sem (<$>-sem x∈) (⊛>-sem (<$-sem y∈) xs∈)) =
       sep-by-sem-∷ x∈ y∈ xs∈
@@ -257,7 +260,7 @@ wadler's-renderer w = record
   -- A single space character.
 
   space : DocU (tt <$ whitespace +) tt
-  space = embedU lemma (<$-docU text)
+  space = embed lemma (<$ text)
     where
     lemma : ∀ {s} →
             tt ∈ tt <$ string′ " " ∙ s →
@@ -276,12 +279,12 @@ wadler's-renderer w = record
     flatten line       = space
     flatten (group d)  = flatten d
     flatten (nest i d) = nest i (flatten d)
-    flatten (emb f d)  = embedU f (flatten d)
+    flatten (emb f d)  = embed f (flatten d)
     flatten (fill ds)  = flatten-fills ds
 
     flatten-fills : ∀ {A} {g : Grammar A} {xs} →
                     Docs g xs → DocU (g sep-by whitespace +) xs
-    flatten-fills [ d ]    = embedU sep-by-sem-singleton (flatten d)
+    flatten-fills [ d ]    = embed sep-by-sem-singleton (flatten d)
     flatten-fills (d ∷ ds) = cons (flatten d) space (flatten-fills ds)
 
   mutual
@@ -295,14 +298,14 @@ wadler's-renderer w = record
     expand-groups line       = line
     expand-groups (group d)  = union (flatten d) (expand-groups d)
     expand-groups (nest i d) = nest i (expand-groups d)
-    expand-groups (emb f d)  = embedU f (expand-groups d)
+    expand-groups (emb f d)  = embed f (expand-groups d)
     expand-groups (fill ds)  = expand-fills false ds
 
     expand-fills : Bool → -- Unconditionally flatten the first document?
                    ∀ {A} {g : Grammar A} {xs} →
                    Docs g xs → DocU (g sep-by whitespace +) xs
     expand-fills fl [ d ] =
-      embedU sep-by-sem-singleton (flatten/expand fl d)
+      embed sep-by-sem-singleton (flatten/expand fl d)
     expand-fills fl (d ∷ ds) =
       union (cons (flatten d)           space (expand-fills true  ds))
             (cons (flatten/expand fl d) line  (expand-fills false ds))
