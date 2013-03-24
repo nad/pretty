@@ -326,12 +326,12 @@ wadler's-renderer w = record
 
   -- Conversion of layouts into strings.
 
-  showE : Layout-element → List Char
-  showE (text s)      = s
-  showE (nest-line i) = '\n' ∷ replicate i ' '
+  show-element : Layout-element → List Char
+  show-element (text s)      = s
+  show-element (nest-line i) = '\n' ∷ replicate i ' '
 
   show : Layout → List Char
-  show = concat ∘ List.map showE
+  show = concat ∘ List.map show-element
 
   mutual
 
@@ -385,7 +385,7 @@ wadler's-renderer w = record
 
   nest-line-lemma :
     ∀ {A} {x : A} i →
-    x ∈ x <$ whitespace + ∙ showE (nest-line i)
+    x ∈ x <$ whitespace + ∙ show-element (nest-line i)
   nest-line-lemma i =
     <$-sem (+-sem (right-sem tok-sem) (replicate-lemma i))
 
