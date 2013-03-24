@@ -175,7 +175,7 @@ no-string⇒no-document no-witness d = no-witness (string-exists d)
 -- The natural number is the line width.
 
 wadler's-renderer : ℕ → Renderer
-wadler's-renderer w = record
+wadler's-renderer width = record
   { render   = render
   ; parsable = parsable
   }
@@ -349,7 +349,7 @@ wadler's-renderer w = record
   -- current column number.
 
   better : ℕ → Layout → Layout → Layout
-  better c x y = if fits (w ⊖ c) x then x else y
+  better c x y = if fits (width ⊖ c) x then x else y
 
   -- If, for any starting column c, κ c is the layout for some text,
   -- then best i d κ c is the layout for the document d followed by
@@ -405,7 +405,8 @@ wadler's-renderer w = record
   best-lemma     s text          hyp = hyp string-sem
   best-lemma     s line {i}      hyp = hyp (nest-line-lemma i)
   best-lemma {c} s (union d₁ d₂) hyp = if-lemma s
-                                         (fits (w ⊖ c) (best _ d₁ _ _))
+                                         (fits (width ⊖ c)
+                                               (best _ d₁ _ _))
                                          (best-lemma s d₁ hyp)
                                          (best-lemma s d₂ hyp)
   best-lemma     s (nest j d)    hyp = best-lemma s d hyp
