@@ -7,6 +7,7 @@ module Renderer where
 open import Algebra
 open import Data.Bool
 open import Data.Char
+open import Data.Integer using (ℤ; +_; -[1+_]; _-_; _⊖_)
 open import Data.List as List hiding ([_])
 open import Data.List.NonEmpty using (_∷⁺_)
 open import Data.List.Properties using (module List-solver)
@@ -333,18 +334,14 @@ wadler's-renderer w = record
   show : Layout → List Char
   show = concat ∘ List.map show-element
 
-  mutual
+  -- Does the first line of the layout fit inside a row with the
+  -- given number of characters?
 
-    -- Does the first line of the layout fit inside a row with the
-    -- given number of characters?
-
-    fits : ℕ → Layout → Bool
-    fits w []                = true
-    fits w (text s      ∷ x) = fits′ w (length s) x
-    fits w (nest-line i ∷ x) = true
-
-    fits′ : ℕ → ℕ → Layout → Bool
-    fits′ w c x = not (w <?ℕ c) ∧ fits (w ∸ c) x
+  fits : ℤ → Layout → Bool
+  fits -[1+ w ] _                 = false
+  fits w        []                = true
+  fits w        (text s      ∷ x) = fits (w - + length s) x
+  fits w        (nest-line i ∷ x) = true
 
   -- Chooses the first layout if it fits, otherwise the second (which
   -- is assumed to have a first line that is at most as long as the
@@ -352,7 +349,7 @@ wadler's-renderer w = record
   -- current column number.
 
   better : ℕ → Layout → Layout → Layout
-  better c x y = if fits′ w c x then x else y
+  better c x y = if fits (w ⊖ c) x then x else y
 
   -- If, for any starting column c, κ c is the layout for some text,
   -- then best i d κ c is the layout for the document d followed by
@@ -400,20 +397,20 @@ wadler's-renderer w = record
   -- The main correctness property for best.
 
   best-lemma :
-    ∀ {A B} {g : Grammar A} {g′ : Grammar B} {x y c κ}
+    ∀ {c A B} {g : Grammar A} {g′ : Grammar B} {x y κ}
       s (d : DocU g x) {i} →
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best i d κ c)
-  best-lemma s nil           hyp = hyp return-sem
-  best-lemma s text          hyp = hyp string-sem
-  best-lemma s line {i}      hyp = hyp (nest-line-lemma i)
-  best-lemma s (union d₁ d₂) hyp = if-lemma s
-                                     (fits′ w _ (best _ d₁ _ _))
-                                     (best-lemma s d₁ hyp)
-                                     (best-lemma s d₂ hyp)
-  best-lemma s (nest j d)    hyp = best-lemma s d hyp
-  best-lemma s (emb f d)     hyp = best-lemma s d (hyp ∘ f)
-  best-lemma s (d₁ ◇ d₂)     hyp =
+  best-lemma     s nil           hyp = hyp return-sem
+  best-lemma     s text          hyp = hyp string-sem
+  best-lemma     s line {i}      hyp = hyp (nest-line-lemma i)
+  best-lemma {c} s (union d₁ d₂) hyp = if-lemma s
+                                         (fits (w ⊖ c) (best _ d₁ _ _))
+                                         (best-lemma s d₁ hyp)
+                                         (best-lemma s d₂ hyp)
+  best-lemma     s (nest j d)    hyp = best-lemma s d hyp
+  best-lemma     s (emb f d)     hyp = best-lemma s d (hyp ∘ f)
+  best-lemma     s (d₁ ◇ d₂)     hyp =
     best-lemma s d₁ λ {s′} f∈ →
       cast (LM.assoc s _ _)
         (best-lemma (s ++ s′) d₂ λ x∈ →
