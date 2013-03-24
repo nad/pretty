@@ -113,7 +113,7 @@ ugly-renderer = record
   mutual
 
     render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
-    render nil            = []
+    render nil            = String.toList ""
     render (text {s = s}) = s
     render (d₁ ◇ d₂)      = render d₁ ++ render d₂
     render line           = String.toList " "
