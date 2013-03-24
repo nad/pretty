@@ -289,17 +289,17 @@ wadler's-renderer w = record
 
   mutual
 
-    -- Conversion of Docs to DocUs.
+    -- Converts ("expands") groups to unions.
 
-    expand-groups : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
-    expand-groups nil        = nil
-    expand-groups text       = text
-    expand-groups (d₁ ◇ d₂)  = expand-groups d₁ ◇ expand-groups d₂
-    expand-groups line       = line
-    expand-groups (group d)  = union (flatten d) (expand-groups d)
-    expand-groups (nest i d) = nest i (expand-groups d)
-    expand-groups (emb f d)  = embed f (expand-groups d)
-    expand-groups (fill ds)  = expand-fills false ds
+    expand : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
+    expand nil        = nil
+    expand text       = text
+    expand (d₁ ◇ d₂)  = expand d₁ ◇ expand d₂
+    expand line       = line
+    expand (group d)  = union (flatten d) (expand d)
+    expand (nest i d) = nest i (expand d)
+    expand (emb f d)  = embed f (expand d)
+    expand (fill ds)  = expand-fills false ds
 
     expand-fills : Bool → -- Unconditionally flatten the first document?
                    ∀ {A} {g : Grammar A} {xs} →
@@ -313,7 +313,7 @@ wadler's-renderer w = record
     flatten/expand : Bool → -- Flatten?
                      ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
     flatten/expand true  d = flatten d
-    flatten/expand false d = expand-groups d
+    flatten/expand false d = expand d
 
   -- Layouts (representations of certain strings).
 
@@ -373,7 +373,7 @@ wadler's-renderer w = record
   -- Renders a document.
 
   render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
-  render d = show (best 0 (expand-groups d) (λ _ → []) 0)
+  render d = show (best 0 (expand d) (λ _ → []) 0)
 
   -- Some simple lemmas.
 
@@ -428,7 +428,7 @@ wadler's-renderer w = record
 
   parsable : ∀ {A} {g : Grammar A} {x}
              (d : Doc g x) → x ∈ g ∙ render d
-  parsable d = best-lemma [] (expand-groups d)
+  parsable d = best-lemma [] (expand d)
                           (cast (P.sym $ proj₂ LM.identity _))
 
 -- Wadler's renderer ignores emb constructors.
@@ -436,7 +436,7 @@ wadler's-renderer w = record
 wadler's-renderer-ignores-emb :
   ∀ {w} → Renderer.Ignores-emb (wadler's-renderer w)
 wadler's-renderer-ignores-emb {w} {d = d}
-  with Wadler's-renderer.expand-groups w d
+  with Wadler's-renderer.expand w d
 ... | Wadler's-renderer.nil       = P.refl
 ... | Wadler's-renderer.text      = P.refl
 ... | _ Wadler's-renderer.◇ _     = P.refl
