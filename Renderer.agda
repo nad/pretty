@@ -422,12 +422,18 @@ wadler's-renderer width = record
     lemma = solve 4 (λ a b c d → a ⊕ (b ⊕ c) ⊕ d ⊜ (a ⊕ b) ⊕ c ⊕ d)
                     P.refl
 
+  -- A corollary.
+
+  best-lemma′ :
+    ∀ {A} {g : Grammar A} {x i}
+    (d : DocU g x) → x ∈ g ∙ show (best i d (λ _ → []) 0)
+  best-lemma′ d = best-lemma [] d (cast (P.sym $ proj₂ LM.identity _))
+
   -- The renderer is correct.
 
   parsable : ∀ {A} {g : Grammar A} {x}
              (d : Doc g x) → x ∈ g ∙ render d
-  parsable d = best-lemma [] (expand d)
-                          (cast (P.sym $ proj₂ LM.identity _))
+  parsable d = best-lemma′ (expand d)
 
 -- Wadler's renderer ignores emb constructors.
 
