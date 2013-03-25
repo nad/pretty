@@ -181,142 +181,6 @@ wadler's-renderer width = record
   }
   module Wadler's-renderer where
 
-  -- Documents with unions instead of groups, and no fills.
-
-  infixr 20 _◇_
-
-  data DocU : ∀ {A} → Grammar A → A → Set₁ where
-    nil   : ∀ {A} {x : A} → DocU (return x) x
-    text  : ∀ {s} → DocU (string s) s
-    _◇_   : ∀ {c₁ c₂ A B x y}
-              {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
-            DocU (♭? g₁) x → DocU (♭? (g₂ x)) y → DocU (g₁ >>= g₂) y
-    line  : DocU (tt <$ whitespace +) tt
-    union : ∀ {A} {g : Grammar A} {x} → DocU g x → DocU g x → DocU g x
-    nest  : ∀ {A} {g : Grammar A} {x} → ℕ → DocU g x → DocU g x
-    emb   : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
-            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
-
-  -- Some derived combinators.
-
-  infixl 20 _⊛_ _<⊛_ _⊛>_
-  infix  20 <$>_ <$_
-
-  embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
-          (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocU g₁ x → DocU g₂ y
-  embed f (emb g d) = emb (f ∘ g) d
-  embed f d         = emb f d
-
-  <$>_ : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
-         DocU (♭? g) x → DocU (f <$> g) (f x)
-  <$> d = embed <$>-sem d
-
-  <$_ : ∀ {A B : Set} {x : A} {y : B} {g} →
-        DocU g y → DocU (x <$ g) x
-  <$ d = embed <$-sem d
-
-  _⊛_ : ∀ {c₁ c₂ A B f x} {g₁ : ∞Grammar c₁ (A → B)}
-          {g₂ : ∞Grammar c₂ A} →
-        DocU (♭? g₁) f → DocU (♭? g₂) x → DocU (g₁ G.⊛ g₂) (f x)
-  _⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ <$> d₂)
-    where
-    lemma : ∀ {x s} →
-            x ∈ (g₁ >>= λ f → f <$> g₂) ∙ s → x ∈ g₁ G.⊛ g₂ ∙ s
-    lemma (>>=-sem f∈ (<$>-sem x∈)) = ⊛-sem f∈ x∈
-
-  _<⊛_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
-           {g₂ : ∞Grammar c₂ B} →
-         DocU (♭? g₁) x → DocU (♭? g₂) y → DocU (g₁ G.<⊛ g₂) x
-  _<⊛_ {g₁ = g₁} {g₂} d₁ d₂ =
-    embed lemma (nil ⊛ d₁ ⊛ d₂)
-    where
-    lemma : ∀ {x s} →
-            x ∈ return (λ x _ → x) G.⊛ g₁ G.⊛ g₂ ∙ s →
-            x ∈ g₁ G.<⊛ g₂ ∙ s
-    lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = <⊛-sem x∈ y∈
-
-  _⊛>_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
-           {g₂ : ∞Grammar c₂ B} →
-         DocU (♭? g₁) x → DocU (♭? g₂) y → DocU (g₁ G.⊛> g₂) y
-  _⊛>_ {g₁ = g₁} {g₂} d₁ d₂ =
-    embed lemma (nil ⊛ d₁ ⊛ d₂)
-    where
-    lemma : ∀ {y s} →
-            y ∈ return (λ _ x → x) G.⊛ g₁ G.⊛ g₂ ∙ s →
-            y ∈ g₁ G.⊛> g₂ ∙ s
-    lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = ⊛>-sem x∈ y∈
-
-  cons : ∀ {A B} {g : Grammar A} {sep : Grammar B} {x xs} →
-         DocU g x → DocU (tt <$ sep) tt → DocU (g sep-by sep) xs →
-         DocU (g sep-by sep) (x ∷⁺ xs)
-  cons {g = g} {sep} d₁ d₂ d₃ =
-    embed lemma (<$> d₁ ⊛ (d₂ ⊛> d₃))
-    where
-    lemma : ∀ {ys s} →
-            ys ∈ _∷⁺_ <$> g G.⊛ ((tt <$ sep) G.⊛> (g sep-by sep)) ∙ s →
-            ys ∈ g sep-by sep ∙ s
-    lemma (⊛-sem (<$>-sem x∈) (⊛>-sem (<$-sem y∈) xs∈)) =
-      sep-by-sem-∷ x∈ y∈ xs∈
-
-  -- A single space character.
-
-  space : DocU (tt <$ whitespace +) tt
-  space = embed lemma text
-    where
-    lemma : ∀ {s} →
-            String.toList " " ∈ string′ " " ∙ s →
-            tt ∈ tt <$ whitespace + ∙ s
-    lemma s∈ =
-      cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈))
-           (<$-sem single-space-sem)
-
-  mutual
-
-    -- Replaces line constructors with single spaces, removes groups.
-
-    flatten : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
-    flatten nil        = nil
-    flatten text       = text
-    flatten (d₁ ◇ d₂)  = flatten d₁ ◇ flatten d₂
-    flatten line       = space
-    flatten (group d)  = flatten d
-    flatten (nest i d) = nest i (flatten d)
-    flatten (emb f d)  = embed f (flatten d)
-    flatten (fill ds)  = flatten-fills ds
-
-    flatten-fills : ∀ {A} {g : Grammar A} {xs} →
-                    Docs g xs → DocU (g sep-by whitespace +) xs
-    flatten-fills [ d ]    = embed sep-by-sem-singleton (flatten d)
-    flatten-fills (d ∷ ds) = cons (flatten d) space (flatten-fills ds)
-
-  mutual
-
-    -- Converts ("expands") groups to unions.
-
-    expand : ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
-    expand nil        = nil
-    expand text       = text
-    expand (d₁ ◇ d₂)  = expand d₁ ◇ expand d₂
-    expand line       = line
-    expand (group d)  = union (flatten d) (expand d)
-    expand (nest i d) = nest i (expand d)
-    expand (emb f d)  = embed f (expand d)
-    expand (fill ds)  = expand-fills false ds
-
-    expand-fills : Bool → -- Unconditionally flatten the first document?
-                   ∀ {A} {g : Grammar A} {xs} →
-                   Docs g xs → DocU (g sep-by whitespace +) xs
-    expand-fills fl [ d ] =
-      embed sep-by-sem-singleton (flatten/expand fl d)
-    expand-fills fl (d ∷ ds) =
-      union (cons (flatten d)           space (expand-fills true  ds))
-            (cons (flatten/expand fl d) line  (expand-fills false ds))
-
-    flatten/expand : Bool → -- Flatten?
-                     ∀ {A} {g : Grammar A} {x} → Doc g x → DocU g x
-    flatten/expand true  d = flatten d
-    flatten/expand false d = expand d
-
   -- Layouts (representations of certain strings).
 
   data Layout-element : Set where
@@ -334,6 +198,171 @@ wadler's-renderer width = record
 
   show : Layout → List Char
   show = concat ∘ List.map show-element
+
+  -- Documents with unions instead of groups, and no fills. An extra
+  -- index—the nesting level—is also included, and the line
+  -- combinator's type is more precise (it can't be used for single
+  -- spaces, only for newline-plus-indentation).
+
+  infixr 20 _◇_
+
+  data DocN : ∀ {A} → ℕ → Grammar A → A → Set₁ where
+    nil   : ∀ {i A} {x : A} → DocN i (return x) x
+    text  : ∀ {i s} → DocN i (string s) s
+    _◇_   : ∀ {i c₁ c₂ A B x y}
+              {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
+            DocN i (♭? g₁) x → DocN i (♭? (g₂ x)) y →
+            DocN i (g₁ >>= g₂) y
+    line  : ∀ {i} →
+            let s = show-element (line i) in
+            DocN i (string s) s
+    union : ∀ {i A} {g : Grammar A} {x} →
+            DocN i g x → DocN i g x → DocN i g x
+    nest  : ∀ {i A} {g : Grammar A} {x}
+            (j : ℕ) → DocN (j + i) g x → DocN i g x
+    emb   : ∀ {i A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
+            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) →
+            DocN i g₁ x → DocN i g₂ y
+
+  -- Some derived combinators.
+
+  infixl 20 _⊛_ _<⊛_ _⊛>_
+  infix  20 <$>_ <$_
+
+  embed : ∀ {i A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
+          (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocN i g₁ x → DocN i g₂ y
+  embed f (emb g d) = emb (f ∘ g) d
+  embed f d         = emb f d
+
+  <$>_ : ∀ {i c A B} {f : A → B} {x} {g : ∞Grammar c A} →
+         DocN i (♭? g) x → DocN i (f <$> g) (f x)
+  <$> d = embed <$>-sem d
+
+  <$_ : ∀ {i A B} {x : A} {y : B} {g} →
+        DocN i g y → DocN i (x <$ g) x
+  <$ d = embed <$-sem d
+
+  _⊛_ : ∀ {i c₁ c₂ A B f x} {g₁ : ∞Grammar c₁ (A → B)}
+          {g₂ : ∞Grammar c₂ A} →
+        DocN i (♭? g₁) f → DocN i (♭? g₂) x → DocN i (g₁ G.⊛ g₂) (f x)
+  _⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ <$> d₂)
+    where
+    lemma : ∀ {x s} →
+            x ∈ (g₁ >>= λ f → f <$> g₂) ∙ s → x ∈ g₁ G.⊛ g₂ ∙ s
+    lemma (>>=-sem f∈ (<$>-sem x∈)) = ⊛-sem f∈ x∈
+
+  _<⊛_ : ∀ {i c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
+           {g₂ : ∞Grammar c₂ B} →
+         DocN i (♭? g₁) x → DocN i (♭? g₂) y → DocN i (g₁ G.<⊛ g₂) x
+  _<⊛_ {g₁ = g₁} {g₂} d₁ d₂ =
+    embed lemma (nil ⊛ d₁ ⊛ d₂)
+    where
+    lemma : ∀ {x s} →
+            x ∈ return (λ x _ → x) G.⊛ g₁ G.⊛ g₂ ∙ s →
+            x ∈ g₁ G.<⊛ g₂ ∙ s
+    lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = <⊛-sem x∈ y∈
+
+  _⊛>_ : ∀ {i c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
+           {g₂ : ∞Grammar c₂ B} →
+         DocN i (♭? g₁) x → DocN i (♭? g₂) y → DocN i (g₁ G.⊛> g₂) y
+  _⊛>_ {g₁ = g₁} {g₂} d₁ d₂ =
+    embed lemma (nil ⊛ d₁ ⊛ d₂)
+    where
+    lemma : ∀ {y s} →
+            y ∈ return (λ _ x → x) G.⊛ g₁ G.⊛ g₂ ∙ s →
+            y ∈ g₁ G.⊛> g₂ ∙ s
+    lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = ⊛>-sem x∈ y∈
+
+  cons : ∀ {i A B} {g : Grammar A} {sep : Grammar B} {x xs} →
+         DocN i g x → DocN i (tt <$ sep) tt → DocN i (g sep-by sep) xs →
+         DocN i (g sep-by sep) (x ∷⁺ xs)
+  cons {g = g} {sep} d₁ d₂ d₃ =
+    embed lemma (<$> d₁ ⊛ (d₂ ⊛> d₃))
+    where
+    lemma : ∀ {ys s} →
+            ys ∈ _∷⁺_ <$> g G.⊛ ((tt <$ sep) G.⊛> (g sep-by sep)) ∙ s →
+            ys ∈ g sep-by sep ∙ s
+    lemma (⊛-sem (<$>-sem x∈) (⊛>-sem (<$-sem y∈) xs∈)) =
+      sep-by-sem-∷ x∈ y∈ xs∈
+
+  -- A single space character.
+
+  imprecise-space : ∀ {i} → DocN i (tt <$ whitespace +) tt
+  imprecise-space = embed lemma text
+    where
+    lemma : ∀ {s} →
+            String.toList " " ∈ string′ " " ∙ s →
+            tt ∈ tt <$ whitespace + ∙ s
+    lemma s∈ =
+      cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈))
+           (<$-sem single-space-sem)
+
+  -- A variant of line that has the same type as Pretty.line (except
+  -- for the indentation index).
+
+  imprecise-line : ∀ {i} → DocN i (tt <$ whitespace +) tt
+  imprecise-line = embed lemma line
+    where
+    replicate-lemma :
+      ∀ i → replicate i ' ' ∈ whitespace ⋆ ∙ replicate i ' '
+    replicate-lemma zero    = ⋆-[]-sem
+    replicate-lemma (suc i) =
+      ⋆-∷-sem (left-sem tok-sem) (replicate-lemma i)
+
+    lemma : ∀ {i s′} →
+            let s = show-element (line i) in
+            s ∈ string s ∙ s′ → tt ∈ tt <$ whitespace + ∙ s′
+    lemma s∈ =
+      cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈))
+           (<$-sem (+-sem (right-sem tok-sem) (replicate-lemma _)))
+
+  mutual
+
+    -- Replaces line constructors with single spaces, removes groups.
+
+    flatten : ∀ {i A} {g : Grammar A} {x} → Doc g x → DocN i g x
+    flatten nil        = nil
+    flatten text       = text
+    flatten (d₁ ◇ d₂)  = flatten d₁ ◇ flatten d₂
+    flatten line       = imprecise-space
+    flatten (group d)  = flatten d
+    flatten (nest j d) = nest j (flatten d)
+    flatten (emb f d)  = embed f (flatten d)
+    flatten (fill ds)  = flatten-fills ds
+
+    flatten-fills : ∀ {i A} {g : Grammar A} {xs} →
+                    Docs g xs → DocN i (g sep-by whitespace +) xs
+    flatten-fills [ d ]    = embed sep-by-sem-singleton (flatten d)
+    flatten-fills (d ∷ ds) =
+      cons (flatten d) imprecise-space (flatten-fills ds)
+
+  mutual
+
+    -- Converts ("expands") groups to unions.
+
+    expand : ∀ {i A} {g : Grammar A} {x} → Doc g x → DocN i g x
+    expand nil        = nil
+    expand text       = text
+    expand (d₁ ◇ d₂)  = expand d₁ ◇ expand d₂
+    expand line       = imprecise-line
+    expand (group d)  = union (flatten d) (expand d)
+    expand (nest j d) = nest j (expand d)
+    expand (emb f d)  = embed f (expand d)
+    expand (fill ds)  = expand-fills false ds
+
+    expand-fills : Bool → -- Unconditionally flatten the first document?
+                   ∀ {i A} {g : Grammar A} {xs} →
+                   Docs g xs → DocN i (g sep-by whitespace +) xs
+    expand-fills fl [ d ] =
+      embed sep-by-sem-singleton (flatten/expand fl d)
+    expand-fills fl (d ∷ ds) =
+      union (cons (flatten d)           imprecise-space (expand-fills true  ds))
+            (cons (flatten/expand fl d) imprecise-line  (expand-fills false ds))
+
+    flatten/expand : Bool → -- Flatten?
+                     ∀ {i A} {g : Grammar A} {x} → Doc g x → DocN i g x
+    flatten/expand true  d = flatten d
+    flatten/expand false d = expand d
 
   -- Does the first line of the layout fit inside a row with the
   -- given number of characters?
@@ -357,34 +386,23 @@ wadler's-renderer width = record
   -- this text, given the current indentation i and the current column
   -- number c.
 
-  best : ∀ {A} {g : Grammar A} {x} →
-         ℕ → DocU g x → (ℕ → Layout) → (ℕ → Layout)
-  best i nil            = id
-  best i (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
-  best i (d₁ ◇ d₂)      = best i d₁ ∘ best i d₂
-  best i line           = λ κ _ → line i ∷ κ i
-  best i (union d₁ d₂)  = λ κ c → better c (best i d₁ κ c)
-                                           (best i d₂ κ c)
-  best i (nest j d)     = best (j + i) d
-  best i (emb _ d)      = best i d
+  best : ∀ {i A} {g : Grammar A} {x} →
+         DocN i g x → (ℕ → Layout) → (ℕ → Layout)
+  best nil            = id
+  best (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
+  best (d₁ ◇ d₂)      = best d₁ ∘ best d₂
+  best (line {i = i}) = λ κ _ → line i ∷ κ i
+  best (union d₁ d₂)  = λ κ c → better c (best d₁ κ c)
+                                         (best d₂ κ c)
+  best (nest _ d)     = best d
+  best (emb _ d)      = best d
 
   -- Renders a document.
 
   render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
-  render d = show (best 0 (expand d) (λ _ → []) 0)
+  render d = show (best {i = 0} (expand d) (λ _ → []) 0)
 
-  -- Some simple lemmas.
-
-  replicate-lemma :
-    ∀ i → replicate i ' ' ∈ whitespace ⋆ ∙ replicate i ' '
-  replicate-lemma zero    = ⋆-[]-sem
-  replicate-lemma (suc i) =
-    ⋆-∷-sem (left-sem tok-sem) (replicate-lemma i)
-
-  line-lemma :
-    ∀ {A} {x : A} i →
-    x ∈ x <$ whitespace + ∙ show-element (line i)
-  line-lemma i = <$-sem (+-sem (right-sem tok-sem) (replicate-lemma i))
+  -- A simple lemma.
 
   if-lemma :
     ∀ {A} {g : Grammar A} {x l₁ l₂} s b →
@@ -398,18 +416,19 @@ wadler's-renderer width = record
 
   best-lemma :
     ∀ {c A B} {g : Grammar A} {g′ : Grammar B} {x y κ}
-      s (d : DocU g x) {i} →
+      s {i} (d : DocN i g x) →
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
-    y ∈ g′ ∙ s ++ show (best i d κ c)
+    y ∈ g′ ∙ s ++ show (best d κ c)
   best-lemma     s nil           hyp = hyp return-sem
   best-lemma     s text          hyp = hyp string-sem
-  best-lemma     s line {i}      hyp = hyp (line-lemma i)
+  best-lemma     s {i} line      hyp = hyp (⊛-sem (<$>-sem tok-sem)
+                                                  string-sem)
   best-lemma {c} s (union d₁ d₂) hyp = if-lemma s
                                          (fits (width ⊖ c)
-                                               (best _ d₁ _ _))
+                                               (best d₁ _ _))
                                          (best-lemma s d₁ hyp)
                                          (best-lemma s d₂ hyp)
-  best-lemma     s (nest j d)    hyp = best-lemma s d hyp
+  best-lemma     s (nest _ d)    hyp = best-lemma s d hyp
   best-lemma     s (emb f d)     hyp = best-lemma s d (hyp ∘ f)
   best-lemma     s (d₁ ◇ d₂)     hyp =
     best-lemma s d₁ λ {s′} f∈ →
@@ -425,8 +444,8 @@ wadler's-renderer width = record
   -- A corollary.
 
   best-lemma′ :
-    ∀ {A} {g : Grammar A} {x i}
-    (d : DocU g x) → x ∈ g ∙ show (best i d (λ _ → []) 0)
+    ∀ {A i} {g : Grammar A} {x}
+    (d : DocN i g x) → x ∈ g ∙ show (best d (λ _ → []) 0)
   best-lemma′ d = best-lemma [] d (cast (P.sym $ proj₂ LM.identity _))
 
   -- The renderer is correct.
@@ -440,7 +459,7 @@ wadler's-renderer width = record
 wadler's-renderer-ignores-emb :
   ∀ {w} → Renderer.Ignores-emb (wadler's-renderer w)
 wadler's-renderer-ignores-emb {w} {d = d}
-  with Wadler's-renderer.expand w d
+  with Wadler's-renderer.expand w {i = 0} d
 ... | Wadler's-renderer.nil       = P.refl
 ... | Wadler's-renderer.text      = P.refl
 ... | _ Wadler's-renderer.◇ _     = P.refl
