@@ -261,13 +261,14 @@ wadler's-renderer width = record
   -- A single space character.
 
   space : DocU (tt <$ whitespace +) tt
-  space = embed lemma (<$ text)
+  space = embed lemma text
     where
     lemma : ∀ {s} →
-            tt ∈ tt <$ string′ " " ∙ s →
+            String.toList " " ∈ string′ " " ∙ s →
             tt ∈ tt <$ whitespace + ∙ s
-    lemma (<$-sem (⊛-sem (<$>-sem tok-sem) return-sem)) =
-      <$-sem single-space-sem
+    lemma s∈ =
+      cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈))
+           (<$-sem single-space-sem)
 
   mutual
 
