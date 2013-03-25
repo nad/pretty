@@ -385,7 +385,7 @@ wadler's-renderer width = record
   -- Renders a document.
 
   render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
-  render d = show (best {i = 0} (expand d) (λ _ → []) 0)
+  render d = show (best (expand {i = 0} d) (λ _ → []) 0)
 
   -- A simple lemma.
 
