@@ -311,7 +311,7 @@ wadler's-renderer width = record
     flatten (d₁ ◇ d₂)  = flatten d₁ ◇ flatten d₂
     flatten line       = imprecise-space
     flatten (group d)  = flatten d
-    flatten (nest j d) = nest j (flatten d)
+    flatten (nest _ d) = flatten d
     flatten (emb f d)  = embed f (flatten d)
     flatten (fill ds)  = flatten-fills ds
 
