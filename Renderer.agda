@@ -208,12 +208,12 @@ wadler's-renderer width = record
 
   data DocN : ∀ {A} → ℕ → Grammar A → A → Set₁ where
     nil   : ∀ {i A} {x : A} → DocN i (return x) x
-    text  : ∀ {i s} → DocN i (string s) s
+    text  : ∀ {i} (s : List Char) → DocN i (string s) s
     _◇_   : ∀ {i c₁ c₂ A B x y}
               {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
             DocN i (♭? g₁) x → DocN i (♭? (g₂ x)) y →
             DocN i (g₁ >>= g₂) y
-    line  : ∀ {i} →
+    line  : (i : ℕ) →
             let s = show-element (line i) in
             DocN i (string s) s
     union : ∀ {i A} {g : Grammar A} {x} →
@@ -288,7 +288,7 @@ wadler's-renderer width = record
   -- A single space character.
 
   imprecise-space : ∀ {i} → DocN i (tt <$ whitespace +) tt
-  imprecise-space = embed lemma text
+  imprecise-space = embed lemma (text (String.toList " "))
     where
     lemma : ∀ {s} →
             String.toList " " ∈ string′ " " ∙ s →
@@ -300,8 +300,8 @@ wadler's-renderer width = record
   -- A variant of line that has the same type as Pretty.line (except
   -- for the indentation index).
 
-  imprecise-line : ∀ {i} → DocN i (tt <$ whitespace +) tt
-  imprecise-line = embed lemma line
+  imprecise-line : (i : ℕ) → DocN i (tt <$ whitespace +) tt
+  imprecise-line i = embed lemma (line i)
     where
     replicate-lemma :
       ∀ i → replicate i ' ' ∈ whitespace ⋆ ∙ replicate i ' '
@@ -322,7 +322,7 @@ wadler's-renderer width = record
 
     flatten : ∀ {i A} {g : Grammar A} {x} → Doc g x → DocN i g x
     flatten nil        = nil
-    flatten text       = text
+    flatten text       = text _
     flatten (d₁ ◇ d₂)  = flatten d₁ ◇ flatten d₂
     flatten line       = imprecise-space
     flatten (group d)  = flatten d
@@ -342,9 +342,9 @@ wadler's-renderer width = record
 
     expand : ∀ {i A} {g : Grammar A} {x} → Doc g x → DocN i g x
     expand nil        = nil
-    expand text       = text
+    expand text       = text _
     expand (d₁ ◇ d₂)  = expand d₁ ◇ expand d₂
-    expand line       = imprecise-line
+    expand line       = imprecise-line _
     expand (group d)  = union (flatten d) (expand d)
     expand (nest j d) = nest j (expand d)
     expand (emb f d)  = embed f (expand d)
@@ -356,8 +356,8 @@ wadler's-renderer width = record
     expand-fills fl [ d ] =
       embed sep-by-sem-singleton (flatten/expand fl d)
     expand-fills fl (d ∷ ds) =
-      union (cons (flatten d)           imprecise-space (expand-fills true  ds))
-            (cons (flatten/expand fl d) imprecise-line  (expand-fills false ds))
+      union (cons (flatten d)           imprecise-space    (expand-fills true  ds))
+            (cons (flatten/expand fl d) (imprecise-line _) (expand-fills false ds))
 
     flatten/expand : Bool → -- Flatten?
                      ∀ {i A} {g : Grammar A} {x} → Doc g x → DocN i g x
@@ -389,9 +389,9 @@ wadler's-renderer width = record
   best : ∀ {i A} {g : Grammar A} {x} →
          DocN i g x → (ℕ → Layout) → (ℕ → Layout)
   best nil            = id
-  best (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
+  best (text s)       = λ κ c → text s ∷ κ (length s + c)
   best (d₁ ◇ d₂)      = best d₁ ∘ best d₂
-  best (line {i = i}) = λ κ _ → line i ∷ κ i
+  best (line i)       = λ κ _ → line i ∷ κ i
   best (union d₁ d₂)  = λ κ c → better c (best d₁ κ c)
                                          (best d₂ κ c)
   best (nest _ d)     = best d
@@ -415,13 +415,13 @@ wadler's-renderer width = record
   -- The main correctness property for best.
 
   best-lemma :
-    ∀ {c A B} {g : Grammar A} {g′ : Grammar B} {x y κ}
-      s {i} (d : DocN i g x) →
+    ∀ {c A B i} {g : Grammar A} {g′ : Grammar B} {x y κ}
+      s (d : DocN i g x) →
     (∀ {s′ c′} → x ∈ g ∙ s′ → y ∈ g′ ∙ s ++ s′ ++ show (κ c′)) →
     y ∈ g′ ∙ s ++ show (best d κ c)
   best-lemma     s nil           hyp = hyp return-sem
-  best-lemma     s text          hyp = hyp string-sem
-  best-lemma     s {i} line      hyp = hyp (⊛-sem (<$>-sem tok-sem)
+  best-lemma     s (text _)      hyp = hyp string-sem
+  best-lemma     s (line i)      hyp = hyp (⊛-sem (<$>-sem tok-sem)
                                                   string-sem)
   best-lemma {c} s (union d₁ d₂) hyp = if-lemma s
                                          (fits (width ⊖ c)
@@ -461,9 +461,9 @@ wadler's-renderer-ignores-emb :
 wadler's-renderer-ignores-emb {w} {d = d}
   with Wadler's-renderer.expand w {i = 0} d
 ... | Wadler's-renderer.nil       = P.refl
-... | Wadler's-renderer.text      = P.refl
+... | Wadler's-renderer.text _    = P.refl
 ... | _ Wadler's-renderer.◇ _     = P.refl
-... | Wadler's-renderer.line      = P.refl
+... | Wadler's-renderer.line ._   = P.refl
 ... | Wadler's-renderer.union _ _ = P.refl
 ... | Wadler's-renderer.nest _ _  = P.refl
 ... | Wadler's-renderer.emb _ _   = P.refl
