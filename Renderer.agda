@@ -226,8 +226,8 @@ wadler's-renderer width = record
 
   -- Some derived combinators.
 
-  infixl 20 _⊛_ _<⊛_ _⊛>_
-  infix  20 <$>_ <$_
+  infixl 20 _⊛_ _⊛>_
+  infix  20 <$>_
 
   embed : ∀ {i A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
           (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → DocN i g₁ x → DocN i g₂ y
@@ -238,10 +238,6 @@ wadler's-renderer width = record
          DocN i (♭? g) x → DocN i (f <$> g) (f x)
   <$> d = embed <$>-sem d
 
-  <$_ : ∀ {i A B} {x : A} {y : B} {g} →
-        DocN i g y → DocN i (x <$ g) x
-  <$ d = embed <$-sem d
-
   _⊛_ : ∀ {i c₁ c₂ A B f x} {g₁ : ∞Grammar c₁ (A → B)}
           {g₂ : ∞Grammar c₂ A} →
         DocN i (♭? g₁) f → DocN i (♭? g₂) x → DocN i (g₁ G.⊛ g₂) (f x)
@@ -250,17 +246,6 @@ wadler's-renderer width = record
     lemma : ∀ {x s} →
             x ∈ (g₁ >>= λ f → f <$> g₂) ∙ s → x ∈ g₁ G.⊛ g₂ ∙ s
     lemma (>>=-sem f∈ (<$>-sem x∈)) = ⊛-sem f∈ x∈
-
-  _<⊛_ : ∀ {i c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
-           {g₂ : ∞Grammar c₂ B} →
-         DocN i (♭? g₁) x → DocN i (♭? g₂) y → DocN i (g₁ G.<⊛ g₂) x
-  _<⊛_ {g₁ = g₁} {g₂} d₁ d₂ =
-    embed lemma (nil ⊛ d₁ ⊛ d₂)
-    where
-    lemma : ∀ {x s} →
-            x ∈ return (λ x _ → x) G.⊛ g₁ G.⊛ g₂ ∙ s →
-            x ∈ g₁ G.<⊛ g₂ ∙ s
-    lemma (⊛-sem (⊛-sem return-sem x∈) y∈) = <⊛-sem x∈ y∈
 
   _⊛>_ : ∀ {i c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A}
            {g₂ : ∞Grammar c₂ B} →
