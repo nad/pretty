@@ -320,8 +320,8 @@ wadler's-renderer width = record
   -- Layouts (representations of certain strings).
 
   data Layout-element : Set where
-    text      : List Char → Layout-element
-    nest-line : ℕ         → Layout-element
+    text : List Char → Layout-element
+    line : ℕ         → Layout-element
 
   Layout : Set
   Layout = List Layout-element
@@ -329,8 +329,8 @@ wadler's-renderer width = record
   -- Conversion of layouts into strings.
 
   show-element : Layout-element → List Char
-  show-element (text s)      = s
-  show-element (nest-line i) = '\n' ∷ replicate i ' '
+  show-element (text s) = s
+  show-element (line i) = '\n' ∷ replicate i ' '
 
   show : Layout → List Char
   show = concat ∘ List.map show-element
@@ -339,10 +339,10 @@ wadler's-renderer width = record
   -- given number of characters?
 
   fits : ℤ → Layout → Bool
-  fits -[1+ w ] _                 = false
-  fits w        []                = true
-  fits w        (text s      ∷ x) = fits (w - + length s) x
-  fits w        (nest-line i ∷ x) = true
+  fits -[1+ w ] _            = false
+  fits w        []           = true
+  fits w        (text s ∷ x) = fits (w - + length s) x
+  fits w        (line i ∷ x) = true
 
   -- Chooses the first layout if it fits, otherwise the second (which
   -- is assumed to have a first line that is at most as long as the
@@ -362,7 +362,7 @@ wadler's-renderer width = record
   best i nil            = id
   best i (text {s = s}) = λ κ c → text s ∷ κ (length s + c)
   best i (d₁ ◇ d₂)      = best i d₁ ∘ best i d₂
-  best i line           = λ κ _ → nest-line i ∷ κ i
+  best i line           = λ κ _ → line i ∷ κ i
   best i (union d₁ d₂)  = λ κ c → better c (best i d₁ κ c)
                                            (best i d₂ κ c)
   best i (nest j d)     = best (j + i) d
@@ -381,11 +381,10 @@ wadler's-renderer width = record
   replicate-lemma (suc i) =
     ⋆-∷-sem (left-sem tok-sem) (replicate-lemma i)
 
-  nest-line-lemma :
+  line-lemma :
     ∀ {A} {x : A} i →
-    x ∈ x <$ whitespace + ∙ show-element (nest-line i)
-  nest-line-lemma i =
-    <$-sem (+-sem (right-sem tok-sem) (replicate-lemma i))
+    x ∈ x <$ whitespace + ∙ show-element (line i)
+  line-lemma i = <$-sem (+-sem (right-sem tok-sem) (replicate-lemma i))
 
   if-lemma :
     ∀ {A} {g : Grammar A} {x l₁ l₂} s b →
@@ -404,7 +403,7 @@ wadler's-renderer width = record
     y ∈ g′ ∙ s ++ show (best i d κ c)
   best-lemma     s nil           hyp = hyp return-sem
   best-lemma     s text          hyp = hyp string-sem
-  best-lemma     s line {i}      hyp = hyp (nest-line-lemma i)
+  best-lemma     s line {i}      hyp = hyp (line-lemma i)
   best-lemma {c} s (union d₁ d₂) hyp = if-lemma s
                                          (fits (width ⊖ c)
                                                (best _ d₁ _ _))
