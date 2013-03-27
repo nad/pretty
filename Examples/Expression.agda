@@ -12,7 +12,7 @@ open import Data.Unit
 open import Function
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
-open import Examples.Name
+open import Examples.Identifier
 import Grammar.Infinite as Grammar
 import Pretty
 open import Renderer
@@ -136,7 +136,7 @@ module Expression₃ where
     one : Expr
     sub : Expr → Expr → Expr
     div : Expr → Expr → Expr
-    var : Name → Expr
+    var : Identifier → Expr
 
   -- Precedences.
 
@@ -155,7 +155,7 @@ module Expression₃ where
     expr ′6 = ♯ expr ′7
             ∣ div <$> ♯ expr ′6 <⊛ symbol′ "/" ⊛ ♯ expr ′7
     expr ′7 = one <$ symbol′ "1"
-            ∣ var <$> name-w
+            ∣ var <$> identifier-w
             ∣ symbol′ "(" ⊛> ♯ expr ′5 <⊛ symbol′ ")"
 
   open Pretty
@@ -168,7 +168,7 @@ module Expression₃ where
   -- Documents for variables.
 
   var-doc : ∀ x → Doc (expr ′7) (var x)
-  var-doc x = left (right (<$> name-w-printer x))
+  var-doc x = left (right (<$> identifier-w-printer x))
 
   -- Adds parentheses to a document.
 
@@ -211,7 +211,7 @@ module Expression₃ where
   -- Unit tests.
 
   example : Expr
-  example = sub (div (var (str "x")) one) (sub one (var (str "y")))
+  example = sub (div (var (str⁺ "x")) one) (sub one (var (str⁺ "y")))
 
   test₁ : render 80 (expr-printer ′5 example) ≡ "x / 1 - (1 - y)"
   test₁ = refl

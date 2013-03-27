@@ -13,10 +13,10 @@ open import Data.Char
 open import Data.List as List using (List; []; _∷_)
 open import Data.List.NonEmpty using (_∷_)
 open import Data.Product
+import Data.String as String
 open import Data.Unit
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
-open import Examples.Name
 open import Grammar.Infinite as Grammar using (Grammar)
 open import Pretty using (Pretty-printer)
 open import Renderer
@@ -24,11 +24,15 @@ open import Utilities
 
 -- Text.
 
-is-space : Char → Bool
-is-space t = (t == ' ') ∨ (t == '\n')
-
 is-text-char : Char → Bool
-is-text-char t = is-name-char t ∨ is-space t
+is-text-char t =
+  ('A' ≤?C t) ∧ (t ≤?C 'Z')
+    ∨
+  ('a' ≤?C t) ∧ (t ≤?C 'z')
+    ∨
+  ('0' ≤?C t) ∧ (t ≤?C '9')
+    ∨
+  List.any (_==_ t) (String.toList ":./ \n")
 
 Text : Set
 Text = List (∃ λ (t : Char) → T (is-text-char t))
@@ -44,11 +48,11 @@ text-printer = map⋆ (λ _ → sat)
 mutual
 
   data XML : Set where
-    elt : Name → List Att → List XML → XML
+    elt : Text → List Att → List XML → XML
     txt : Text → XML
 
   data Att : Set where
-    att : Name → Name → Att
+    att : Text → Text → Att
 
 -- The following grammar is ambiguous: a sequence of txt elements
 -- can be parsed in several different ways.
@@ -74,8 +78,8 @@ module _ where
           symbol′ ">"
         ∣ txt <$> text-g <⊛ whitespace ⋆
 
-    start-of-element : Grammar (Name × List Att)
-    start-of-element = _,_ <$ symbol′ "<" ⊛ name ⊛ w-attrs
+    start-of-element : Grammar (Text × List Att)
+    start-of-element = _,_ <$ symbol′ "<" ⊛ text-g ⊛ w-attrs
 
     w-xmls : Grammar (List XML)
     w-xmls = whitespace ⋆ ⊛> xmls
@@ -90,10 +94,11 @@ module _ where
     attrs = attr ⋆
 
     attr : Grammar Att
-    attr = att <$> name-w
+    attr = att <$> text-g
+               <⊛  whitespace ⋆
                <⊛  symbol′ "="
                <⊛  string′ "\""
-                ⊛  name
+                ⊛  text-g
                <⊛  symbol′ "\""
 
 open Pretty
@@ -117,7 +122,7 @@ mutual
 
   start-of-element-printer : Pretty-printer start-of-element
   start-of-element-printer (t , atts) =
-    <$ symbol ⊛ name-printer t ⊛ w-attrs-printer atts
+    <$ symbol ⊛ text-printer t ⊛ w-attrs-printer atts
 
   w-attrs-printer : Pretty-printer w-attrs
   w-attrs-printer []       = nil-⋆ ⊛> nil-⋆
@@ -130,7 +135,12 @@ mutual
 
   attr-printer : Pretty-printer attr
   attr-printer (att n v) =
-    <$> name-w-printer n <⊛ symbol <⊛ text ⊛ name-printer v <⊛ symbol
+    <$> text-printer n
+    <⊛  nil-⋆
+    <⊛  symbol
+    <⊛  text
+     ⊛  text-printer v
+    <⊛  symbol
 
   w-xmls-printer : Pretty-printer w-xmls
   w-xmls-printer []       = nil-⋆ ⊛> nil-⋆

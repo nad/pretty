@@ -32,9 +32,9 @@ import Renderer
 -- Examples.
 
 import Examples.Bool
-import Examples.Name
-import Examples.Name-list
 import Examples.Expression
+import Examples.Identifier
+import Examples.Identifier-list
 import Examples.Precedence
 import Examples.Tree
 import Examples.XML

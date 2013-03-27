@@ -33,7 +33,7 @@ open import Relation.Nullary
 open import Relation.Nullary.Decidable as Dec
 open import Relation.Nullary.Product
 
-open import Examples.Name as Name hiding (name)
+open import Examples.Identifier
 open import Grammar.Infinite as Grammar using (Grammar-for)
 open import Pretty using (Pretty-printer-for)
 open import Renderer
@@ -168,7 +168,7 @@ module Expr (g : Precedence-graph) where
   -- Simple expressions.
 
   data E : Set where
-    var : Name → E
+    var : Identifier → E
     app : ∀ {assoc p} → E → (∃ λ op → op ∈ ops p assoc) → E → E
 
   -- The following function can be convenient to use when constructing
@@ -194,8 +194,8 @@ module Expr (g : Precedence-graph) where
 
     data Expr (ps : List Precedence) : Set where
       _∙_   : ∀ {p assoc} → p ∈ ps → Expr-in p assoc → Expr ps
-      paren : Expr any-precedence → Expr ps
-      var   : Name                → Expr ps
+      paren : Expr any-precedence                    → Expr ps
+      var   : Identifier                             → Expr ps
 
     -- Expr-in p assoc contains expressions where the outermost
     -- operator has precedence p (is /in/ precedence level p) and the
@@ -286,7 +286,7 @@ module Expr (g : Precedence-graph) where
 
       precs : (ps : List Precedence) → Grammar (Expr ps)
       precs ps = paren <$ string′ "(" ⊛ ♯ expr <⊛ string′ ")"
-               ∣ var <$> Name.name
+               ∣ var <$> identifier
                ∣ precs′ ps
 
       precs′ : (ps : List Precedence) → Grammar (Expr ps)
@@ -365,7 +365,7 @@ module Expr (g : Precedence-graph) where
       precs-printer′ (paren e)  = left (left
                                     (<$ text ⊛ nest 1 (expr-printer e)
                                             <⊛ text))
-      precs-printer′ (var x)    = left (right (<$> name-printer x))
+      precs-printer′ (var x)    = left (right (<$> identifier-printer x))
 
     precs′-printer :
        ∀ {assoc p ps}
@@ -457,50 +457,50 @@ open Expr g
 
 example : Expr any-precedence
 example = recall
-  (app′ (app′ (app′ (app′ (var (str "y")) add (var (str "k")))
+  (app′ (app′ (app′ (app′ (var (str⁺ "y")) add (var (str⁺ "k")))
                     cons
-                    (app′ (app′ (app′ (var (str "i"))
+                    (app′ (app′ (app′ (var (str⁺ "i"))
                                       add
-                                      (var (str "0.5")))
+                                      (var (str⁺ "foo")))
                                 add
-                                (app′ (app′ (var (str "2"))
+                                (app′ (app′ (var (str⁺ "a"))
                                             div
-                                            (app′ (var (str "0"))
+                                            (app′ (var (str⁺ "b"))
                                                   sub
-                                                  (var (str "1"))))
+                                                  (var (str⁺ "c"))))
                                       mul
-                                      (var (str "1"))))
+                                      (var (str⁺ "c"))))
                           cons
-                          (var (str "xs"))))
+                          (var (str⁺ "xs"))))
               snoc
-              (var (str "x")))
+              (var (str⁺ "x")))
         snoc
-        (app′ (var (str "z")) mul (var (str "z"))))
+        (app′ (var (str⁺ "z")) mul (var (str⁺ "z"))))
 
 -- Some unit tests.
 
 test₁ : render 80 (expr-printer example) ≡
-        "(y + k <: i + 0.5 + 2 / (0 - 1) * 1 <: xs) :> x :> z * z"
+        "(y + k <: i + foo + a / (b - c) * c <: xs) :> x :> z * z"
 test₁ = P.refl
 
 test₂ : render 50 (expr-printer example) ≡
-        "(y + k <: i + 0.5 + 2 / (0 - 1) * 1 <: xs)\n:> x\n:> z * z"
+        "(y + k <: i + foo + a / (b - c) * c <: xs)\n:> x\n:> z * z"
 test₂ = P.refl
 
 test₃ : render 40 (expr-printer example) ≡
-        "(y + k\n   <: i + 0.5 + 2 / (0 - 1) * 1\n   <: xs)\n:> x\n:> z * z"
+        "(y + k\n   <: i + foo + a / (b - c) * c\n   <: xs)\n:> x\n:> z * z"
 test₃ = P.refl
 
 test₄ : render 30 (expr-printer example) ≡
-        "(y + k\n   <: i\n     + 0.5\n     + 2 / (0 - 1) * 1\n   <: xs)\n:> x\n:> z * z"
+        "(y + k\n   <: i\n     + foo\n     + a / (b - c) * c\n   <: xs)\n:> x\n:> z * z"
 test₄ = P.refl
 
 test₅ : render 20 (expr-printer example) ≡
-        "(y + k\n   <: i\n     + 0.5\n     + 2\n       / (0 - 1)\n       * 1\n   <: xs)\n:> x\n:> z * z"
+        "(y + k\n   <: i\n     + foo\n     + a\n       / (b - c)\n       * c\n   <: xs)\n:> x\n:> z * z"
 test₅ = P.refl
 
 test₆ : render 6 (expr-printer example) ≡
-        "(y + k\n   <: i\n     + 0.5\n     + 2\n       / (0\n          - 1)\n       * 1\n   <: xs)\n:> x\n:> z\n  * z"
+        "(y + k\n   <: i\n     + foo\n     + a\n       / (b\n          - c)\n       * c\n   <: xs)\n:> x\n:> z\n  * z"
 test₆ = P.refl
 
 -- Note the strange rendering of "y + k" in the following test. If no
@@ -520,5 +520,5 @@ test₆ = P.refl
 -- the alternative result " x".
 
 test₇ : render 5 (expr-printer example) ≡
-        "(y\n     + k\n   <: i\n     + 0.5\n     + 2\n       / (0\n          - 1)\n       * 1\n   <: xs)\n:> x\n:> z\n  * z"
+        "(y\n     + k\n   <: i\n     + foo\n     + a\n       / (b\n          - c)\n       * c\n   <: xs)\n:> x\n:> z\n  * z"
 test₇ = P.refl

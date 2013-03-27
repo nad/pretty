@@ -7,18 +7,18 @@
 module Examples.Tree where
 
 open import Coinduction
-open import Data.List as List
+open import Data.List
 open import Data.List.NonEmpty as List⁺
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
-open import Examples.Name
+open import Examples.Identifier
 import Grammar.Infinite
 import Pretty
 open import Renderer
 open import Utilities
 
 data Tree : Set where
-  node : Name → List Tree → Tree
+  node : Identifier → List Tree → Tree
 
 module _ where
 
@@ -27,7 +27,7 @@ module _ where
   mutual
 
     tree : Grammar Tree
-    tree = node <$> name-w ⊛ brackets
+    tree = node <$> identifier-w ⊛ brackets
 
     brackets : Grammar (List Tree)
     brackets = return []
@@ -56,8 +56,8 @@ module Printer₁ where
 
     tree-printer : Pretty-printer tree
     tree-printer (node s ts) =
-      group (<$> name-w-printer s ⊛
-             nest (List.length s) (brackets-printer ts))
+      group (<$> identifier-w-printer s ⊛
+             nest (List⁺.length s) (brackets-printer ts))
 
     brackets-printer : Pretty-printer brackets
     brackets-printer []       = left nil
@@ -80,7 +80,7 @@ module Printer₂ where
 
     tree-printer : Pretty-printer tree
     tree-printer (node s ts) =
-      <$> name-w-printer s ⊛ brackets-printer ts
+      <$> identifier-w-printer s ⊛ brackets-printer ts
 
     -- Note that this printer is not defined in exactly the same way
     -- as Wadler's: Wadler used "nest 2" once, here it is used twice
@@ -105,16 +105,16 @@ module Printer₂ where
              (commas-and-trees-printer ts)
 
 t : Tree
-t = node (str "aaa")
-      (node (str "bbbbb")
-         (node (str "ccc") [] ∷
-          node (str "dd") [] ∷
+t = node (str⁺ "aaa")
+      (node (str⁺ "bbbbb")
+         (node (str⁺ "ccc") [] ∷
+          node (str⁺ "dd") [] ∷
           []) ∷
-       node (str "eee") [] ∷
-       node (str "ffff")
-         (node (str "gg") [] ∷
-          node (str "hhh") [] ∷
-          node (str "ii") [] ∷
+       node (str⁺ "eee") [] ∷
+       node (str⁺ "ffff")
+         (node (str⁺ "gg") [] ∷
+          node (str⁺ "hhh") [] ∷
+          node (str⁺ "ii") [] ∷
           []) ∷
        [])
 
