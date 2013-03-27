@@ -7,6 +7,7 @@ module Renderer where
 open import Algebra
 open import Data.Bool
 open import Data.Char
+open import Data.Empty
 open import Data.Integer using (ℤ; +_; -[1+_]; _-_; _⊖_)
 open import Data.List as List hiding ([_])
 open import Data.List.NonEmpty using (_∷⁺_)
@@ -49,10 +50,22 @@ record Renderer : Set₁ where
   -- Pretty-printers are correct by definition, for any renderer,
   -- assuming that the underlying grammar is unambiguous.
 
-  pretty-printer-correct :
+  correct :
     ∀ {A} {g : Grammar A} (pretty : Pretty-printer g) →
     ∀ x → x ∈ g ∙ render (pretty x)
-  pretty-printer-correct pretty x = parsable (pretty x)
+  correct pretty x = parsable (pretty x)
+
+  correct-if-unambiguous :
+    ∀ {A} {g : Grammar A} →
+    Unambiguous g → (parse : Parser g) (pretty : Pretty-printer g) →
+    ∀ x → ∃ λ p → parse (render (pretty x)) ≡ yes (x , p)
+  correct-if-unambiguous unambiguous parse pretty = c
+    where
+    c : ∀ x → ∃ λ p → parse (render (pretty x)) ≡ yes (x , p)
+    c x with parse (render (pretty x))
+    c x | no  no-parse   = ⊥-elim (no-parse (x , correct pretty x))
+    c x | yes (y  , y∈g) with unambiguous y∈g (correct pretty x)
+    c x | yes (.x , x∈g) | P.refl = (x∈g , P.refl)
 
   -- If there is only one grammatically correct string, then the
   -- renderer returns this string.

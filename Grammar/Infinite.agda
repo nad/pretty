@@ -36,6 +36,7 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
+open import Relation.Nullary
 
 private
   module LM {A : Set} = Monoid (List.monoid A)
@@ -261,6 +262,17 @@ data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
                [] ∈ g ⋆ ∙ []
   ⋆-+-sem    : ∀ {c A} {g : ∞Grammar c A} {x xs s} →
                (x ∷ xs) ∈ g + ∙ s → x ∷ xs ∈ g ⋆ ∙ s
+
+-- A weak form of unambiguity. (Note that the parse trees are not
+-- required to be equal.)
+
+Unambiguous : ∀ {A} → Grammar A → Set₁
+Unambiguous g = ∀ {s x y} → x ∈ g ∙ s → y ∈ g ∙ s → x ≡ y
+
+-- Parsers.
+
+Parser : ∀ {A} → Grammar A → Set₁
+Parser g = ∀ s → Dec (∃ λ x → x ∈ g ∙ s)
 
 -- Cast lemma.
 
