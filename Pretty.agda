@@ -25,7 +25,7 @@ open import Grammar.Infinite as G
 
 mutual
 
-  -- Pretty-printer documents. If p : Doc g x, then p is a decorated
+  -- Pretty-printer documents. If p : Doc g x, then p is a "flexible"
   -- parse tree (with respect to the grammar g) for the value x.
   --
   -- For convenience I have chosen to parametrise Doc by "extended"
