@@ -87,7 +87,7 @@ record Renderer : Set₁ where
   Ignores-emb : Set₁
   Ignores-emb =
     ∀ {A B x y} {g₁ : Grammar A} {g₂ : Grammar B}
-    {f : ∀ {s} → x ∈ g₁ · s → y ∈ g₂ · s} {d : Doc g₁ x} →
+      {f : ∀ {s} → x ∈ g₁ · s → y ∈ g₂ · s} {d : Doc g₁ x} →
     render (emb f d) ≡ render d
 
   -- If the renderer ignores emb constructors then, for every valid
