@@ -83,9 +83,6 @@ module _ where
     xmls : Grammar (List XML)
     xmls = ♯ xml ⋆
 
-    tag : Grammar Name
-    tag = name-w
-
     w-attrs : Grammar (List Att)
     w-attrs = whitespace ⋆ ⊛> attrs
 
