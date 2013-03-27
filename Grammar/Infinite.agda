@@ -43,7 +43,7 @@ private
   open module MM {f} = RawMonadPlus (Maybe.monadPlus {f = f})
     using () renaming (_<$>_ to _<$>M_; _⊛_ to _⊛M_)
 
-import Grammar.Infinite.Basic as Basic; open Basic._∈_∙_
+import Grammar.Infinite.Basic as Basic; open Basic._∈_·_
 open import Utilities
 
 ------------------------------------------------------------------------
@@ -221,69 +221,69 @@ symbol′ = symbol ∘ String.toList
 ------------------------------------------------------------------------
 -- Alternative definition of the semantics
 
--- Pattern matching on values of type x Basic.∈ ⟦ g₁ ⊛ g₂ ⟧ ∙ s (say)
+-- Pattern matching on values of type x Basic.∈ ⟦ g₁ ⊛ g₂ ⟧ · s (say)
 -- is somewhat inconvenient: the patterns have the form
 -- (>>=-sem _ (>>=-sem _ return-sem)). The following, direct
 -- definition of the semantics may be easier to use.
 
-infix 4 _∈_∙_
+infix 4 _∈_·_
 
-data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
-  return-sem : ∀ {A} {x : A} → x ∈ return x ∙ []
-  token-sem  : ∀ {t} → t ∈ token ∙ [ t ]
+data _∈_·_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
+  return-sem : ∀ {A} {x : A} → x ∈ return x · []
+  token-sem  : ∀ {t} → t ∈ token · [ t ]
   >>=-sem    : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A}
                  {g₂ : A → ∞Grammar c₂ B} {x y s₁ s₂} →
-               x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? (g₂ x) ∙ s₂ →
-               y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
+               x ∈ ♭? g₁ · s₁ → y ∈ ♭? (g₂ x) · s₂ →
+               y ∈ g₁ >>= g₂ · s₁ ++ s₂
   left-sem   : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A}
                  {x s} →
-               x ∈ ♭? g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+               x ∈ ♭? g₁ · s → x ∈ g₁ ∣ g₂ · s
   right-sem  : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A}
                  {x s} →
-               x ∈ ♭? g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
-  tok-sem    : ∀ {t} → t ∈ tok t ∙ [ t ]
+               x ∈ ♭? g₂ · s → x ∈ g₁ ∣ g₂ · s
+  tok-sem    : ∀ {t} → t ∈ tok t · [ t ]
   <$>-sem    : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} {x s} →
-               x ∈ ♭? g ∙ s → f x ∈ f <$> g ∙ s
+               x ∈ ♭? g · s → f x ∈ f <$> g · s
   <$-sem     : ∀ {c A B} {x : A} {g : ∞Grammar c B} {y s} →
-               y ∈ ♭? g ∙ s → x ∈ x <$ g ∙ s
+               y ∈ ♭? g · s → x ∈ x <$ g · s
   ⊛-sem      : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ (A → B)}
                  {g₂ : ∞Grammar c₂ A} {f x s₁ s₂} →
-               f ∈ ♭? g₁ ∙ s₁ → x ∈ ♭? g₂ ∙ s₂ →
-               f x ∈ g₁ ⊛ g₂ ∙ s₁ ++ s₂
+               f ∈ ♭? g₁ · s₁ → x ∈ ♭? g₂ · s₂ →
+               f x ∈ g₁ ⊛ g₂ · s₁ ++ s₂
   <⊛-sem     : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
                  {x y s₁ s₂} →
-               x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ →
-               x ∈ g₁ <⊛ g₂ ∙ s₁ ++ s₂
+               x ∈ ♭? g₁ · s₁ → y ∈ ♭? g₂ · s₂ →
+               x ∈ g₁ <⊛ g₂ · s₁ ++ s₂
   ⊛>-sem     : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B}
                  {x y s₁ s₂} →
-               x ∈ ♭? g₁ ∙ s₁ → y ∈ ♭? g₂ ∙ s₂ →
-               y ∈ g₁ ⊛> g₂ ∙ s₁ ++ s₂
+               x ∈ ♭? g₁ · s₁ → y ∈ ♭? g₂ · s₂ →
+               y ∈ g₁ ⊛> g₂ · s₁ ++ s₂
   ⋆-[]-sem   : ∀ {c A} {g : ∞Grammar c A} →
-               [] ∈ g ⋆ ∙ []
+               [] ∈ g ⋆ · []
   ⋆-+-sem    : ∀ {c A} {g : ∞Grammar c A} {x xs s} →
-               (x ∷ xs) ∈ g + ∙ s → x ∷ xs ∈ g ⋆ ∙ s
+               (x ∷ xs) ∈ g + · s → x ∷ xs ∈ g ⋆ · s
 
 -- A weak form of unambiguity. (Note that the parse trees are not
 -- required to be equal.)
 
 Unambiguous : ∀ {A} → Grammar A → Set₁
-Unambiguous g = ∀ {s x y} → x ∈ g ∙ s → y ∈ g ∙ s → x ≡ y
+Unambiguous g = ∀ {s x y} → x ∈ g · s → y ∈ g · s → x ≡ y
 
 -- Parsers.
 
 Parser : ∀ {A} → Grammar A → Set₁
-Parser g = ∀ s → Dec (∃ λ x → x ∈ g ∙ s)
+Parser g = ∀ s → Dec (∃ λ x → x ∈ g · s)
 
 -- Cast lemma.
 
 cast : ∀ {A} {g : Grammar A} {x s₁ s₂} →
-       s₁ ≡ s₂ → x ∈ g ∙ s₁ → x ∈ g ∙ s₂
+       s₁ ≡ s₂ → x ∈ g · s₁ → x ∈ g · s₂
 cast refl = id
 
 -- The alternative semantics is isomorphic to the one above.
 
 isomorphic : ∀ {A x s} {g : Grammar A} →
-             x ∈ g ∙ s ↔ x Basic.∈ ⟦ g ⟧ ∙ s
+             x ∈ g · s ↔ x Basic.∈ ⟦ g ⟧ · s
 isomorphic {g = g} = record
   { to         = P.→-to-⟶ sound
   ; from       = P.→-to-⟶ (complete g)
@@ -309,12 +309,12 @@ isomorphic {g = g} = record
     ((s₁ ++ []) ++ s₂ ++ []) ++ []  ∎
     where open P.≡-Reasoning
 
-  tok-lemma : ∀ {t t′ s} → t ≡ t′ × s ≡ [ t ] → t′ ∈ tok t ∙ s
+  tok-lemma : ∀ {t t′ s} → t ≡ t′ × s ≡ [ t ] → t′ ∈ tok t · s
   tok-lemma (refl , refl) = tok-sem
 
   -- Soundness.
 
-  sound : ∀ {A x s} {g : Grammar A} → x ∈ g ∙ s → x Basic.∈ ⟦ g ⟧ ∙ s
+  sound : ∀ {A x s} {g : Grammar A} → x ∈ g · s → x Basic.∈ ⟦ g ⟧ · s
   sound return-sem               = return-sem
   sound token-sem                = token-sem
   sound (>>=-sem x∈ y∈)          = >>=-sem (sound x∈) (sound y∈)
@@ -341,7 +341,7 @@ isomorphic {g = g} = record
 
   -- Completeness.
 
-  complete : ∀ {A x s} (g : Grammar A) → x Basic.∈ ⟦ g ⟧ ∙ s → x ∈ g ∙ s
+  complete : ∀ {A x s} (g : Grammar A) → x Basic.∈ ⟦ g ⟧ · s → x ∈ g · s
   complete (return x)  return-sem      = return-sem
   complete token       token-sem       = token-sem
   complete (g₁ >>= g₂) (>>=-sem x∈ y∈) = >>=-sem (complete _ x∈)
@@ -379,30 +379,30 @@ isomorphic {g = g} = record
 
   sound-cast :
     ∀ {A x s₁ s₂}
-    (g : Grammar A) (eq : s₁ ≡ s₂) (x∈ : x ∈ g ∙ s₁) →
+    (g : Grammar A) (eq : s₁ ≡ s₂) (x∈ : x ∈ g · s₁) →
     sound (cast eq x∈) ≡ Basic.cast eq (sound x∈)
   sound-cast _ refl _ = refl
 
   complete-cast :
     ∀ {A x s₁ s₂}
-    (g : Grammar A) (eq : s₁ ≡ s₂) (x∈ : x Basic.∈ ⟦ g ⟧ ∙ s₁) →
+    (g : Grammar A) (eq : s₁ ≡ s₂) (x∈ : x Basic.∈ ⟦ g ⟧ · s₁) →
     complete g (Basic.cast eq x∈) ≡ cast eq (complete g x∈)
   complete-cast _ refl _ = refl
 
   cast-cast :
-    ∀ {A} {x : A} {s₁ s₂ g} (eq : s₁ ≡ s₂) {x∈ : x Basic.∈ g ∙ s₁} →
+    ∀ {A} {x : A} {s₁ s₂ g} (eq : s₁ ≡ s₂) {x∈ : x Basic.∈ g · s₁} →
     Basic.cast (P.sym eq) (Basic.cast eq x∈) ≡ x∈
   cast-cast refl = refl
 
   cast-cast′ :
     ∀ {A} {x : A} {s₁ s₂ g}
-    (eq₁ : s₂ ≡ s₁) (eq₂ : s₁ ≡ s₂) {x∈ : x Basic.∈ g ∙ s₁} →
+    (eq₁ : s₂ ≡ s₁) (eq₂ : s₁ ≡ s₂) {x∈ : x Basic.∈ g · s₁} →
     Basic.cast eq₁ (Basic.cast eq₂ x∈) ≡ x∈
   cast-cast′ refl refl = refl
 
   -- The functions sound and complete are inverses.
 
-  complete∘sound : ∀ {A x s} {g : Grammar A} (x∈ : x ∈ g ∙ s) →
+  complete∘sound : ∀ {A x s} {g : Grammar A} (x∈ : x ∈ g · s) →
                    complete g (sound x∈) ≡ x∈
   complete∘sound return-sem      = refl
   complete∘sound token-sem       = refl
@@ -473,7 +473,7 @@ isomorphic {g = g} = record
     = refl
 
   sound∘complete : ∀ {A x s}
-                   (g : Grammar A) (x∈ : x Basic.∈ ⟦ g ⟧ ∙ s) →
+                   (g : Grammar A) (x∈ : x Basic.∈ ⟦ g ⟧ · s) →
                    sound (complete g x∈) ≡ x∈
   sound∘complete (return x)  return-sem      = refl
   sound∘complete token       token-sem       = refl
@@ -486,7 +486,7 @@ isomorphic {g = g} = record
   sound∘complete (tok t) t∈    =
     helper _ (Inverse.left-inverse-of Basic.tok-sem t∈)
     where
-    helper : ∀ {t t′ s} {t∈ : t′ Basic.∈ Basic.tok t ∙ s}
+    helper : ∀ {t t′ s} {t∈ : t′ Basic.∈ Basic.tok t · s}
              (eqs : t ≡ t′ × s ≡ [ t ]) →
              Inverse.from Basic.tok-sem ⟨$⟩ eqs ≡ t∈ →
              sound (tok-lemma eqs) ≡ t∈
@@ -561,9 +561,9 @@ isomorphic {g = g} = record
       (eq₂ : (s₁++s₂) ++ [] ≡ s₁++s₂)
       (eq₃ : s₁ ++ s₂++[] ≡ s₁++s₂)
       (eq₄ : s₁++[] ≡ s₁)
-      (f∈  : f  Basic.∈ ⟦ _∷_ <$> g ⟧ ∙ s₁++[])
-      (xs∈ : xs Basic.∈ ⟦ f <$> g ⋆ ⟧ ∙ s₂++[]) →
-      _≡_ {A = List⁺.toList xs Basic.∈ ⟦ g ⋆ ⟧ ∙ _}
+      (f∈  : f  Basic.∈ ⟦ _∷_ <$> g ⟧ · s₁++[])
+      (xs∈ : xs Basic.∈ ⟦ f <$> g ⋆ ⟧ · s₂++[]) →
+      _≡_ {A = List⁺.toList xs Basic.∈ ⟦ g ⋆ ⟧ · _}
           (Basic.cast eq₁
              (Basic.cast eq₂
                 (right-sem
@@ -577,75 +577,75 @@ isomorphic {g = g} = record
 -- Semantics combinators
 
 +-sem : ∀ {c A} {g : ∞Grammar c A} {x xs s₁ s₂} →
-        x ∈ ♭? g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → (x ∷ xs) ∈ g + ∙ s₁ ++ s₂
+        x ∈ ♭? g · s₁ → xs ∈ g ⋆ · s₂ → (x ∷ xs) ∈ g + · s₁ ++ s₂
 +-sem x∈ xs∈ = ⊛-sem (<$>-sem x∈) xs∈
 
 ⋆-∷-sem : ∀ {c A} {g : ∞Grammar c A} {x xs s₁ s₂} →
-          x ∈ ♭? g ∙ s₁ → xs ∈ g ⋆ ∙ s₂ → x ∷ xs ∈ g ⋆ ∙ s₁ ++ s₂
+          x ∈ ♭? g · s₁ → xs ∈ g ⋆ · s₂ → x ∷ xs ∈ g ⋆ · s₁ ++ s₂
 ⋆-∷-sem x∈ xs∈ = ⋆-+-sem (+-sem x∈ xs∈)
 
 ⋆-⋆-sem : ∀ {c A} {g : ∞Grammar c A} {xs₁ xs₂ s₁ s₂} →
-          xs₁ ∈ g ⋆ ∙ s₁ → xs₂ ∈ g ⋆ ∙ s₂ → xs₁ ++ xs₂ ∈ g ⋆ ∙ s₁ ++ s₂
+          xs₁ ∈ g ⋆ · s₁ → xs₂ ∈ g ⋆ · s₂ → xs₁ ++ xs₂ ∈ g ⋆ · s₁ ++ s₂
 ⋆-⋆-sem ⋆-[]-sem xs₂∈ = xs₂∈
 ⋆-⋆-sem (⋆-+-sem (⊛-sem (<$>-sem {s = s₁} x∈) xs₁∈)) xs₂∈ =
   cast (P.sym $ LM.assoc s₁ _ _)
        (⋆-∷-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
 
 +-∷-sem : ∀ {c A} {g : ∞Grammar c A} {x xs s₁ s₂} →
-          x ∈ ♭? g ∙ s₁ → xs ∈ g + ∙ s₂ → x ∷⁺ xs ∈ g + ∙ s₁ ++ s₂
+          x ∈ ♭? g · s₁ → xs ∈ g + · s₂ → x ∷⁺ xs ∈ g + · s₁ ++ s₂
 +-∷-sem x∈ xs∈ = +-sem x∈ (⋆-+-sem xs∈)
 
 mutual
 
   list-sem : ∀ {A} {g : Grammar-for A} {s : A → List Char} →
-             (∀ x → (x , refl) ∈ g x ∙ s x) →
-             ∀ xs → (xs , refl) ∈ list g xs ∙ concat (List.map s xs)
+             (∀ x → (x , refl) ∈ g x · s x) →
+             ∀ xs → (xs , refl) ∈ list g xs · concat (List.map s xs)
   list-sem elem []       = return-sem
   list-sem elem (x ∷ xs) = <$>-sem (list⁺-sem elem (x ∷ xs))
 
   list⁺-sem :
     ∀ {A} {g : Grammar-for A} {s : A → List Char} →
-    (∀ x → (x , refl) ∈ g x ∙ s x) →
-    ∀ xs → (xs , refl) ∈ list⁺ g xs ∙
+    (∀ x → (x , refl) ∈ g x · s x) →
+    ∀ xs → (xs , refl) ∈ list⁺ g xs ·
            concat (List.map s (List⁺.toList xs))
   list⁺-sem elem (x ∷ xs) = ⊛-sem (<$>-sem (elem x)) (list-sem elem xs)
 
 sep-by-sem-singleton :
   ∀ {A B} {g : Grammar A} {sep : Grammar B} {x s} →
-  x ∈ g ∙ s → x ∷ [] ∈ g sep-by sep ∙ s
+  x ∈ g · s → x ∷ [] ∈ g sep-by sep · s
 sep-by-sem-singleton x∈ =
   cast (proj₂ LM.identity _)
              (⊛-sem (<$>-sem x∈) ⋆-[]-sem)
 
 sep-by-sem-∷ :
   ∀ {A B} {g : Grammar A} {sep : Grammar B} {x y xs s₁ s₂ s₃} →
-  x ∈ g ∙ s₁ → y ∈ sep ∙ s₂ → xs ∈ g sep-by sep ∙ s₃ →
-  x ∷⁺ xs ∈ g sep-by sep ∙ s₁ ++ s₂ ++ s₃
+  x ∈ g · s₁ → y ∈ sep · s₂ → xs ∈ g sep-by sep · s₃ →
+  x ∷⁺ xs ∈ g sep-by sep · s₁ ++ s₂ ++ s₃
 sep-by-sem-∷ {s₂ = s₂} x∈ y∈ (⊛-sem (<$>-sem x′∈) xs∈) =
   ⊛-sem (<$>-sem x∈)
         (cast (LM.assoc s₂ _ _)
               (⋆-∷-sem (⊛>-sem y∈ x′∈) xs∈))
 
-if-true-sem : ∀ {b} (t : T b) → t ∈ if-true b ∙ []
+if-true-sem : ∀ {b} (t : T b) → t ∈ if-true b · []
 if-true-sem {b = true}  _  = return-sem
 if-true-sem {b = false} ()
 
 sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
-          (t , pt) ∈ sat p ∙ [ t ]
+          (t , pt) ∈ sat p · [ t ]
 sat-sem pt = >>=-sem token-sem (<$>-sem (if-true-sem pt))
 
 tok-sat-sem : ∀ {p : Char → Bool} {t} (pt : T (p t)) →
-              ((t , pt) , refl) ∈ tok-sat p (t , pt) ∙ [ t ]
+              ((t , pt) , refl) ∈ tok-sat p (t , pt) · [ t ]
 tok-sat-sem _ = <$-sem tok-sem
 
 list-sem-lemma : ∀ {A} {x : A} {g s} →
-                 x ∈ g ∙ concat (List.map [_] s) → x ∈ g ∙ s
+                 x ∈ g · concat (List.map [_] s) → x ∈ g · s
 list-sem-lemma = cast (List-prop.Monad.right-identity _)
 
-single-space-sem : (' ' ∷ []) ∈ whitespace + ∙ String.toList " "
+single-space-sem : (' ' ∷ []) ∈ whitespace + · String.toList " "
 single-space-sem = +-sem (left-sem tok-sem) ⋆-[]-sem
 
-string-sem′ : ∀ {s s′ s″} → s ∈ string s′ ∙ s″ ↔ (s ≡ s′ × s′ ≡ s″)
+string-sem′ : ∀ {s s′ s″} → s ∈ string s′ · s″ ↔ (s ≡ s′ × s′ ≡ s″)
 string-sem′ = record
   { to         = P.→-to-⟶ (to _)
   ; from       = P.→-to-⟶ (from _)
@@ -655,17 +655,17 @@ string-sem′ = record
     }
   }
   where
-  to : ∀ {s} s′ {s″} → s ∈ string s′ ∙ s″ → s ≡ s′ × s′ ≡ s″
+  to : ∀ {s} s′ {s″} → s ∈ string s′ · s″ → s ≡ s′ × s′ ≡ s″
   to []       return-sem                   = (refl , refl)
   to (c ∷ s′) (⊛-sem (<$>-sem tok-sem) s∈) =
     Prod.map (P.cong (_∷_ c)) (P.cong (_∷_ c)) $ to s′ s∈
 
-  from : ∀ {s} s′ {s″} → s ≡ s′ × s′ ≡ s″ → s ∈ string s′ ∙ s″
+  from : ∀ {s} s′ {s″} → s ≡ s′ × s′ ≡ s″ → s ∈ string s′ · s″
   from []       (refl , refl) = return-sem
   from (c ∷ s′) (refl , refl) =
     ⊛-sem (<$>-sem tok-sem) (from s′ (refl , refl))
 
-  from∘to : ∀ {s} s′ {s″} (s∈ : s ∈ string s′ ∙ s″) →
+  from∘to : ∀ {s} s′ {s″} (s∈ : s ∈ string s′ · s″) →
             from s′ (to s′ s∈) ≡ s∈
   from∘to []       return-sem                   = refl
   from∘to (c ∷ s′) (⊛-sem (<$>-sem tok-sem) s∈)
@@ -680,7 +680,7 @@ string-sem′ = record
     rewrite to∘from s′ (refl , refl)
     = refl
 
-string-sem : ∀ {s} → s ∈ string s ∙ s
+string-sem : ∀ {s} → s ∈ string s · s
 string-sem = Inverse.from string-sem′ ⟨$⟩ (refl , refl)
 
 ------------------------------------------------------------------------
@@ -691,7 +691,7 @@ string-sem = Inverse.from string-sem′ ⟨$⟩ (refl , refl)
 
 expressive : (enumeration : ℕ → Maybe (List Char)) →
              ∃ λ (g : Grammar ⊤) →
-               ∀ {s} → tt ∈ g ∙ s ↔ ∃ λ n → enumeration n ≡ just s
+               ∀ {s} → tt ∈ g · s ↔ ∃ λ n → enumeration n ≡ just s
 expressive f = (g f , g-sem f)
   where
   maybe-string : Maybe (List Char) → Grammar ⊤
@@ -701,7 +701,7 @@ expressive f = (g f , g-sem f)
   g : (ℕ → Maybe (List Char)) → Grammar ⊤
   g f = maybe-string (f 0) ∣ ♯ g (f ∘ suc)
 
-  maybe-string-sem : ∀ {m s} → tt ∈ maybe-string m ∙ s ↔ m ≡ just s
+  maybe-string-sem : ∀ {m s} → tt ∈ maybe-string m · s ↔ m ≡ just s
   maybe-string-sem {nothing} = record
     { to         = P.→-to-⟶ (λ ())
     ; from       = P.→-to-⟶ (λ ())
@@ -719,15 +719,15 @@ expressive f = (g f , g-sem f)
       }
     }
     where
-    to : ∀ {s′} → tt ∈ tt <$ string s ∙ s′ → just s ≡ just s′
+    to : ∀ {s′} → tt ∈ tt <$ string s · s′ → just s ≡ just s′
     to (<$-sem s∈) =
       P.cong just $ proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈)
 
     from : ∀ {s′} →
-           Maybe.Maybe.just s ≡ just s′ → tt ∈ tt <$ string s ∙ s′
+           Maybe.Maybe.just s ≡ just s′ → tt ∈ tt <$ string s · s′
     from refl = <$-sem (Inverse.from string-sem′ ⟨$⟩ (refl , refl))
 
-    from∘to : ∀ {s′} (tt∈ : tt ∈ tt <$ string s ∙ s′) →
+    from∘to : ∀ {s′} (tt∈ : tt ∈ tt <$ string s · s′) →
               from (to tt∈) ≡ tt∈
     from∘to (<$-sem s∈)
       with Inverse.to string-sem′ ⟨$⟩ s∈
@@ -742,7 +742,7 @@ expressive f = (g f , g-sem f)
                 (string-sem′ {s = s}) (refl , refl)
       = refl
 
-  g-sem : ∀ f {s} → tt ∈ g f ∙ s ↔ ∃ λ n → f n ≡ just s
+  g-sem : ∀ f {s} → tt ∈ g f · s ↔ ∃ λ n → f n ≡ just s
   g-sem f {s} = record
     { to         = P.→-to-⟶ (to   f)
     ; from       = P.→-to-⟶ (from f)
@@ -752,17 +752,17 @@ expressive f = (g f , g-sem f)
       }
     }
     where
-    to : ∀ f {s} → tt ∈ g f ∙ s → ∃ λ n → f n ≡ just s
+    to : ∀ f {s} → tt ∈ g f · s → ∃ λ n → f n ≡ just s
     to f (left-sem  tt∈) = (zero , Inverse.to maybe-string-sem ⟨$⟩
                                      tt∈)
     to f (right-sem tt∈) = Prod.map suc id $ to (f ∘ suc) tt∈
 
-    from : ∀ f {s} → (∃ λ n → f n ≡ just s) → tt ∈ g f ∙ s
+    from : ∀ f {s} → (∃ λ n → f n ≡ just s) → tt ∈ g f · s
     from f (zero  , eq) = left-sem  (Inverse.from maybe-string-sem ⟨$⟩
                                        eq)
     from f (suc n , eq) = right-sem (from (f ∘ suc) (n , eq))
 
-    from∘to : ∀ f {s} (tt∈ : tt ∈ g f ∙ s) → from f (to f tt∈) ≡ tt∈
+    from∘to : ∀ f {s} (tt∈ : tt ∈ g f · s) → from f (to f tt∈) ≡ tt∈
     from∘to f (right-sem tt∈) = P.cong right-sem $
                                   from∘to (f ∘ suc) tt∈
     from∘to f (left-sem  tt∈) =
@@ -804,14 +804,14 @@ is-whitespace? _ = nothing
 
 Trailing-whitespace : ∀ {A} → Grammar A → Set₁
 Trailing-whitespace g =
-  ∀ {x s} → x ∈ g <⊛ whitespace ⋆ ∙ s → x ∈ g ∙ s
+  ∀ {x s} → x ∈ g <⊛ whitespace ⋆ · s → x ∈ g · s
 
 -- A similar but weaker property.
 
 Trailing-whitespace′ : ∀ {A} → Grammar A → Set₁
 Trailing-whitespace′ g =
   ∀ {x s s₁ s₂} →
-  x ∈ g ∙ s₁ → s ∈ whitespace ⋆ ∙ s₂ → ∃ λ y → y ∈ g ∙ s₁ ++ s₂
+  x ∈ g · s₁ → s ∈ whitespace ⋆ · s₂ → ∃ λ y → y ∈ g · s₁ ++ s₂
 
 -- A heuristic (and rather incomplete) procedure that either proves
 -- that a production can swallow trailing whitespace (in the weaker
@@ -896,7 +896,7 @@ trailing-whitespace? n g = convert <$>M trailing? n g
   Trailing-whitespace″ : ∀ {A} → Grammar A → Set₁
   Trailing-whitespace″ g =
     ∀ {x s s₁ s₂} →
-    x ∈ g ∙ s₁ → s ∈ whitespace ⋆ ∙ s₂ → x ∈ g ∙ s₁ ++ s₂
+    x ∈ g · s₁ → s ∈ whitespace ⋆ · s₂ → x ∈ g · s₁ ++ s₂
 
   convert : ∀ {A} {g : Grammar A} →
             Trailing-whitespace″ g → Trailing-whitespace g

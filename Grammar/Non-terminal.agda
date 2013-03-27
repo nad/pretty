@@ -134,130 +134,130 @@ symbol s = string s <⊛ whitespace ⋆
 ------------------------------------------------------------------------
 -- Semantics
 
-infix 4 [_]_∈_∙_
+infix 4 [_]_∈_·_
 
-data [_]_∈_∙_ {NT : Set → Set₁} (g : Grammar NT) :
+data [_]_∈_·_ {NT : Set → Set₁} (g : Grammar NT) :
               ∀ {A} → A → Prod NT A → List Char → Set₁ where
   !-sem      : ∀ {A} {nt : NT A} {x s} →
-               [ g ] x ∈ g A nt ∙ s → [ g ] x ∈ ! nt ∙ s
-  return-sem : ∀ {A} {x : A} → [ g ] x ∈ return x ∙ []
-  token-sem  : ∀ {t} → [ g ] t ∈ token ∙ [ t ]
-  tok-sem    : ∀ {t} → [ g ] t ∈ tok t ∙ [ t ]
+               [ g ] x ∈ g A nt · s → [ g ] x ∈ ! nt · s
+  return-sem : ∀ {A} {x : A} → [ g ] x ∈ return x · []
+  token-sem  : ∀ {t} → [ g ] t ∈ token · [ t ]
+  tok-sem    : ∀ {t} → [ g ] t ∈ tok t · [ t ]
   ⊛-sem      : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ : Prod NT A}
                  {f x s₁ s₂} →
-               [ g ] f ∈ p₁ ∙ s₁ → [ g ] x ∈ p₂ ∙ s₂ →
-               [ g ] f x ∈ p₁ ⊛ p₂ ∙ s₁ ++ s₂
+               [ g ] f ∈ p₁ · s₁ → [ g ] x ∈ p₂ · s₂ →
+               [ g ] f x ∈ p₁ ⊛ p₂ · s₁ ++ s₂
   <⊛-sem     : ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} {x y s₁ s₂} →
-               [ g ] x ∈ p₁ ∙ s₁ → [ g ] y ∈ p₂ ∙ s₂ →
-               [ g ] x ∈ p₁ <⊛ p₂ ∙ s₁ ++ s₂
+               [ g ] x ∈ p₁ · s₁ → [ g ] y ∈ p₂ · s₂ →
+               [ g ] x ∈ p₁ <⊛ p₂ · s₁ ++ s₂
   >>=-sem    : ∀ {A B} {p₁ : Prod NT A} {p₂ : A → Prod NT B}
                  {x y s₁ s₂} →
-               [ g ] x ∈ p₁ ∙ s₁ → [ g ] y ∈ p₂ x ∙ s₂ →
-               [ g ] y ∈ p₁ >>= p₂ ∙ s₁ ++ s₂
+               [ g ] x ∈ p₁ · s₁ → [ g ] y ∈ p₂ x · s₂ →
+               [ g ] y ∈ p₁ >>= p₂ · s₁ ++ s₂
   left-sem   : ∀ {A} {p₁ p₂ : Prod NT A} {x s} →
-               [ g ] x ∈ p₁ ∙ s → [ g ] x ∈ p₁ ∣ p₂ ∙ s
+               [ g ] x ∈ p₁ · s → [ g ] x ∈ p₁ ∣ p₂ · s
   right-sem  : ∀ {A} {p₁ p₂ : Prod NT A} {x s} →
-               [ g ] x ∈ p₂ ∙ s → [ g ] x ∈ p₁ ∣ p₂ ∙ s
+               [ g ] x ∈ p₂ · s → [ g ] x ∈ p₁ ∣ p₂ · s
   ⋆-[]-sem   : ∀ {A} {p : Prod NT A} →
-               [ g ] [] ∈ p ⋆ ∙ []
+               [ g ] [] ∈ p ⋆ · []
   ⋆-+-sem    : ∀ {A} {p : Prod NT A} {xs s} →
-               [ g ] xs ∈ p + ∙ s → [ g ] xs ∈ p ⋆ ∙ s
+               [ g ] xs ∈ p + · s → [ g ] xs ∈ p ⋆ · s
 
 -- Cast lemma.
 
 cast : ∀ {NT g A} {p : Prod NT A} {x s₁ s₂} →
-       s₁ ≡ s₂ → [ g ] x ∈ p ∙ s₁ → [ g ] x ∈ p ∙ s₂
+       s₁ ≡ s₂ → [ g ] x ∈ p · s₁ → [ g ] x ∈ p · s₂
 cast P.refl = id
 
 ------------------------------------------------------------------------
 -- Semantics combinators
 
 <$>-sem : ∀ {NT} {g : Grammar NT} {A B} {f : A → B} {x p s} →
-          [ g ] x ∈ p ∙ s → [ g ] f x ∈ f <$> p ∙ s
+          [ g ] x ∈ p · s → [ g ] f x ∈ f <$> p · s
 <$>-sem x∈ = ⊛-sem return-sem x∈
 
 <$-sem : ∀ {NT g A B} {p : Prod NT B} {x : A} {y s} →
-         [ g ] y ∈ p ∙ s → [ g ] x ∈ x <$ p ∙ s
+         [ g ] y ∈ p · s → [ g ] x ∈ x <$ p · s
 <$-sem y∈ = <⊛-sem return-sem y∈
 
 >>-sem : ∀ {NT g A B} {p₁ : Prod NT A} {p₂ : Prod NT B} {x y s₁ s₂} →
-         [ g ] x ∈ p₁ ∙ s₁ → [ g ] y ∈ p₂ ∙ s₂ →
-         [ g ] y ∈ p₁ >> p₂ ∙ s₁ ++ s₂
+         [ g ] x ∈ p₁ · s₁ → [ g ] y ∈ p₂ · s₂ →
+         [ g ] y ∈ p₁ >> p₂ · s₁ ++ s₂
 >>-sem x∈ y∈ = ⊛-sem (⊛-sem return-sem x∈) y∈
 
 ⊛>-sem : ∀ {NT g A B} {p₁ : Prod NT A} {p₂ : Prod NT B} {x y s₁ s₂} →
-         [ g ] x ∈ p₁ ∙ s₁ → [ g ] y ∈ p₂ ∙ s₂ →
-         [ g ] y ∈ p₁ ⊛> p₂ ∙ s₁ ++ s₂
+         [ g ] x ∈ p₁ · s₁ → [ g ] y ∈ p₂ · s₂ →
+         [ g ] y ∈ p₁ ⊛> p₂ · s₁ ++ s₂
 ⊛>-sem = >>-sem
 
 +-sem : ∀ {NT g A} {p : Prod NT A} {x xs s₁ s₂} →
-        [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p ⋆ ∙ s₂ →
-        [ g ] x ∷ xs ∈ p + ∙ s₁ ++ s₂
+        [ g ] x ∈ p · s₁ → [ g ] xs ∈ p ⋆ · s₂ →
+        [ g ] x ∷ xs ∈ p + · s₁ ++ s₂
 +-sem x∈ xs∈ = ⊛-sem (⊛-sem return-sem x∈) xs∈
 
 ⋆-∷-sem : ∀ {NT g A} {p : Prod NT A} {x xs s₁ s₂} →
-          [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p ⋆ ∙ s₂ →
-          [ g ] x ∷ xs ∈ p ⋆ ∙ s₁ ++ s₂
+          [ g ] x ∈ p · s₁ → [ g ] xs ∈ p ⋆ · s₂ →
+          [ g ] x ∷ xs ∈ p ⋆ · s₁ ++ s₂
 ⋆-∷-sem x∈ xs∈ = ⋆-+-sem (+-sem x∈ xs∈)
 
 ⋆-⋆-sem : ∀ {NT g A} {p : Prod NT A} {xs₁ xs₂ s₁ s₂} →
-          [ g ] xs₁ ∈ p ⋆ ∙ s₁ → [ g ] xs₂ ∈ p ⋆ ∙ s₂ →
-          [ g ] xs₁ ++ xs₂ ∈ p ⋆ ∙ s₁ ++ s₂
+          [ g ] xs₁ ∈ p ⋆ · s₁ → [ g ] xs₂ ∈ p ⋆ · s₂ →
+          [ g ] xs₁ ++ xs₂ ∈ p ⋆ · s₁ ++ s₂
 ⋆-⋆-sem ⋆-[]-sem xs₂∈ = xs₂∈
 ⋆-⋆-sem (⋆-+-sem (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) xs₁∈)) xs₂∈ =
   cast (P.sym $ LM.assoc s₁ _ _)
        (⋆-∷-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
 
 +-∷-sem : ∀ {NT g A} {p : Prod NT A} {x xs s₁ s₂} →
-          [ g ] x ∈ p ∙ s₁ → [ g ] xs ∈ p + ∙ s₂ →
-          [ g ] x ∷ xs ∈ p + ∙ s₁ ++ s₂
+          [ g ] x ∈ p · s₁ → [ g ] xs ∈ p + · s₂ →
+          [ g ] x ∷ xs ∈ p + · s₁ ++ s₂
 +-∷-sem x∈ xs∈ = +-sem x∈ (⋆-+-sem xs∈)
 
 +-⋆-sem : ∀ {NT g A} {p : Prod NT A} {xs₁ xs₂ s₁ s₂} →
-          [ g ] xs₁ ∈ p + ∙ s₁ → [ g ] xs₂ ∈ p ⋆ ∙ s₂ →
-          [ g ] xs₁ ++ xs₂ ∈ p + ∙ s₁ ++ s₂
+          [ g ] xs₁ ∈ p + · s₁ → [ g ] xs₂ ∈ p ⋆ · s₂ →
+          [ g ] xs₁ ++ xs₂ ∈ p + · s₁ ++ s₂
 +-⋆-sem (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) xs₁∈) xs₂∈ =
   cast (P.sym $ LM.assoc s₁ _ _)
        (+-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
 
 sep-by-sem-singleton :
   ∀ {NT g A B} {p : Prod NT A} {sep : Prod NT B} {x s} →
-  [ g ] x ∈ p ∙ s → [ g ] [ x ] ∈ p sep-by sep ∙ s
+  [ g ] x ∈ p · s → [ g ] [ x ] ∈ p sep-by sep · s
 sep-by-sem-singleton x∈ =
   cast (proj₂ LM.identity _) (⊛-sem (<$>-sem x∈) ⋆-[]-sem)
 
 sep-by-sem-∷ :
   ∀ {NT g A B} {p : Prod NT A} {sep : Prod NT B} {x y xs s₁ s₂ s₃} →
-  [ g ] x ∈ p ∙ s₁ → [ g ] y ∈ sep ∙ s₂ → [ g ] xs ∈ p sep-by sep ∙ s₃ →
-  [ g ] x ∷ xs ∈ p sep-by sep ∙ s₁ ++ s₂ ++ s₃
+  [ g ] x ∈ p · s₁ → [ g ] y ∈ sep · s₂ → [ g ] xs ∈ p sep-by sep · s₃ →
+  [ g ] x ∷ xs ∈ p sep-by sep · s₁ ++ s₂ ++ s₃
 sep-by-sem-∷ {s₂ = s₂} x∈ y∈ (⊛-sem (⊛-sem return-sem x′∈) xs∈) =
   ⊛-sem (<$>-sem x∈)
         (cast (LM.assoc s₂ _ _) (⋆-∷-sem (>>-sem y∈ x′∈) xs∈))
 
 if-true-sem : ∀ {NT} {g : Grammar NT} {b}
-              (t : T b) → [ g ] t ∈ if-true b ∙ []
+              (t : T b) → [ g ] t ∈ if-true b · []
 if-true-sem {b = true}  _  = return-sem
 if-true-sem {b = false} ()
 
 sat-sem : ∀ {NT} {g : Grammar NT} {p t}
-          (pt : T (p t)) → [ g ] (t , pt) ∈ sat p ∙ [ t ]
+          (pt : T (p t)) → [ g ] (t , pt) ∈ sat p · [ t ]
 sat-sem pt = >>=-sem token-sem (<$>-sem (if-true-sem pt))
 
 whitespace-sem-space : ∀ {NT} {g : Grammar NT} →
-                       [ g ] ' ' ∈ whitespace ∙ [ ' ' ]
+                       [ g ] ' ' ∈ whitespace · [ ' ' ]
 whitespace-sem-space = left-sem tok-sem
 
 whitespace-sem-newline : ∀ {NT} {g : Grammar NT} →
-                         [ g ] '\n' ∈ whitespace ∙ [ '\n' ]
+                         [ g ] '\n' ∈ whitespace · [ '\n' ]
 whitespace-sem-newline = right-sem tok-sem
 
 string-sem : ∀ {NT} {g : Grammar NT} {s} →
-             [ g ] s ∈ string s ∙ s
+             [ g ] s ∈ string s · s
 string-sem {s = []}    = return-sem
 string-sem {s = t ∷ s} = ⊛-sem (<$>-sem tok-sem) string-sem
 
 symbol-sem : ∀ {NT} {g : Grammar NT} {s s′ s″} →
-             [ g ] s″ ∈ whitespace ⋆ ∙ s′ → [ g ] s ∈ symbol s ∙ s ++ s′
+             [ g ] s″ ∈ whitespace ⋆ · s′ → [ g ] s ∈ symbol s · s ++ s′
 symbol-sem s″∈ = <⊛-sem string-sem s″∈
 
 ------------------------------------------------------------------------
@@ -283,8 +283,8 @@ replace f (p ⋆)       = replace f p ⋆
 
 replace-fail :
   ∀ {NT A g} (p : Prod NT A) {x s} →
-  [ empty-grammar ] x ∈ replace (λ _ → fail) p ∙ s →
-  [ g             ] x ∈                      p ∙ s
+  [ empty-grammar ] x ∈ replace (λ _ → fail) p · s →
+  [ g             ] x ∈                      p · s
 replace-fail (! nt)      ()
 replace-fail fail        ()
 replace-fail (return x)  return-sem      = return-sem
@@ -317,7 +317,7 @@ unfold n       g (p ⋆)       = unfold n g p ⋆
 -- Unfold is semantics-preserving.
 
 unfold-to : ∀ {NT A} {g : Grammar NT} {x s} n (p : Prod NT A) →
-            [ g ] x ∈ p ∙ s → [ g ] x ∈ unfold n g p ∙ s
+            [ g ] x ∈ p · s → [ g ] x ∈ unfold n g p · s
 unfold-to zero    p           x∈              = x∈
 unfold-to (suc n) (! nt)      (!-sem x∈)      = unfold-to n _ x∈
 unfold-to (suc n) fail        x∈              = x∈
@@ -336,7 +336,7 @@ unfold-to (suc n) (p ⋆)       ⋆-[]-sem        = ⋆-[]-sem
 unfold-to (suc n) (p ⋆)       (⋆-+-sem xs∈)   = ⋆-+-sem (unfold-to (suc n) (p +) xs∈)
 
 unfold-from : ∀ {NT A} {g : Grammar NT} {x s} n (p : Prod NT A) →
-              [ g ] x ∈ unfold n g p ∙ s → [ g ] x ∈ p ∙ s
+              [ g ] x ∈ unfold n g p · s → [ g ] x ∈ p · s
 unfold-from zero    p           x∈              = x∈
 unfold-from (suc n) (! nt)      x∈              = !-sem (unfold-from n _ x∈)
 unfold-from (suc n) fail        x∈              = x∈
@@ -361,7 +361,7 @@ unfold-from (suc n) (p ⋆)       (⋆-+-sem xs∈)   = ⋆-+-sem (unfold-from (
 -- empty string is a member of the language defined by the production.
 
 Nullable : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
-Nullable g p = ∃ λ x → [ g ] x ∈ p ∙ []
+Nullable g p = ∃ λ x → [ g ] x ∈ p · []
 
 -- Nullability is not decidable, not even for productions without
 -- non-terminals. If nullability were decidable, then we could decide
@@ -377,7 +377,7 @@ nullability-not-decidable dec f = goal
       let n = length tts in
       if f n then return n else fail
 
-  true-lemma : ∀ {n s} → [ empty-grammar ] n ∈ p ∙ s → f n ≡ true
+  true-lemma : ∀ {n s} → [ empty-grammar ] n ∈ p · s → f n ≡ true
   true-lemma (>>=-sem {x = tts} _ _)
     with f (length tts) | P.inspect f (length tts)
   true-lemma (>>=-sem _ return-sem) | true  | P.[ fn≡true ] = fn≡true
@@ -394,17 +394,17 @@ nullability-not-decidable dec f = goal
   to-tts : ℕ → List ⊤
   to-tts n = replicate n tt
 
-  n∈₁ : ∀ n → [ empty-grammar ] to-tts n ∈ return tt ⋆ ∙ []
+  n∈₁ : ∀ n → [ empty-grammar ] to-tts n ∈ return tt ⋆ · []
   n∈₁ zero    = ⋆-[]-sem
   n∈₁ (suc n) = ⋆-∷-sem return-sem (n∈₁ n)
 
   n∈₂ : ∀ n → f n ≡ true →
         let n′ = length (replicate n tt) in
-        [ empty-grammar ] n ∈ if f n′ then return n′ else fail ∙ []
+        [ empty-grammar ] n ∈ if f n′ then return n′ else fail · []
   n∈₂ n fn≡true rewrite length-replicate n {x = tt} | fn≡true =
     return-sem
 
-  yes-lemma : ∀ n → ¬ ([ empty-grammar ] n ∈ p ∙ []) → f n ≢ true
+  yes-lemma : ∀ n → ¬ ([ empty-grammar ] n ∈ p · []) → f n ≢ true
   yes-lemma n n∉ fn≡true = n∉ (>>=-sem (n∈₁ n) (n∈₂ n fn≡true))
 
   goal : Dec (∀ n → f n ≡ false)
@@ -474,7 +474,7 @@ is-whitespace? _ = nothing
 
 Trailing-whitespace : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
 Trailing-whitespace g p =
-  ∀ {x s} → [ g ] x ∈ p <⊛ whitespace ⋆ ∙ s → [ g ] x ∈ p ∙ s
+  ∀ {x s} → [ g ] x ∈ p <⊛ whitespace ⋆ · s → [ g ] x ∈ p · s
 
 -- A heuristic procedure that either proves that a production can
 -- swallow trailing whitespace, or returns "don't know" as the answer.
@@ -490,8 +490,8 @@ trailing-whitespace? {NT} n g p =
   Trailing-whitespace′ : ∀ {NT A} → Grammar NT → Prod NT A → Set₁
   Trailing-whitespace′ g p =
     ∀ {x s₁ s₂ s} →
-    [ g ] x ∈ p ∙ s₁ → [ g ] s ∈ whitespace ⋆ ∙ s₂ →
-    [ g ] x ∈ p ∙ s₁ ++ s₂
+    [ g ] x ∈ p · s₁ → [ g ] s ∈ whitespace ⋆ · s₂ →
+    [ g ] x ∈ p · s₁ ++ s₂
 
   convert : ∀ {NT A} {g : Grammar NT} {p : Prod NT A} →
             Trailing-whitespace′ g p → Trailing-whitespace g p

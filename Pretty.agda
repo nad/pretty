@@ -70,7 +70,7 @@ mutual
     -- are, in a certain sense, compatible.
 
     emb   : ∀ {A B x y} {g₁ : Grammar A} {g₂ : Grammar B} →
-            (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) →
+            (∀ {s} → x ∈ g₁ · s → y ∈ g₂ · s) →
             Doc g₁ x → Doc g₂ y
 
     -- Fill operator.
@@ -100,7 +100,7 @@ Pretty-printer-for g = ∀ x → Doc (g x) (x , refl)
 -- constructors.
 
 embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
-        (∀ {s} → x ∈ g₁ ∙ s → y ∈ g₂ ∙ s) → Doc g₁ x → Doc g₂ y
+        (∀ {s} → x ∈ g₁ · s → y ∈ g₂ · s) → Doc g₁ x → Doc g₂ y
 embed f (emb g d) = emb (f ∘ g) d
 embed f d         = emb f d
 
@@ -109,11 +109,11 @@ embed f d         = emb f d
 token : ∀ {t} → Doc G.token t
 token {t} = embed lemma text
   where
-  lemma′ : ∀ {x s} → x ∈ string (t ∷ []) ∙ s → x ≡ t ∷ [] →
-           t ∈ G.token ∙ s
+  lemma′ : ∀ {x s} → x ∈ string (t ∷ []) · s → x ≡ t ∷ [] →
+           t ∈ G.token · s
   lemma′ (⊛-sem (<$>-sem tok-sem) return-sem) refl = token-sem
 
-  lemma : ∀ {s} → t ∷ [] ∈ string (t ∷ []) ∙ s → t ∈ G.token ∙ s
+  lemma : ∀ {s} → t ∷ [] ∈ string (t ∷ []) · s → t ∈ G.token · s
   lemma t∈ = lemma′ t∈ refl
 
 -- A document for the given character.
@@ -121,7 +121,7 @@ token {t} = embed lemma text
 tok : ∀ {t} → Doc (G.tok t) t
 tok {t} = embed lemma token
   where
-  lemma : ∀ {s} → t ∈ G.token ∙ s → t ∈ G.tok t ∙ s
+  lemma : ∀ {s} → t ∈ G.token · s → t ∈ G.tok t · s
   lemma token-sem = tok-sem
 
 -- Some mapping combinators.
@@ -146,7 +146,7 @@ _⊛_ : ∀ {c₁ c₂ A B f x}
 _⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ <$> d₂)
   where
   lemma : ∀ {x s} →
-          x ∈ (g₁ >>= λ f → f G.<$> g₂) ∙ s → x ∈ g₁ G.⊛ g₂ ∙ s
+          x ∈ (g₁ >>= λ f → f G.<$> g₂) · s → x ∈ g₁ G.⊛ g₂ · s
   lemma (>>=-sem f∈ (<$>-sem x∈)) = ⊛-sem f∈ x∈
 
 _<⊛_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
@@ -154,7 +154,7 @@ _<⊛_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c
 _<⊛_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ <$ d₂)
   where
   lemma : ∀ {x s} →
-          x ∈ (g₁ >>= λ x → x G.<$ g₂) ∙ s → x ∈ g₁ G.<⊛ g₂ ∙ s
+          x ∈ (g₁ >>= λ x → x G.<$ g₂) · s → x ∈ g₁ G.<⊛ g₂ · s
   lemma (>>=-sem x∈ (<$-sem y∈)) = <⊛-sem x∈ y∈
 
 _⊛>_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
@@ -162,21 +162,21 @@ _⊛>_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c
 _⊛>_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ d₂)
   where
   lemma : ∀ {y s} →
-          y ∈ (g₁ >>= λ _ → g₂) ∙ s → y ∈ g₁ G.⊛> g₂ ∙ s
+          y ∈ (g₁ >>= λ _ → g₂) · s → y ∈ g₁ G.⊛> g₂ · s
   lemma (>>=-sem x∈ y∈) = ⊛>-sem x∈ y∈
 
 _<⊛-tt_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
           Doc (♭? g₁) x → Doc (tt G.<$ g₂) y → Doc (g₁ G.<⊛ g₂) x
 _<⊛-tt_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ <⊛ d₂)
   where
-  lemma : ∀ {x s} → x ∈ g₁ G.<⊛ (tt G.<$ g₂) ∙ s → x ∈ g₁ G.<⊛ g₂ ∙ s
+  lemma : ∀ {x s} → x ∈ g₁ G.<⊛ (tt G.<$ g₂) · s → x ∈ g₁ G.<⊛ g₂ · s
   lemma (<⊛-sem x∈ (<$-sem y∈)) = <⊛-sem x∈ y∈
 
 _tt-⊛>_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
           Doc (tt G.<$ g₁) x → Doc (♭? g₂) y → Doc (g₁ G.⊛> g₂) y
 _tt-⊛>_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ⊛> d₂)
   where
-  lemma : ∀ {x s} → x ∈ (tt G.<$ g₁) G.⊛> g₂ ∙ s → x ∈ g₁ G.⊛> g₂ ∙ s
+  lemma : ∀ {x s} → x ∈ (tt G.<$ g₁) G.⊛> g₂ · s → x ∈ g₁ G.⊛> g₂ · s
   lemma (⊛>-sem (<$-sem x∈) y∈) = ⊛>-sem x∈ y∈
 
 -- Document combinators for choices.
@@ -194,7 +194,7 @@ right d = embed right-sem d
 nil-⋆ : ∀ {c A} {g : ∞Grammar c A} → Doc (g ⋆) []
 nil-⋆ {A = A} {g} = embed lemma nil
   where
-  lemma : ∀ {s} → [] ∈ return {A = List A} [] ∙ s → [] ∈ g ⋆ ∙ s
+  lemma : ∀ {s} → [] ∈ return {A = List A} [] · s → [] ∈ g ⋆ · s
   lemma return-sem = ⋆-[]-sem
 
 cons-⋆+ : ∀ {c A} {g : ∞Grammar c A} {x xs} →
@@ -226,8 +226,8 @@ space : Doc (whitespace ⋆) (' ' ∷ [])
 space = embed lemma tok
   where
   lemma : ∀ {s} →
-          ' ' ∈ G.tok ' ' ∙ s →
-          (' ' ∷ []) ∈ whitespace ⋆ ∙ s
+          ' ' ∈ G.tok ' ' · s →
+          (' ' ∷ []) ∈ whitespace ⋆ · s
   lemma tok-sem = ⋆-+-sem single-space-sem
 
 -- A variant of line (with _⋆ instead of _+ in the grammar).
@@ -236,8 +236,8 @@ line⋆ : Doc (tt G.<$ whitespace ⋆) tt
 line⋆ = embed lemma line
   where
   lemma : ∀ {s} →
-          tt ∈ tt G.<$ whitespace + ∙ s →
-          tt ∈ tt G.<$ whitespace ⋆ ∙ s
+          tt ∈ tt G.<$ whitespace + · s →
+          tt ∈ tt G.<$ whitespace ⋆ · s
   lemma (<$-sem w+) = <$-sem (⋆-+-sem w+)
 
 -- Combinators that add a final "line" to the document, nested i
@@ -326,14 +326,14 @@ fill+ {g = g} n {trailing} ds = embed lemma (fill ds)
   lemma″ = solve 4 (λ a b c d → (a ⊕ b) ⊕ c ⊕ d ⊜ a ⊕ (b ⊕ c) ⊕ d) refl
 
   lemma′ : ∀ {x xs s₁ s₂} →
-           x ∈ ♭? g ∙ s₁ → xs ∈ ♭? g prec-by whitespace + ∙ s₂ →
-           x ∷ xs ∈ g + ∙ s₁ ++ s₂
+           x ∈ ♭? g · s₁ → xs ∈ ♭? g prec-by whitespace + · s₂ →
+           x ∷ xs ∈ g + · s₁ ++ s₂
   lemma′           x∈ ⋆-[]-sem = +-sem x∈ ⋆-[]-sem
   lemma′ {s₁ = s₁} x∈ (⋆-+-sem (⊛-sem (<$>-sem (⊛>-sem w+ x′∈)) xs∈)) =
     cast (lemma″ s₁ _ _ _)
          (+-∷-sem (trailing! (<⊛-sem x∈ (⋆-+-sem w+))) (lemma′ x′∈ xs∈))
 
-  lemma : ∀ {s xs} → xs ∈ ♭? g sep-by whitespace + ∙ s → xs ∈ g + ∙ s
+  lemma : ∀ {s xs} → xs ∈ ♭? g sep-by whitespace + · s → xs ∈ g + · s
   lemma (⊛-sem (<$>-sem x∈) xs∈) = lemma′ x∈ xs∈
 
 -- Variants of map+/map⋆ that use fill. (The grammars have to satisfy

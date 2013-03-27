@@ -62,23 +62,23 @@ data Grammar : Set → Set₁ where
 
   _∣_    : ∀ {A} → ∞ (Grammar A) → ∞ (Grammar A) → Grammar A
 
--- Semantics of grammars (parse trees). Here x ∈ g ∙ s means that x
+-- Semantics of grammars (parse trees). Here x ∈ g · s means that x
 -- is one of the possible results of parsing the string s using the
 -- grammar g.
 
-infix 4 _∈_∙_
+infix 4 _∈_·_
 
-data _∈_∙_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
-  return-sem : ∀ {A} {x : A} → x ∈ return x ∙ []
-  token-sem  : ∀ {t} → t ∈ token ∙ [ t ]
+data _∈_·_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
+  return-sem : ∀ {A} {x : A} → x ∈ return x · []
+  token-sem  : ∀ {t} → t ∈ token · [ t ]
   >>=-sem    : ∀ {A B x y s₁ s₂} {g₁ : ∞ (Grammar A)}
                  {g₂ : A → ∞ (Grammar B)} →
-               x ∈ ♭ g₁ ∙ s₁ → y ∈ ♭ (g₂ x) ∙ s₂ →
-               y ∈ g₁ >>= g₂ ∙ s₁ ++ s₂
+               x ∈ ♭ g₁ · s₁ → y ∈ ♭ (g₂ x) · s₂ →
+               y ∈ g₁ >>= g₂ · s₁ ++ s₂
   left-sem   : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x s} →
-               x ∈ ♭ g₁ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+               x ∈ ♭ g₁ · s → x ∈ g₁ ∣ g₂ · s
   right-sem  : ∀ {A} {g₁ g₂ : ∞ (Grammar A)} {x s} →
-               x ∈ ♭ g₂ ∙ s → x ∈ g₁ ∣ g₂ ∙ s
+               x ∈ ♭ g₂ · s → x ∈ g₁ ∣ g₂ · s
 
 ----------------------------------------------------------------------
 -- Some grammar combinators
@@ -120,15 +120,15 @@ tok t = t <$ sat (λ t′ → t == t′)
 -- Cast lemma.
 
 cast : ∀ {A} {g : Grammar A} {x s₁ s₂} →
-       s₁ ≡ s₂ → x ∈ g ∙ s₁ → x ∈ g ∙ s₂
+       s₁ ≡ s₂ → x ∈ g · s₁ → x ∈ g · s₂
 cast refl = id
 
-fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail ∙ s)
+fail-sem⁻¹ : ∀ {A} {x : A} {s} → ¬ (x ∈ fail · s)
 fail-sem⁻¹ (left-sem  ∈fail) = fail-sem⁻¹ ∈fail
 fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
 <$>-sem : ∀ {A B} {f : A → B} {g : Grammar A} {y s} →
-          y ∈ f <$> g ∙ s ↔ ∃ λ x → x ∈ g ∙ s × y ≡ f x
+          y ∈ f <$> g · s ↔ ∃ λ x → x ∈ g · s × y ≡ f x
 <$>-sem {A} {B} {f} {g} = record
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ from
@@ -141,27 +141,27 @@ fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
   lemma : ∀ s → s ++ [] ≡ s
   lemma s = proj₂ LM.identity s
 
-  to : ∀ {s g y} → y ∈ f <$> g ∙ s → ∃ λ x → x ∈ g ∙ s × y ≡ f x
+  to : ∀ {s g y} → y ∈ f <$> g · s → ∃ λ x → x ∈ g · s × y ≡ f x
   to (>>=-sem x∈ return-sem) =
     _ , cast (P.sym $ lemma _) x∈ , refl
 
-  from : ∀ {s y g} → (∃ λ x → x ∈ g ∙ s × y ≡ f x) → y ∈ f <$> g ∙ s
+  from : ∀ {s y g} → (∃ λ x → x ∈ g · s × y ≡ f x) → y ∈ f <$> g · s
   from (x , x∈ , refl) = cast (lemma _) (>>=-sem x∈ return-sem)
 
   >>=-cast : ∀ {x y s₁ s₂ s}
                {g₁ : ∞ (Grammar A)} {g₂ : A → ∞ (Grammar B)}
              (eq : s₁ ≡ s₂)
-             (x∈ : x ∈ ♭ g₁ ∙ s₁) (y∈ : y ∈ ♭ (g₂ x) ∙ s) →
+             (x∈ : x ∈ ♭ g₁ · s₁) (y∈ : y ∈ ♭ (g₂ x) · s) →
              >>=-sem {g₁ = g₁} {g₂ = g₂} (cast eq x∈) y∈ ≡
              cast (P.cong (λ s′ → s′ ++ s) eq) (>>=-sem x∈ y∈)
   >>=-cast refl _ _ = refl
 
-  cast-cast : ∀ {A g s₁ s₂} {z : A} {z∈ : z ∈ g ∙ s₂}
+  cast-cast : ∀ {A g s₁ s₂} {z : A} {z∈ : z ∈ g · s₂}
               (eq₁ : s₁ ≡ s₂) (eq₂ : s₂ ≡ s₁) →
               cast eq₁ (cast eq₂ z∈) ≡ z∈
   cast-cast refl refl = refl
 
-  from∘to : ∀ {s g y} (y∈ : y ∈ f <$> g ∙ s) → from (to y∈) ≡ y∈
+  from∘to : ∀ {s g y} (y∈ : y ∈ f <$> g · s) → from (to y∈) ≡ y∈
   from∘to (>>=-sem {s₁ = s} x∈ return-sem) = begin
     cast (lemma (s ++ []))
          (>>=-sem (cast (P.sym $ lemma s) x∈) return-sem)  ≡⟨ P.cong (cast (lemma (s ++ []))) $
@@ -173,19 +173,19 @@ fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
     >>=-sem x∈ return-sem                                  ∎
     where open P.≡-Reasoning
 
-  to-cast : ∀ {s₁ s₂ y g} (eq : s₁ ≡ s₂) (y∈ : y ∈ f <$> g ∙ s₁) →
+  to-cast : ∀ {s₁ s₂ y g} (eq : s₁ ≡ s₂) (y∈ : y ∈ f <$> g · s₁) →
             to (cast eq y∈) ≡
-            P.subst (λ s → ∃ λ x → x ∈ g ∙ s × y ≡ f x) eq (to y∈)
+            P.subst (λ s → ∃ λ x → x ∈ g · s × y ≡ f x) eq (to y∈)
   to-cast refl y∈ = refl
 
   to∘from : ∀ {s y g}
-            (x∈ : ∃ λ x → x ∈ g ∙ s × y ≡ f x) → to (from x∈) ≡ x∈
+            (x∈ : ∃ λ x → x ∈ g · s × y ≡ f x) → to (from x∈) ≡ x∈
   to∘from {s} (x , x∈ , refl)
     rewrite to-cast (lemma s) (>>=-sem x∈ return-sem)
           | lemma s
     = refl
 
-if-true-sem : ∀ {b} x {s} → x ∈ if-true b ∙ s ↔ s ≡ []
+if-true-sem : ∀ {b} x {s} → x ∈ if-true b · s ↔ s ≡ []
 if-true-sem x = record
   { to         = P.→-to-⟶ (to _)
   ; from       = P.→-to-⟶ (from _ _)
@@ -195,15 +195,15 @@ if-true-sem x = record
     }
   }
   where
-  to : ∀ b {x s} → x ∈ if-true b ∙ s → s ≡ []
+  to : ∀ b {x s} → x ∈ if-true b · s → s ≡ []
   to true  return-sem = refl
   to false ∈fail      = ⊥-elim $ fail-sem⁻¹ ∈fail
 
-  from : ∀ b x {s} → s ≡ [] → x ∈ if-true b ∙ s
+  from : ∀ b x {s} → s ≡ [] → x ∈ if-true b · s
   from true  _  refl = return-sem
   from false () refl
 
-  from∘to : ∀ b {x s} (x∈ : x ∈ if-true b ∙ s) → from b x (to b x∈) ≡ x∈
+  from∘to : ∀ b {x s} (x∈ : x ∈ if-true b · s) → from b x (to b x∈) ≡ x∈
   from∘to true  return-sem = refl
   from∘to false ∈fail      = ⊥-elim $ fail-sem⁻¹ ∈fail
 
@@ -212,7 +212,7 @@ if-true-sem x = record
   to∘from false () refl
 
 sat-sem : ∀ {p : Char → Bool} {t pt s} →
-          (t , pt) ∈ sat p ∙ s ↔ s ≡ [ t ]
+          (t , pt) ∈ sat p · s ↔ s ≡ [ t ]
 sat-sem {p} {t} {pt} = record
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ from
@@ -222,17 +222,17 @@ sat-sem {p} {t} {pt} = record
     }
   }
   where
-  to : ∀ {s} → (t , pt) ∈ sat p ∙ s → s ≡ [ t ]
+  to : ∀ {s} → (t , pt) ∈ sat p · s → s ≡ [ t ]
   to (>>=-sem token-sem (>>=-sem tt∈ return-sem)) =
     P.cong (λ s → t ∷ s ++ []) (Inverse.to (if-true-sem pt) ⟨$⟩ tt∈)
 
-  from : ∀ {s} → s ≡ [ t ] → (t , pt) ∈ sat p ∙ s
+  from : ∀ {s} → s ≡ [ t ] → (t , pt) ∈ sat p · s
   from refl =
     >>=-sem token-sem
             (>>=-sem (Inverse.from (if-true-sem pt) ⟨$⟩ refl)
                      return-sem)
 
-  from∘to : ∀ {s} (t∈ : (t , pt) ∈ sat p ∙ s) → from (to t∈) ≡ t∈
+  from∘to : ∀ {s} (t∈ : (t , pt) ∈ sat p · s) → from (to t∈) ≡ t∈
   from∘to (>>=-sem token-sem (>>=-sem tt∈ return-sem))
     with Inverse.to (if-true-sem pt) ⟨$⟩ tt∈
        | Inverse.left-inverse-of (if-true-sem pt) tt∈
@@ -251,10 +251,10 @@ abstract
   -- Grammar.Infinite requires a lot more memory to type-check if this
   -- definition is made concrete (at the time of writing).
 
-  tok-sem : ∀ {t′ t s} → t′ ∈ tok t ∙ s ↔ (t ≡ t′ × s ≡ [ t ])
+  tok-sem : ∀ {t′ t s} → t′ ∈ tok t · s ↔ (t ≡ t′ × s ≡ [ t ])
   tok-sem {t′} {t} {s} =
-    t′ ∈ tok t ∙ s                                   ↔⟨ <$>-sem ⟩
-    (∃ λ p → p ∈ sat (λ t′ → t == t′) ∙ s × t′ ≡ t)  ↔⟨ Σ.cong Inv.id (sat-sem ×-cong Inv.id) ⟩
+    t′ ∈ tok t · s                                   ↔⟨ <$>-sem ⟩
+    (∃ λ p → p ∈ sat (λ t′ → t == t′) · s × t′ ≡ t)  ↔⟨ Σ.cong Inv.id (sat-sem ×-cong Inv.id) ⟩
     (∃ λ p → s ≡ [ proj₁ p ] × t′ ≡ t)               ↔⟨ Σ-assoc ⟩
     (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (True↔ _ P.proof-irrelevance ×-cong Inv.id) ⟩
     (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t)          ↔⟨ lemma ⟩
