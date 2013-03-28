@@ -824,9 +824,9 @@ Trailing-whitespace′ g =
 --
 -- The natural number n is used to ensure termination.
 
-trailing-whitespace′? : ∀ (n : ℕ) {A} (g : Grammar A) →
-                        Maybe (Trailing-whitespace′ g)
-trailing-whitespace′? = trailing?
+trailing-whitespace′ : ∀ (n : ℕ) {A} (g : Grammar A) →
+                       Maybe (Trailing-whitespace′ g)
+trailing-whitespace′ = trailing?
   where
   <$>-lemma : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} →
               Trailing-whitespace′ (♭? g) →
@@ -892,9 +892,9 @@ trailing-whitespace′? = trailing?
 --
 -- The natural number n is used to ensure termination.
 
-trailing-whitespace? : ∀ (n : ℕ) {A} (g : Grammar A) →
-                       Maybe (Trailing-whitespace g)
-trailing-whitespace? n g = convert <$>M trailing? n g
+trailing-whitespace : ∀ (n : ℕ) {A} (g : Grammar A) →
+                      Maybe (Trailing-whitespace g)
+trailing-whitespace n g = convert <$>M trailing? n g
   where
   -- An alternative formulation of Trailing-whitespace.
 
@@ -1009,7 +1009,7 @@ trailing-whitespace? n g = convert <$>M trailing? n g
   trailing? (suc n) fail = just (λ ())
 
   trailing? (suc n) (f <$> g) = <$>-lemma <$>M trailing? n (♭? g)
-  trailing? (suc n) (x <$ g)  = <$-lemma  <$>M trailing-whitespace′? (suc n) (♭? g)
+  trailing? (suc n) (x <$ g)  = <$-lemma  <$>M trailing-whitespace′ (suc n) (♭? g)
 
   trailing? (suc n) (_⊛_ {c₂ = false} g  (return x))  = ⊛-return-lemma <$>M trailing? n (♭? g)
   trailing? (suc n) (_⊛_ {c₂ = false} g₁ (g₂ ⋆))      = ⊛-⋆-lemma      <$>M trailing? n (♭? g₁)
@@ -1020,7 +1020,7 @@ trailing-whitespace? n g = convert <$>M trailing? n g
 
   trailing? (suc n) (_<⊛_ {c₂ = false} g  (return x)) = <⊛-return-lemma <$>M trailing? n (♭? g)
   trailing? (suc n) (_<⊛_              g₁ g₂)         = <⊛-lemma <$>M
-                                                          trailing-whitespace′? (suc n) (♭? g₂)
+                                                          trailing-whitespace′ (suc n) (♭? g₂)
 
   trailing? (suc n) (g₁ ⊛> g₂) = ⊛>-lemma <$>M trailing? n (♭? g₂)
 
@@ -1033,14 +1033,14 @@ private
 
   -- Some unit tests.
 
-  test₁ : IsJust (trailing-whitespace′? 1 (whitespace ⋆))
+  test₁ : IsJust (trailing-whitespace′ 1 (whitespace ⋆))
   test₁ = _
 
-  test₂ : IsJust (trailing-whitespace′? 2 (whitespace +))
+  test₂ : IsJust (trailing-whitespace′ 2 (whitespace +))
   test₂ = _
 
-  test₃ : IsJust (trailing-whitespace? 1 (tt <$ whitespace ⋆))
+  test₃ : IsJust (trailing-whitespace 1 (tt <$ whitespace ⋆))
   test₃ = _
 
-  test₄ : IsJust (trailing-whitespace? 2 (tt <$ whitespace +))
+  test₄ : IsJust (trailing-whitespace 2 (tt <$ whitespace +))
   test₄ = _

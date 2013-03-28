@@ -479,10 +479,10 @@ Trailing-whitespace g p =
 -- A heuristic procedure that either proves that a production can
 -- swallow trailing whitespace, or returns "don't know" as the answer.
 
-trailing-whitespace? :
+trailing-whitespace :
   ∀ {NT A} (n : ℕ) (g : Grammar NT) (p : Prod NT A) →
   Maybe (Trailing-whitespace g p)
-trailing-whitespace? {NT} n g p =
+trailing-whitespace {NT} n g p =
   convert ∘ unfold-lemma <$>M trailing? (unfold n g p)
   where
   -- An alternative formulation of Trailing-whitespace.
@@ -621,6 +621,6 @@ private
 
   -- A unit test.
 
-  test : IsJust (trailing-whitespace?
+  test : IsJust (trailing-whitespace
                    0 empty-grammar (tt <$ whitespace ⋆))
   test = _
