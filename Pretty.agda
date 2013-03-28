@@ -35,10 +35,6 @@ mutual
 
   data Doc : ∀ {A} → Grammar A → A → Set₁ where
 
-    -- The empty string. (This constructor could be removed.)
-
-    nil   : ∀ {A} {x : A} → Doc (return x) x
-
     -- A string. Note that I do /not/ enforce Wadler's convention
     -- that the string does not contain newline characters. The
     -- correctness property proved below does not rely on this
@@ -103,6 +99,14 @@ embed : ∀ {A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
         (∀ {s} → x ∈ g₁ · s → y ∈ g₂ · s) → Doc g₁ x → Doc g₂ y
 embed f (emb g d) = emb (f ∘ g) d
 embed f d         = emb f d
+
+-- A document for the empty string.
+
+nil : ∀ {A} {x : A} → Doc (return x) x
+nil = embed lemma text
+  where
+  lemma : ∀ {x s} → [] ∈ string [] · s → x ∈ return x · s
+  lemma return-sem = return-sem
 
 -- A document for the given character.
 
