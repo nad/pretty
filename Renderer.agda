@@ -375,11 +375,11 @@ wadler's-renderer width = record
   -- Does the first line of the layout fit inside a row with the
   -- given number of characters?
 
-  fits? : ℤ → Layout → Bool
-  fits? -[1+ w ] _            = false
-  fits? w        []           = true
-  fits? w        (text s ∷ x) = fits? (w - + length s) x
-  fits? w        (line i ∷ x) = true
+  fits : ℤ → Layout → Bool
+  fits -[1+ w ] _            = false
+  fits w        []           = true
+  fits w        (text s ∷ x) = fits (w - + length s) x
+  fits w        (line i ∷ x) = true
 
   -- Chooses the first layout if it fits, otherwise the second (which
   -- is assumed to have a first line that is at most as long as the
@@ -387,7 +387,7 @@ wadler's-renderer width = record
   -- current column number.
 
   better : ℕ → Layout → Layout → Layout
-  better c x y = if fits? (width ⊖ c) x then x else y
+  better c x y = if fits (width ⊖ c) x then x else y
 
   -- If, for any starting column c, κ c is the layout for some text,
   -- then best i d κ c is the layout for the document d followed by
@@ -432,8 +432,8 @@ wadler's-renderer width = record
   best-lemma     s (line i)       hyp = hyp (⊛-sem (<$>-sem tok-sem)
                                                    string-sem)
   best-lemma {c} s (union d₁ d₂)  hyp = if-lemma s
-                                          (fits? (width ⊖ c)
-                                                 (best d₁ _ _))
+                                          (fits (width ⊖ c)
+                                                (best d₁ _ _))
                                           (best-lemma s d₁ hyp)
                                           (best-lemma s d₂ hyp)
   best-lemma     s (nest _ d)     hyp = best-lemma s d hyp
