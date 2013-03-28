@@ -136,8 +136,8 @@ ugly-renderer = record
   mutual
 
     render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
-    render (text {s = s}) = s
     render (d₁ ◇ d₂)      = render d₁ ++ render d₂
+    render (text {s = s}) = s
     render line           = String.toList " "
     render (group d)      = render d
     render (nest _ d)     = render d
@@ -152,8 +152,8 @@ ugly-renderer = record
 
     parsable : ∀ {A x} {g : Grammar A}
                (d : Doc g x) → x ∈ g · render d
-    parsable text       = string-sem
     parsable (d₁ ◇ d₂)  = >>=-sem (parsable d₁) (parsable d₂)
+    parsable text       = string-sem
     parsable line       = <$-sem single-space-sem
     parsable (group d)  = parsable d
     parsable (nest _ d) = parsable d
@@ -227,11 +227,11 @@ wadler's-renderer width = record
   infixr 20 _◇_
 
   data DocN : ∀ {A} → ℕ → Grammar A → A → Set₁ where
-    text  : ∀ {i} (s : List Char) → DocN i (string s) s
     _◇_   : ∀ {i c₁ c₂ A B x y}
               {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
             DocN i (♭? g₁) x → DocN i (♭? (g₂ x)) y →
             DocN i (g₁ >>= g₂) y
+    text  : ∀ {i} (s : List Char) → DocN i (string s) s
     line  : (i : ℕ) →
             let s = show-element (line i) in
             DocN i (string s) s
@@ -331,8 +331,8 @@ wadler's-renderer width = record
     -- Replaces line constructors with single spaces, removes groups.
 
     flatten : ∀ {i A} {g : Grammar A} {x} → Doc g x → DocN i g x
-    flatten text       = text _
     flatten (d₁ ◇ d₂)  = flatten d₁ ◇ flatten d₂
+    flatten text       = text _
     flatten line       = imprecise-space
     flatten (group d)  = flatten d
     flatten (nest _ d) = flatten d
@@ -350,8 +350,8 @@ wadler's-renderer width = record
     -- Converts ("expands") groups to unions.
 
     expand : ∀ {i A} {g : Grammar A} {x} → Doc g x → DocN i g x
-    expand text       = text _
     expand (d₁ ◇ d₂)  = expand d₁ ◇ expand d₂
+    expand text       = text _
     expand line       = imprecise-line _
     expand (group d)  = union (flatten d) (expand d)
     expand (nest j d) = nest j (expand d)
@@ -396,9 +396,9 @@ wadler's-renderer width = record
 
   best : ∀ {i A} {g : Grammar A} {x} →
          DocN i g x → (ℕ → Layout) → (ℕ → Layout)
+  best (d₁ ◇ d₂)     = best d₁ ∘ best d₂
   best (text [])     = id
   best (text s)      = λ κ c → text s ∷ κ (length s + c)
-  best (d₁ ◇ d₂)     = best d₁ ∘ best d₂
   best (line i)      = λ κ _ → line i ∷ κ i
   best (union d₁ d₂) = λ κ c → better c (best d₁ κ c)
                                         (best d₂ κ c)
@@ -468,8 +468,8 @@ wadler's-renderer-ignores-emb :
   ∀ {w} → Renderer.Ignores-emb (wadler's-renderer w)
 wadler's-renderer-ignores-emb {w} {d = d}
   with Wadler's-renderer.expand w {i = 0} d
-... | Wadler's-renderer.text _    = P.refl
 ... | _ Wadler's-renderer.◇ _     = P.refl
+... | Wadler's-renderer.text _    = P.refl
 ... | Wadler's-renderer.line ._   = P.refl
 ... | Wadler's-renderer.union _ _ = P.refl
 ... | Wadler's-renderer.nest _ _  = P.refl

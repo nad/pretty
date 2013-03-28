@@ -35,18 +35,18 @@ mutual
 
   data Doc : ∀ {A} → Grammar A → A → Set₁ where
 
+    -- Concatenation.
+
+    _◇_   : ∀ {c₁ c₂ A B x y}
+              {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
+            Doc (♭? g₁) x → Doc (♭? (g₂ x)) y → Doc (g₁ >>= g₂) y
+
     -- A string. Note that I do /not/ enforce Wadler's convention
     -- that the string does not contain newline characters. The
     -- correctness property proved below does not rely on this
     -- convention.
 
     text  : ∀ {s} → Doc (string s) s
-
-    -- Concatenation.
-
-    _◇_   : ∀ {c₁ c₂ A B x y}
-              {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B} →
-            Doc (♭? g₁) x → Doc (♭? (g₂ x)) y → Doc (g₁ >>= g₂) y
 
     -- One or more whitespace characters.
 
