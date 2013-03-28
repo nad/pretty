@@ -263,11 +263,16 @@ data _∈_·_ : ∀ {A} → A → Grammar A → List Char → Set₁ where
   ⋆-+-sem    : ∀ {c A} {g : ∞Grammar c A} {x xs s} →
                (x ∷ xs) ∈ g + · s → x ∷ xs ∈ g ⋆ · s
 
--- A weak form of unambiguity. (Note that the parse trees are not
--- required to be equal.)
+-- A weak form of "local unambiguity", unambiguity for a given string.
+-- (Note that the parse trees are not required to be equal.)
+
+Locally-unambiguous : ∀ {A} → Grammar A → List Char → Set₁
+Locally-unambiguous g s = ∀ {x y} → x ∈ g · s → y ∈ g · s → x ≡ y
+
+-- A weak form of unambiguity.
 
 Unambiguous : ∀ {A} → Grammar A → Set₁
-Unambiguous g = ∀ {s x y} → x ∈ g · s → y ∈ g · s → x ≡ y
+Unambiguous g = ∀ {s} → Locally-unambiguous g s
 
 -- Parsers.
 

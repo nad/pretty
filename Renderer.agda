@@ -55,17 +55,26 @@ record Renderer : Set₁ where
     ∀ x → x ∈ g · render (pretty x)
   correct pretty x = parsable (pretty x)
 
+  correct-if-locally-unambiguous :
+    ∀ {A} {g : Grammar A} →
+    (parse : Parser g) (pretty : Pretty-printer g) →
+    ∀ x →
+    Locally-unambiguous g (render (pretty x)) →
+    ∃ λ p → parse (render (pretty x)) ≡ yes (x , p)
+  correct-if-locally-unambiguous parse pretty x unambiguous = c
+    where
+    c : ∃ λ p → parse (render (pretty x)) ≡ yes (x , p)
+    c with parse (render (pretty x))
+    c | no  no-parse   = ⊥-elim (no-parse (x , correct pretty x))
+    c | yes (y  , y∈g) with unambiguous y∈g (correct pretty x)
+    c | yes (.x , x∈g) | P.refl = (x∈g , P.refl)
+
   correct-if-unambiguous :
     ∀ {A} {g : Grammar A} →
     Unambiguous g → (parse : Parser g) (pretty : Pretty-printer g) →
     ∀ x → ∃ λ p → parse (render (pretty x)) ≡ yes (x , p)
-  correct-if-unambiguous unambiguous parse pretty = c
-    where
-    c : ∀ x → ∃ λ p → parse (render (pretty x)) ≡ yes (x , p)
-    c x with parse (render (pretty x))
-    c x | no  no-parse   = ⊥-elim (no-parse (x , correct pretty x))
-    c x | yes (y  , y∈g) with unambiguous y∈g (correct pretty x)
-    c x | yes (.x , x∈g) | P.refl = (x∈g , P.refl)
+  correct-if-unambiguous unambiguous parse pretty x =
+    correct-if-locally-unambiguous parse pretty x unambiguous
 
   -- If there is only one grammatically correct string, then the
   -- renderer returns this string.
