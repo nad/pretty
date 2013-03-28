@@ -165,15 +165,15 @@ _⊛>_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ◇ d₂)
           y ∈ (g₁ >>= λ _ → g₂) · s → y ∈ g₁ G.⊛> g₂ · s
   lemma (>>=-sem x∈ y∈) = ⊛>-sem x∈ y∈
 
-_<⊛-tt_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
-          Doc (♭? g₁) x → Doc (tt G.<$ g₂) y → Doc (g₁ G.<⊛ g₂) x
+_<⊛-tt_ : ∀ {c₁ c₂ A B x} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
+          Doc (♭? g₁) x → Doc (tt G.<$ g₂) tt → Doc (g₁ G.<⊛ g₂) x
 _<⊛-tt_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ <⊛ d₂)
   where
   lemma : ∀ {x s} → x ∈ g₁ G.<⊛ (tt G.<$ g₂) · s → x ∈ g₁ G.<⊛ g₂ · s
   lemma (<⊛-sem x∈ (<$-sem y∈)) = <⊛-sem x∈ y∈
 
-_tt-⊛>_ : ∀ {c₁ c₂ A B x y} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
-          Doc (tt G.<$ g₁) x → Doc (♭? g₂) y → Doc (g₁ G.⊛> g₂) y
+_tt-⊛>_ : ∀ {c₁ c₂ A B x} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
+          Doc (tt G.<$ g₁) tt → Doc (♭? g₂) x → Doc (g₁ G.⊛> g₂) x
 _tt-⊛>_ {g₁ = g₁} {g₂} d₁ d₂ = embed lemma (d₁ ⊛> d₂)
   where
   lemma : ∀ {x s} → x ∈ (tt G.<$ g₁) G.⊛> g₂ · s → x ∈ g₁ G.⊛> g₂ · s
