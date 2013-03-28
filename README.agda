@@ -47,3 +47,8 @@ import Grammar.Abstract
 -- (Not used by the pretty-printer.)
 
 import Grammar.Non-terminal
+
+-- A README directed towards readers of the paper
+-- "Correct-by-Construction Pretty-Printing".
+
+import README.Correct-by-Construction-Pretty-Printing
