@@ -275,7 +275,7 @@ abstract
       where
       to : ∀ {t′ t : Char} {s} →
            (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t) → t ≡ t′ × s ≡ [ t ]
-      to (._ , refl , refl , refl) = (refl , refl)
+      to (_ , refl , refl , refl) = (refl , refl)
 
       from : ∀ {t′ t : Char} {s} →
              t ≡ t′ × s ≡ [ t ] → ∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t
@@ -284,7 +284,7 @@ abstract
       from∘to : ∀ {t′ t : Char} {s}
                 (eqs : ∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t) →
                 from (to eqs) ≡ eqs
-      from∘to (._ , refl , refl , refl) = refl
+      from∘to (_ , refl , refl , refl) = refl
 
       to∘from : ∀ {t′ t : Char} {s} (eqs : t ≡ t′ × s ≡ [ t ]) →
                 to (from eqs) ≡ eqs
