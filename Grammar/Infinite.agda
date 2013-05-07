@@ -1033,14 +1033,14 @@ private
 
   -- Some unit tests.
 
-  test₁ : IsJust (trailing-whitespace′ 1 (whitespace ⋆))
+  test₁ : T (is-just (trailing-whitespace′ 1 (whitespace ⋆)))
   test₁ = _
 
-  test₂ : IsJust (trailing-whitespace′ 2 (whitespace +))
+  test₂ : T (is-just (trailing-whitespace′ 2 (whitespace +)))
   test₂ = _
 
-  test₃ : IsJust (trailing-whitespace 1 (tt <$ whitespace ⋆))
+  test₃ : T (is-just (trailing-whitespace 1 (tt <$ whitespace ⋆)))
   test₃ = _
 
-  test₄ : IsJust (trailing-whitespace 2 (tt <$ whitespace +))
+  test₄ : T (is-just (trailing-whitespace 2 (tt <$ whitespace +)))
   test₄ = _

@@ -621,6 +621,6 @@ private
 
   -- A unit test.
 
-  test : IsJust (trailing-whitespace
-                   0 empty-grammar (tt <$ whitespace ⋆))
+  test : T (is-just (trailing-whitespace
+                       0 empty-grammar (tt <$ whitespace ⋆)))
   test = _

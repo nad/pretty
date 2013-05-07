@@ -252,10 +252,10 @@ final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
 final-line′ i trailing d = embed trailing (d <⊛-tt nest i line⋆)
 
 final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
-             {trailing : IsJust (trailing-whitespace n g)} →
+             {trailing : T (is-just (trailing-whitespace n g))} →
              Doc g x → Doc g x
 final-line i n {trailing} d =
-  final-line′ i (toWitness (trailing-whitespace n _) trailing) d
+  final-line′ i (to-witness-T (trailing-whitespace n _) trailing) d
 
 -- A document for the given symbol (and no following whitespace).
 
@@ -276,7 +276,7 @@ symbol-space = text <⊛ space
 -- prettier printer".
 
 bracket : ∀ {c A x s₁ s₂} {g : ∞Grammar c A} (n : ℕ) →
-          {trailing : IsJust (trailing-whitespace n (♭? g))} →
+          {trailing : T (is-just (trailing-whitespace n (♭? g)))} →
           Doc (♭? g) x → Doc (G.symbol s₁ G.⊛> g G.<⊛ G.symbol s₂) x
 bracket n {trailing} d =
   group (nest 2 symbol-line
@@ -319,13 +319,13 @@ mutual
 -- predicate.)
 
 fill+ : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
-        {trailing : IsJust (trailing-whitespace n (♭? g))} →
+        {trailing : T (is-just (trailing-whitespace n (♭? g)))} →
         ∀ {xs} → Docs (♭? g) xs → Doc (g +) xs
 fill+ {g = g} n {trailing} ds = embed lemma (fill ds)
   where
   open List-solver
 
-  trailing! = toWitness (trailing-whitespace n (♭? g)) trailing
+  trailing! = to-witness-T (trailing-whitespace n (♭? g)) trailing
 
   lemma″ = solve 4 (λ a b c d → (a ⊕ b) ⊕ c ⊕ d ⊜ a ⊕ (b ⊕ c) ⊕ d) refl
 
@@ -344,7 +344,7 @@ fill+ {g = g} n {trailing} ds = embed lemma (fill ds)
 -- a certain predicate.)
 
 map+-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
-            {trailing : IsJust (trailing-whitespace n (♭? g))} →
+            {trailing : T (is-just (trailing-whitespace n (♭? g)))} →
             Pretty-printer (♭? g) →
             Pretty-printer (g +)
 map+-fill {g = g} n {trailing} p xs =
@@ -355,7 +355,7 @@ map+-fill {g = g} n {trailing} p xs =
   to-docs x (x′ ∷ xs) = p x ∷ to-docs x′ xs
 
 map⋆-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
-            {trailing : IsJust (trailing-whitespace n (♭? g))} →
+            {trailing : T (is-just (trailing-whitespace n (♭? g)))} →
             Pretty-printer (♭? g) →
             Pretty-printer (g ⋆)
 map⋆-fill n         p []       = nil-⋆
