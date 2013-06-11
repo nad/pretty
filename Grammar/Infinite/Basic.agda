@@ -8,24 +8,36 @@
 module Grammar.Infinite.Basic where
 
 open import Algebra
+open import Category.Monad
 open import Coinduction
 open import Data.Bool
 open import Data.Char
 open import Data.Empty
 open import Data.List as List
-open import Data.Product
-open import Data.Unit
+import Data.List.Any as Any
+import Data.List.Any.Membership as ∈
+open import Data.List.Any.Properties
+open import Data.List.Properties
+open import Data.Nat
+open import Data.Nat.Properties as NatP
+open import Data.Product as Prod
+open import Data.Sum
+open import Data.Unit using (tt)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
 open import Function.Related.TypeIsomorphisms
+import Level
 open import Relation.Binary.Product.Pointwise
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
 
-private module LM {A : Set} = Monoid (List.monoid A)
+private module LMi {A : Set} = Monoid (List.monoid A)
+private module LMa = RawMonad (List.monad {ℓ = Level.zero})
+open Any.Any
+open Any.Membership-≡
 
 ------------------------------------------------------------------------
 -- Simple, potentially infinite grammars
@@ -139,7 +151,7 @@ fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
   }
   where
   lemma : ∀ s → s ++ [] ≡ s
-  lemma s = proj₂ LM.identity s
+  lemma s = proj₂ LMi.identity s
 
   to : ∀ {s g y} → y ∈ f <$> g · s → ∃ λ x → x ∈ g · s × y ≡ f x
   to (>>=-sem x∈ return-sem) =
@@ -289,3 +301,192 @@ abstract
       to∘from : ∀ {t′ t : Char} {s} (eqs : t ≡ t′ × s ≡ [ t ]) →
                 to (from eqs) ≡ eqs
       to∘from (refl , refl) = refl
+
+------------------------------------------------------------------------
+-- An aside: An inductive version of the grammar type above wouldn't
+-- be very useful (assuming that Char is finite)
+
+module Aside (finite-number-of-tokens :
+                ∃ λ (ts : List Char) → ∀ t → t ∈ ts) where
+
+  open ≤-Reasoning
+
+  infixl 15 _>>=_
+  infixl 10 _∣_
+
+  data GrammarI : Set → Set₁ where
+    return : ∀ {A} → A → GrammarI A
+    token  : GrammarI Char
+    _>>=_  : ∀ {A B} → GrammarI A → (A → GrammarI B) → GrammarI B
+    _∣_    : ∀ {A} → GrammarI A → GrammarI A → GrammarI A
+
+  infix 4 _∈I_·_
+
+  data _∈I_·_ : ∀ {A} → A → GrammarI A → List Char → Set₁ where
+    return-sem : ∀ {A} {x : A} → x ∈I return x · []
+    token-sem  : ∀ {t} → t ∈I token · [ t ]
+    >>=-sem    : ∀ {A B x y s₁ s₂} {g₁ : GrammarI A}
+                   {g₂ : A → GrammarI B} →
+                 x ∈I g₁ · s₁ → y ∈I g₂ x · s₂ →
+                 y ∈I g₁ >>= g₂ · s₁ ++ s₂
+    left-sem   : ∀ {A} {g₁ g₂ : GrammarI A} {x s} →
+                 x ∈I g₁ · s → x ∈I g₁ ∣ g₂ · s
+    right-sem  : ∀ {A} {g₁ g₂ : GrammarI A} {x s} →
+                 x ∈I g₂ · s → x ∈I g₁ ∣ g₂ · s
+
+  -- A kind of parser for the inductive grammars, used to prove
+  -- finite-number-of-results. Note that the "parser" is not quite
+  -- correct when seen as a parser: it sometimes returns too many
+  -- results. (The derivative of return x should be a failing
+  -- grammar.)
+
+  initial-bag : ∀ {A} (g : GrammarI A) →
+                ∃ λ xs → ∀ {x} → x ∈I g · [] → x ∈ xs
+
+  derivative : ∀ {A} (g : GrammarI A) t →
+               ∃ λ g′ → ∀ {x s} → x ∈I g · t ∷ s → x ∈I g′ · s
+
+  parse : ∀ {A} (g : GrammarI A) s →
+          ∃ λ xs → ∀ {x} → x ∈I g · s → x ∈ xs
+  parse g []      = initial-bag g
+  parse g (t ∷ s) with derivative g t
+  ... | g′ , ok₁ with parse g′ s
+  ...   | xs , ok₂ = xs , ok₂ ∘ ok₁
+
+  initial-bag (return x) = [ x ] , λ { .{x = x} return-sem → here refl }
+  initial-bag token      = []    , λ ()
+  initial-bag (g₁ ∣ g₂)  =
+    Prod.zip
+      _++_
+      (λ {xs} i₁ i₂ →
+       λ { (left-sem  ∈g₁) → Inverse.to ++↔             ⟨$⟩ inj₁ (i₁ ∈g₁)
+         ; (right-sem ∈g₂) → Inverse.to (++↔ {xs = xs}) ⟨$⟩ inj₂ (i₂ ∈g₂)
+         })
+      (initial-bag g₁)
+      (initial-bag g₂)
+  initial-bag (_>>=_ {A = A} {B = B} g₁ g₂) with initial-bag g₁
+  ... | xs , xs-ok = ys xs , λ ∈g₁>>=g₂ → lemma₁ ∈g₁>>=g₂ refl
+    where
+    ys : List A → List B
+    ys xs = xs LMa.>>= λ x → proj₁ (initial-bag (g₂ x))
+
+    lemma₂ : ∀ {x y} xs → x ∈ xs → y ∈I g₂ x · [] → y ∈ ys xs
+    lemma₂ (x ∷ xs) (here refl) ∈g₂ =
+      Inverse.to ++↔ ⟨$⟩ inj₁ (proj₂ (initial-bag (g₂ x)) ∈g₂)
+    lemma₂ (z ∷ xs) (there x∈) ∈g₂ =
+      Inverse.to (++↔ {xs = proj₁ (initial-bag (g₂ z))}) ⟨$⟩
+        inj₂ (lemma₂ xs x∈ ∈g₂)
+
+    lemma₁ : ∀ {x s} → x ∈I g₁ >>= g₂ · s → s ≡ [] → x ∈ ys xs
+    lemma₁ (>>=-sem {s₁ = []}    ∈g₁ ∈g₂) refl = lemma₂ xs (xs-ok ∈g₁) ∈g₂
+    lemma₁ (>>=-sem {s₁ = _ ∷ _} ∈g₁ ∈g₂) ()
+
+  derivative (return x) t = return x , λ ()
+  derivative token      t = return t , λ { .{s = []} token-sem → return-sem }
+  derivative (g₁ ∣ g₂)  t =
+    Prod.zip _∣_
+             (λ {g₁′ g₂′} ok₁ ok₂ →
+              λ { (left-sem  ∈g₁) → left-sem  (ok₁ ∈g₁)
+                ; (right-sem ∈g₂) → right-sem (ok₂ ∈g₂)
+                })
+             (derivative g₁ t)
+             (derivative g₂ t)
+  derivative (_>>=_ {A = A} {B = B} g₁ g₂) t
+    with derivative g₁ t | initial-bag g₁
+  ... | g₁′ , g₁′-ok | xs , xs-ok =
+    g′ xs , λ ∈g₁>>=g₂ → lemma₁ ∈g₁>>=g₂ refl
+    where
+    g′ : List A → GrammarI B
+    g′ []       = g₁′ >>= g₂
+    g′ (x ∷ xs) = return x >>= (λ x → proj₁ (derivative (g₂ x) t))
+                ∣ g′ xs
+
+    lemma₂ : ∀ {x y s} xs →
+             x ∈ xs → y ∈I g₂ x · t ∷ s → y ∈I g′ xs · s
+    lemma₂ (x ∷ xs) (here refl) ∈g₂ = left-sem (>>=-sem return-sem
+                                        (proj₂ (derivative (g₂ x) t) ∈g₂))
+    lemma₂ (z ∷ xs) (there x∈)  ∈g₂ = right-sem (lemma₂ xs x∈ ∈g₂)
+
+    lemma₃ : ∀ {x y s₁ s₂} xs →
+             x ∈I g₁′ · s₁ → y ∈I g₂ x · s₂ → y ∈I g′ xs · s₁ ++ s₂
+    lemma₃ []       ∈g₁′ ∈g₂ = >>=-sem ∈g₁′ ∈g₂
+    lemma₃ (x ∷ xs) ∈g₁′ ∈g₂ = right-sem (lemma₃ xs ∈g₁′ ∈g₂)
+
+    lemma₁ : ∀ {y s s′} →
+             y ∈I g₁ >>= g₂ · s → s ≡ t ∷ s′ → y ∈I g′ xs · s′
+    lemma₁ (>>=-sem {s₁ = []}     ∈g₁ ∈g₂) refl = lemma₂ xs (xs-ok  ∈g₁) ∈g₂
+    lemma₁ (>>=-sem {s₁ = .t ∷ _} ∈g₁ ∈g₂) refl = lemma₃ xs (g₁′-ok ∈g₁) ∈g₂
+
+  -- If strings are restricted to have a given maximum length, then an
+  -- inductive grammar generates a finite number of distinct results.
+
+  finite-number-of-results :
+    ∀ {A} (g : GrammarI A) n →
+    ∃ λ xs → ∀ {x s} → length s ≤ n → x ∈I g · s → x ∈ xs
+  finite-number-of-results g n =
+    (all-strings n LMa.>>= proj₁ ∘ parse g) ,
+    λ {_} {s} ≤n ∈g →
+      Inverse.to ∈.>>=-∈↔ ⟨$⟩
+        (_ , all-strings-ok s n ≤n , proj₂ (parse g s) ∈g)
+    where
+    all-strings : ℕ → List (List Char)
+    all-strings 0       = [ [] ]
+    all-strings (suc n) = all-strings n ++
+                          (proj₁ finite-number-of-tokens LMa.>>= λ t →
+                           List.map (_∷_ t) (all-strings n))
+
+    all-strings-ok : ∀ s n → length s ≤ n → s ∈ all-strings n
+    all-strings-ok []      zero    z≤n      = here refl
+    all-strings-ok []      (suc n) z≤n      = Inverse.to ++↔ ⟨$⟩
+                                                inj₁ (all-strings-ok [] n z≤n)
+    all-strings-ok (t ∷ s) (suc n) (s≤s ≤n) =
+      Inverse.to (++↔ {xs = all-strings n}) ⟨$⟩
+        inj₂ (Inverse.to ∈.>>=-∈↔ ⟨$⟩
+                (_ , proj₂ finite-number-of-tokens t
+                   , Inverse.to ∈.map-∈↔ ⟨$⟩
+                       (_ , all-strings-ok s n ≤n , refl)))
+
+  -- No inductive grammar can generate strings of unbounded length.
+
+  bounded-length :
+    ∀ {A} (g : GrammarI A) →
+    ∃ λ n → ∀ {x s} → x ∈I g · s → length s ≤ n
+  bounded-length (return x) = 0 , λ { .{s = []}    return-sem → z≤n }
+  bounded-length token      = 1 , λ { .{s = [ _ ]} token-sem  → s≤s z≤n }
+  bounded-length (g₁ ∣ g₂)  =
+    Prod.zip _+_
+             (λ {n₁ n₂} b₁ b₂ →
+              λ { {s = s} (left-sem ∈g₁) → begin
+                  length s  ≤⟨ b₁ ∈g₁ ⟩
+                  n₁        ≤⟨ m≤m+n _ _ ⟩
+                  n₁ + n₂   ∎
+                ; {s = s} (right-sem ∈g₂) → begin
+                  length s  ≤⟨ b₂ ∈g₂ ⟩
+                  n₂        ≤⟨ n≤m+n n₁ _ ⟩
+                  n₁ + n₂   ∎
+                })
+             (bounded-length g₁)
+             (bounded-length g₂)
+  bounded-length (_>>=_ {A = A} g₁ g₂) with bounded-length g₁
+  ... | n₁ , b₁ with finite-number-of-results g₁ n₁
+  ...   | xs , xs-ok =
+    n₁ + n₂ xs ,
+    λ { .{s = _} (>>=-sem {s₁ = s₁} {s₂ = s₂} ∈g₁ ∈g₂) → begin
+        length (s₁ ++ s₂)      ≡⟨ length-++ s₁ ⟩
+        length s₁ + length s₂  ≤⟨ b₁ ∈g₁ +-mono lemma xs (xs-ok (b₁ ∈g₁) ∈g₁) ∈g₂ ⟩
+        n₁        + n₂ xs      ∎ }
+    where
+    n₂ : List A → ℕ
+    n₂ = foldr _⊔_ 0 ∘ List.map (λ x → proj₁ (bounded-length (g₂ x)))
+
+    lemma : ∀ {x y s} xs → x ∈ xs → y ∈I g₂ x · s → length s ≤ n₂ xs
+    lemma {s = s} (x ∷ xs) (here refl) y∈ = begin
+      length s                               ≤⟨ proj₂ (bounded-length (g₂ x)) y∈ ⟩
+      proj₁ (bounded-length (g₂ x))          ≤⟨ m≤m⊔n _ _ ⟩
+      proj₁ (bounded-length (g₂ x)) ⊔ n₂ xs  ∎
+    lemma {s = s} (z ∷ xs) (there x∈) y∈ = begin
+      length s                               ≤⟨ lemma xs x∈ y∈ ⟩
+      n₂ xs                                  ≤⟨ m≤m⊔n _ _ ⟩
+      n₂ xs ⊔ proj₁ (bounded-length (g₂ z))  ≡⟨ ∧-comm (n₂ xs) _ ⟩
+      proj₁ (bounded-length (g₂ z)) ⊔ n₂ xs  ∎
+      where open DistributiveLattice NatP.distributiveLattice
