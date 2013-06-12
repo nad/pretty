@@ -58,7 +58,7 @@ identifier = sat is-lower +
   where open Grammar
 
 identifier-printer : Pretty-printer identifier
-identifier-printer = map+ (λ _ → sat is-lower)
+identifier-printer = map+ (sat is-lower)
   where open Pretty
 
 -- Identifiers possibly followed by whitespace.
