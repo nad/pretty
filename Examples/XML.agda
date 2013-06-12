@@ -129,9 +129,8 @@ mutual
   w-attrs-printer (a ∷ as) =
     group (nest 2 line⋆
              tt-⊛>
-           embed Grammar.⋆-+-sem
-             (final-line 0 4
-                (nest 2 (map+-fill 2 attr-printer (a ∷ as)))))
+           final-line-+⋆ 0 4
+             (nest 2 (map+-fill 2 attr-printer (a ∷ as))))
 
   attr-printer : Pretty-printer attr
   attr-printer (att n v) =
@@ -147,8 +146,7 @@ mutual
   w-xmls-printer (x ∷ xs) =
     group (nest 2 line⋆
              tt-⊛>
-           embed Grammar.⋆-+-sem
-             (final-line 0 5 (nest 2 (fill+ 3 (to-docs x xs)))))
+           final-line-+⋆ 0 5 (nest 2 (fill+ 3 (to-docs x xs))))
     where
     to-docs : ∀ x xs → Docs xml (x ∷ xs)
     to-docs x []        = [ xml-printer x ]

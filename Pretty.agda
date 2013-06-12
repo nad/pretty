@@ -257,6 +257,16 @@ final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
 final-line i n {trailing} d =
   final-line′ i (to-witness-T (trailing-whitespace n _) trailing) d
 
+-- Trailing-whitespace never holds for grammars of the form g ⋆, but
+-- if the list to be pretty-printed has at least one element, then
+-- final-line may still work.
+
+final-line-+⋆ : ∀ {c A} {g : ∞Grammar c A} {x xs} (i n : ℕ)
+                {trailing : T (is-just (trailing-whitespace n (g +)))} →
+                Doc (g +) (x ∷ xs) → Doc (g ⋆) (x ∷ xs)
+final-line-+⋆ i n {trailing} d =
+  embed ⋆-+-sem (final-line i n {trailing} d)
+
 -- A document for the given symbol (and no following whitespace).
 
 symbol : ∀ {s} → Doc (G.symbol s) s
