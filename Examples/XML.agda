@@ -42,7 +42,7 @@ text-g = sat _ ⋆
   where open Grammar
 
 text-printer : Pretty-printer text-g
-text-printer = map⋆ (λ _ → sat)
+text-printer = map⋆ (λ _ → sat is-text-char)
   where open Pretty
 
 mutual
