@@ -358,6 +358,6 @@ map⋆-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
             {trailing : T (is-just (trailing-whitespace n (♭? g)))} →
             Pretty-printer (♭? g) →
             Pretty-printer (g ⋆)
-map⋆-fill n         p []       = nil-⋆
+map⋆-fill n            p []       = nil-⋆
 map⋆-fill n {trailing} p (x ∷ xs) =
   embed ⋆-+-sem (map+-fill n {trailing = trailing} p (x ∷ xs))
