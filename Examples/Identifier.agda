@@ -10,9 +10,10 @@ open import Data.Char
 open import Data.List.NonEmpty
 open import Data.Product
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Relation.Nullary
 
 open import Grammar.Infinite as Grammar using (Grammar)
-open import Pretty using (Pretty-printer)
+open import Pretty using (Doc; Pretty-printer)
 open import Renderer
 open import Utilities
 
@@ -20,6 +21,32 @@ open import Utilities
 
 is-lower : Char → Bool
 is-lower t = ('a' ≤?C t) ∧ (t ≤?C 'z')
+
+-- A problematic attempt to define a grammar and a corresponding
+-- pretty-printer for identifiers.
+
+module Problematic where
+
+  -- The grammar can be defined.
+
+  identifier : Grammar (List⁺ Char)
+  identifier = (proj₁ <$> sat is-lower) +
+    where open Grammar
+
+  -- However, it is impossible to define a corresponding
+  -- pretty-printer.
+
+  no-printer : ¬ Pretty-printer identifier
+  no-printer identifier-printer = no-doc (identifier-printer [ 'A' ])
+    where
+    open Grammar
+
+    lemma : ∀ {p : Char → Bool} {t s s′} →
+            t ∷ s ∈ (proj₁ <$> sat p) + · s′ → T (p t)
+    lemma (⊛-sem (<$>-sem (<$>-sem {x = _ , ok} _)) _) = ok
+
+    no-doc : ¬ Doc identifier [ 'A' ]
+    no-doc d = lemma (proj₂ (Renderer.string-exists d))
 
 -- Identifiers.
 
