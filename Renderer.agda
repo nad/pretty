@@ -186,14 +186,7 @@ string-exists d = (render d , parsable d)
 -- An example renderer, based on the one in Wadler's "A prettier
 -- printer"
 
--- The natural number is the line width.
-
-wadler's-renderer : ℕ → Renderer
-wadler's-renderer width = record
-  { render   = render
-  ; parsable = parsable
-  }
-  module Wadler's-renderer where
+module Wadler's-renderer where
 
   -- Layouts (representations of certain strings).
 
@@ -375,100 +368,114 @@ wadler's-renderer width = record
   fits w        (text s ∷ x) = fits (w - + length s) x
   fits w        (line i ∷ x) = true
 
-  -- Chooses the first layout if it fits, otherwise the second (which
-  -- is assumed to have a first line that is at most as long as the
-  -- first line of the first layout). The natural number is the
-  -- current column number.
+  module _ (width : ℕ) where
 
-  better : ℕ → Layout → Layout → Layout
-  better c x y = if fits (width ⊖ c) x then x else y
+    -- Chooses the first layout if it fits, otherwise the second (which
+    -- is assumed to have a first line that is at most as long as the
+    -- first line of the first layout). The natural number is the
+    -- current column number.
 
-  -- If, for any starting column c, κ c is the layout for some text,
-  -- then best i d κ c is the layout for the document d followed by
-  -- this text, given the current indentation i and the current column
-  -- number c.
+    better : ℕ → Layout → Layout → Layout
+    better c x y = if fits (width ⊖ c) x then x else y
 
-  best : ∀ {i A} {g : Grammar A} {x} →
-         DocN i g x → (ℕ → Layout) → (ℕ → Layout)
-  best (d₁ ◇ d₂)     = best d₁ ∘ best d₂
-  best (text [])     = id
-  best (text s)      = λ κ c → text s ∷ κ (length s + c)
-  best (line i)      = λ κ _ → line i ∷ κ i
-  best (union d₁ d₂) = λ κ c → better c (best d₁ κ c)
-                                        (best d₂ κ c)
-  best (nest _ d)    = best d
-  best (emb _ d)     = best d
+    -- If, for any starting column c, κ c is the layout for some text,
+    -- then best i d κ c is the layout for the document d followed by
+    -- this text, given the current indentation i and the current column
+    -- number c.
 
-  -- Renders a document.
+    best : ∀ {i A} {g : Grammar A} {x} →
+           DocN i g x → (ℕ → Layout) → (ℕ → Layout)
+    best (d₁ ◇ d₂)     = best d₁ ∘ best d₂
+    best (text [])     = id
+    best (text s)      = λ κ c → text s ∷ κ (length s + c)
+    best (line i)      = λ κ _ → line i ∷ κ i
+    best (union d₁ d₂) = λ κ c → better c (best d₁ κ c)
+                                          (best d₂ κ c)
+    best (nest _ d)    = best d
+    best (emb _ d)     = best d
 
-  render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
-  render d = show (best (expand {i = 0} d) (λ _ → []) 0)
+    -- Renders a document.
 
-  -- A simple lemma.
+    renderN : ∀ {A i} {g : Grammar A} {x} → DocN i g x → List Char
+    renderN d = show (best d (λ _ → []) 0)
 
-  if-lemma :
-    ∀ {A} {g : Grammar A} {x l₁ l₂} s b →
-    x ∈ g · s ++ show l₁ →
-    x ∈ g · s ++ show l₂ →
-    x ∈ g · s ++ show (if b then l₁ else l₂)
-  if-lemma _ true  ∈l₁ ∈l₂ = ∈l₁
-  if-lemma _ false ∈l₁ ∈l₂ = ∈l₂
+    -- Renders a document.
 
-  -- The main correctness property for best.
+    render : ∀ {A} {g : Grammar A} {x} → Doc g x → List Char
+    render d = renderN (expand {i = 0} d)
 
-  best-lemma :
-    ∀ {c A B i} {g : Grammar A} {g′ : Grammar B} {x y κ}
-      s (d : DocN i g x) →
-    (∀ {s′ c′} → x ∈ g · s′ → y ∈ g′ · s ++ s′ ++ show (κ c′)) →
-    y ∈ g′ · s ++ show (best d κ c)
-  best-lemma     s (text [])      hyp = hyp return-sem
-  best-lemma     s (text (_ ∷ _)) hyp = hyp string-sem
-  best-lemma     s (line i)       hyp = hyp string-sem
-  best-lemma {c} s (union d₁ d₂)  hyp = if-lemma s
-                                          (fits (width ⊖ c) _)
-                                          (best-lemma s d₁ hyp)
-                                          (best-lemma s d₂ hyp)
-  best-lemma     s (nest _ d)     hyp = best-lemma s d hyp
-  best-lemma     s (emb f d)      hyp = best-lemma s d (hyp ∘ f)
-  best-lemma     s (d₁ ◇ d₂)      hyp =
-    best-lemma s d₁ λ {s′} f∈ →
-      cast (LM.assoc s _ _)
-        (best-lemma (s ++ s′) d₂ λ x∈ →
-           cast (lemma s _ _ _)
-             (hyp (>>=-sem f∈ x∈)))
-    where
-    open List-solver
-    lemma = solve 4 (λ a b c d → a ⊕ (b ⊕ c) ⊕ d ⊜ (a ⊕ b) ⊕ c ⊕ d)
-                    P.refl
+    -- A simple lemma.
 
-  -- A corollary.
+    if-lemma :
+      ∀ {A} {g : Grammar A} {x l₁ l₂} s b →
+      x ∈ g · s ++ show l₁ →
+      x ∈ g · s ++ show l₂ →
+      x ∈ g · s ++ show (if b then l₁ else l₂)
+    if-lemma _ true  ∈l₁ ∈l₂ = ∈l₁
+    if-lemma _ false ∈l₁ ∈l₂ = ∈l₂
 
-  best-lemma′ :
-    ∀ {A i} {g : Grammar A} {x}
-    (d : DocN i g x) → x ∈ g · show (best d (λ _ → []) 0)
-  best-lemma′ d = best-lemma [] d (cast (P.sym $ proj₂ LM.identity _))
+    -- The main correctness property for best.
 
-  -- The renderer is correct.
+    best-lemma :
+      ∀ {c A B i} {g : Grammar A} {g′ : Grammar B} {x y κ}
+        s (d : DocN i g x) →
+      (∀ {s′ c′} → x ∈ g · s′ → y ∈ g′ · s ++ s′ ++ show (κ c′)) →
+      y ∈ g′ · s ++ show (best d κ c)
+    best-lemma     s (text [])      hyp = hyp return-sem
+    best-lemma     s (text (_ ∷ _)) hyp = hyp string-sem
+    best-lemma     s (line i)       hyp = hyp string-sem
+    best-lemma {c} s (union d₁ d₂)  hyp = if-lemma s
+                                            (fits (width ⊖ c) _)
+                                            (best-lemma s d₁ hyp)
+                                            (best-lemma s d₂ hyp)
+    best-lemma     s (nest _ d)     hyp = best-lemma s d hyp
+    best-lemma     s (emb f d)      hyp = best-lemma s d (hyp ∘ f)
+    best-lemma     s (d₁ ◇ d₂)      hyp =
+      best-lemma s d₁ λ {s′} f∈ →
+        cast (LM.assoc s _ _)
+          (best-lemma (s ++ s′) d₂ λ x∈ →
+             cast (lemma s _ _ _)
+               (hyp (>>=-sem f∈ x∈)))
+      where
+      open List-solver
+      lemma = solve 4 (λ a b c d → a ⊕ (b ⊕ c) ⊕ d ⊜ (a ⊕ b) ⊕ c ⊕ d)
+                      P.refl
 
-  parsable : ∀ {A} {g : Grammar A} {x}
-             (d : Doc g x) → x ∈ g · render d
-  parsable d = best-lemma′ (expand d)
+    -- A corollary.
 
--- Wadler's renderer ignores emb constructors.
+    best-lemma′ :
+      ∀ {A i} {g : Grammar A} {x}
+      (d : DocN i g x) → x ∈ g · renderN d
+    best-lemma′ d = best-lemma [] d (cast (P.sym $ proj₂ LM.identity _))
 
-wadler's-renderer-ignores-emb :
-  ∀ {w} → Renderer.Ignores-emb (wadler's-renderer w)
-wadler's-renderer-ignores-emb {w} {d = d}
-  with Wadler's-renderer.expand w {i = 0} d
-... | _ Wadler's-renderer.◇ _     = P.refl
-... | Wadler's-renderer.text _    = P.refl
-... | Wadler's-renderer.line ._   = P.refl
-... | Wadler's-renderer.union _ _ = P.refl
-... | Wadler's-renderer.nest _ _  = P.refl
-... | Wadler's-renderer.emb _ _   = P.refl
+    -- The renderer is correct.
 
--- Uses wadler's-renderer to render a document using the given line
--- width.
+    parsable : ∀ {A} {g : Grammar A} {x}
+               (d : Doc g x) → x ∈ g · render d
+    parsable d = best-lemma′ (expand d)
+
+    -- The renderer.
+
+    wadler's-renderer : Renderer
+    wadler's-renderer = record
+      { render   = render
+      ; parsable = parsable
+      }
+
+  -- The renderer ignores emb constructors.
+
+  ignores-emb :
+    ∀ {w} → Renderer.Ignores-emb (wadler's-renderer w)
+  ignores-emb {d = d} with expand {i = 0} d
+  ... | _ ◇ _     = P.refl
+  ... | text _    = P.refl
+  ... | line ._   = P.refl
+  ... | union _ _ = P.refl
+  ... | nest _ _  = P.refl
+  ... | emb _ _   = P.refl
+
+-- Uses Wadler's-renderer.render to render a document using the
+-- given line width.
 
 render : ∀ {A} {g : Grammar A} {x} → ℕ → Doc g x → String
-render w d = String.fromList (Renderer.render (wadler's-renderer w) d)
+render w d = String.fromList (Wadler's-renderer.render w d)
