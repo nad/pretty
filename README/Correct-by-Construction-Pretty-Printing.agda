@@ -56,6 +56,8 @@ import Examples.Identifier
 
 -- 4.5: Other Examples.
 
+-- Some of these examples are not mentioned in the paper.
+
 -- Another expression example based on one in Matsuda and Wang's
 -- "FliPpr: A Prettier Invertible Printing System".
 
