@@ -423,11 +423,9 @@ wadler's-renderer width = record
     y ∈ g′ · s ++ show (best d κ c)
   best-lemma     s (text [])      hyp = hyp return-sem
   best-lemma     s (text (_ ∷ _)) hyp = hyp string-sem
-  best-lemma     s (line i)       hyp = hyp (⊛-sem (<$>-sem tok-sem)
-                                                   string-sem)
+  best-lemma     s (line i)       hyp = hyp string-sem
   best-lemma {c} s (union d₁ d₂)  hyp = if-lemma s
-                                          (fits (width ⊖ c)
-                                                (best d₁ _ _))
+                                          (fits (width ⊖ c) _)
                                           (best-lemma s d₁ hyp)
                                           (best-lemma s d₂ hyp)
   best-lemma     s (nest _ d)     hyp = best-lemma s d hyp
