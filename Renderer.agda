@@ -474,6 +474,72 @@ module Wadler's-renderer where
   ... | nest _ _  = P.refl
   ... | emb _ _   = P.refl
 
+  -- A (heterogeneous) notion of document equivalence.
+
+  infix 4 _≈_
+
+  _≈_ : ∀ {A₁ i₁ g₁} {x₁ : A₁}
+          {A₂ i₂ g₂} {x₂ : A₂} →
+        DocN i₁ g₁ x₁ → DocN i₂ g₂ x₂ → Set
+  d₁ ≈ d₂ = ∀ width → renderN width d₁ ≡ renderN width d₂
+
+  -- Some laws satisfied by the DocN combinators.
+
+  text-++ : ∀ {i₁ i₂} s₁ s₂ →
+        text {i = i₁} (s₁ ++ s₂) ≈
+        _⊛>_ {c₁ = false} {c₂ = false} (text {i = i₂} s₁) (text s₂)
+  text-++ []        []        _ = P.refl
+  text-++ []        (t₂ ∷ s₂) _ = P.refl
+  text-++ (t₁ ∷ s₁) []        _ =
+    solve 1 (λ s₁ → (s₁ ⊕ nl) ⊕ nl ⊜ s₁ ⊕ nl) P.refl (t₁ ∷ s₁)
+    where open List-solver renaming (nil to nl)
+  text-++ (t₁ ∷ s₁) (t₂ ∷ s₂) _ =
+    solve 2 (λ s₁ s₂ → (s₁ ⊕ s₂) ⊕ nl ⊜ s₁ ⊕ s₂ ⊕ nl) P.refl
+            (t₁ ∷ s₁) (t₂ ∷ s₂)
+    where open List-solver renaming (nil to nl)
+
+  nest-union : ∀ {A i j g} {x : A} {d₁ d₂ : DocN (j + i) g x} →
+               nest j (union d₁ d₂) ≈ union (nest j d₁) (nest j d₂)
+  nest-union _ = P.refl
+
+  union-◇ : ∀ {A B i x y c₁ c₂}
+              {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B}
+              {d₁ d₂ : DocN i (♭? g₁) x} {d₃ : DocN i (♭? (g₂ x)) y} →
+            _◇_ {g₁ = g₁} {g₂ = g₂} (union d₁ d₂) d₃ ≈
+            union (d₁ ◇ d₃) (_◇_ {g₁ = g₁} {g₂ = g₂} d₂ d₃)
+  union-◇ _ = P.refl
+
+  -- A law that is /not/ satisfied by the DocN combinators.
+
+  ¬-◇-union :
+    ¬ (∀ {A B i x y} c₁ c₂
+         {g₁ : ∞Grammar c₁ A} {g₂ : A → ∞Grammar c₂ B}
+       (d₁ : DocN i (♭? g₁) x) (d₂ d₃ : DocN i (♭? (g₂ x)) y) →
+       _◇_ {g₁ = g₁} {g₂ = g₂} d₁ (union d₂ d₃) ≈
+       union (d₁ ◇ d₂) (_◇_ {g₁ = g₁} {g₂ = g₂} d₁ d₃))
+  ¬-◇-union hyp with hyp false false d₁ d₂ d₁ 0
+    where
+    d₁ = imprecise-line 0
+    d₂ = imprecise-space
+
+    -- The following four definitions are not part of the proof.
+
+    left : DocN 0 _ _
+    left = _◇_ {c₁ = false} {c₂ = false} d₁ (union d₂ d₁)
+
+    right : DocN 0 _ _
+    right = union (d₁ ◇ d₂) (_◇_ {c₁ = false} {c₂ = false} d₁ d₁)
+
+    -- Note that left and right are not rendered in the same way.
+
+    left-hand-string : renderN 0 left ≡ String.toList "\n\n"
+    left-hand-string = P.refl
+
+    right-hand-string : renderN 0 right ≡ String.toList "\n "
+    right-hand-string = P.refl
+
+  ... | ()
+
 -- Uses Wadler's-renderer.render to render a document using the
 -- given line width.
 
