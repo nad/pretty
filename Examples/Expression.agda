@@ -7,10 +7,16 @@
 
 module Examples.Expression where
 
+open import Algebra
 open import Coinduction
+open import Data.List as List
+open import Data.Product
 open import Data.Unit
 open import Function
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
+
+private
+  module LM {A : Set} = Monoid (List.monoid A)
 
 open import Examples.Identifier
 import Grammar.Infinite as Grammar
@@ -99,6 +105,47 @@ module Expression₂ where
       term : Grammar Expr
       term = one <$ symbol′ "1"
            ∣ symbol′ "(" ⊛> ♯ expr <⊛ symbol′ ")"
+
+    private
+
+      -- A manual proof of Trailing-whitespace expr (included for
+      -- illustrative purposes; not used below).
+
+      Trailing-whitespace″ : ∀ {A} → Grammar A → Set₁
+      Trailing-whitespace″ g =
+        ∀ {x s s₁ s₂} →
+        x ∈ g · s₁ → s ∈ whitespace ⋆ · s₂ → x ∈ g · s₁ ++ s₂
+
+      tw′-whitespace : Trailing-whitespace′ (whitespace ⋆)
+      tw′-whitespace ⋆-[]-sem                                  w = _ , w
+      tw′-whitespace (⋆-+-sem (⊛-sem {s₁ = s₁} (<$>-sem p) q)) w
+        with tw′-whitespace q w
+      ... | _ , r = _ , cast (P.sym $ LM.assoc s₁ _ _)
+                             (⋆-+-sem (⊛-sem (<$>-sem p) r))
+
+      tw″-symbol : ∀ {s} → Trailing-whitespace″ (symbol s)
+      tw″-symbol (<⊛-sem {s₁ = s₁} p q) w =
+        cast (P.sym $ LM.assoc s₁ _ _)
+             (<⊛-sem p (proj₂ (tw′-whitespace q w)))
+
+      mutual
+
+        tw″-expr : Trailing-whitespace″ expr
+        tw″-expr (left-sem p) w =
+          left-sem (tw″-term p w)
+        tw″-expr (right-sem (⊛-sem {s₁ = s₁} p q)) w =
+          cast (P.sym $ LM.assoc s₁ _ _)
+               (right-sem (⊛-sem p (tw″-term q w)))
+
+        tw″-term : Trailing-whitespace″ term
+        tw″-term (left-sem (<$-sem p)) w =
+          left-sem (<$-sem (tw″-symbol p w))
+        tw″-term (right-sem (<⊛-sem {s₁ = s₁} p q)) w =
+          cast (P.sym $ LM.assoc s₁ _ _)
+               (right-sem (<⊛-sem p (tw″-symbol q w)))
+
+      tw-expr : Trailing-whitespace expr
+      tw-expr (<⊛-sem p w) = tw″-expr p w
 
   open Pretty
 
