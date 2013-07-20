@@ -509,15 +509,18 @@ test₆ = P.refl
 --
 -- Wadler's pretty-printing algorithm is not always optimal for texts
 -- that do not fit in the allotted width, if by "optimal" we mean
--- "with as little overflow as possible". (I don't claim that Wadler
--- tried to minimise unavoidable overflow.) To see what I mean, try
+-- "with as little overflow as possible". To see what I mean, try
 -- running the following Haskell code, where the functions are
 -- implemented as in Wadler's paper:
 --
 --   pretty 1 (group (nest 20 (line <> text "x")))
 --
--- The result is "\n                    x", which is much worse than
--- the alternative result " x".
+-- The result is "\n                    x", which can be seen as much
+-- worse than the alternative result " x". However, note that Wadler
+-- uses a lexicographic definition of "better", in which
+-- "\n                    x" is better than " x", because the first
+-- line of "\n                    x" fits, but the first line of " x"
+-- doesn't.
 
 test₇ : render 5 (expr-printer example) ≡
         "(y\n     + k\n   <: i\n     + foo\n     + a\n       / (b\n          - c)\n       * c\n   <: xs)\n:> x\n:> z\n  * z"
