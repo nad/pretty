@@ -50,19 +50,6 @@ data Associativity : Set where
    ⇽  -- Left associative.
      : Associativity
 
--- We can decide if two associativities are equal.
-
-_≟A_ : Decidable (_≡_ {A = Associativity})
-- ≟A - = yes P.refl
-- ≟A ⇾ = no (λ ())
-- ≟A ⇽ = no (λ ())
-⇾ ≟A - = no (λ ())
-⇾ ≟A ⇾ = yes P.refl
-⇾ ≟A ⇽ = no (λ ())
-⇽ ≟A - = no (λ ())
-⇽ ≟A ⇾ = no (λ ())
-⇽ ≟A ⇽ = yes P.refl
-
 -- Operator names.
 
 is-operator-char : Char → Bool
@@ -133,23 +120,35 @@ operator-printer op = <$> operator-name-printer (Operator.name op)
 
 record Precedence-graph : Set where
   field
+
     -- The number of precedence levels.
+
     levels : ℕ
 
   -- Precedence levels.
+
   Precedence : Set
   Precedence = Fin levels
 
   field
+
     -- The precedence level's operators.
+
     ops : Precedence → (assoc : Associativity) → List (Operator assoc)
 
     -- The immediate successors of the precedence level.
+
     ↑ : Precedence → List Precedence
 
   -- All precedence levels.
-  any-precedence : List Precedence
-  any-precedence = Vec.toList (allFin levels)
+
+  all-precedences : List Precedence
+  all-precedences = Vec.toList (allFin levels)
+
+  -- Every precedence level is a member of all-precedences.
+
+  ∈-all-precedences : ∀ {p} → p ∈ all-precedences
+  ∈-all-precedences {p} = ∈⇒List-∈ (∈-allFin p)
 
   -- A membership test for precedences.
 
@@ -165,148 +164,35 @@ module Expr (g : Precedence-graph) where
 
   open Precedence-graph g
 
-  -- Simple expressions.
+  -- Operators with a given precedence and associativity.
 
-  data E : Set where
-    var : Identifier → E
-    app : ∀ {assoc p} → E → (∃ λ op → op ∈ ops p assoc) → E → E
+  Op : Precedence → Associativity → Set
+  Op p assoc = ∃ λ op → op ∈ ops p assoc
+
+  mutual
+
+    -- Expressions.
+
+    data Expr : Set where
+      var : Identifier → Expr
+      app : ∀ {p} → ∃ (App p) → Expr
+
+    -- Binary operator applications where the operator has a given
+    -- precedence and associativity.
+
+    App : Precedence → Associativity → Set
+    App p assoc = Expr × Op p assoc × Expr
 
   -- The following function can be convenient to use when constructing
   -- examples.
 
   app′ :
-    ∀ {assoc} → E → (op : Operator assoc) →
+    ∀ {assoc} → Expr → (op : Operator assoc) →
     {member : True (Fin-dec.any? λ p →
                       Any.any (_≟O_ op) (ops p assoc))} →
-    E → E
-  app′ e₁ op {member} e₂ = app e₁ (op , proj₂ (toWitness member)) e₂
-
-  mutual
-
-    -- A representation of operator parse trees.
-
-    infix 8 _⟨_⟩_ _⟨_⟩⇾_ _⟨_⟩⇽_
-    infix 6 _∙_
-
-    -- Expr ps contains expressions where the outermost operator has
-    -- one of the precedences in ps, parenthesised expressions, and
-    -- variables.
-
-    data Expr (ps : List Precedence) : Set where
-      _∙_   : ∀ {p assoc} → p ∈ ps → Expr-in p assoc → Expr ps
-      paren : Expr any-precedence                    → Expr ps
-      var   : Identifier                             → Expr ps
-
-    -- Expr-in p assoc contains expressions where the outermost
-    -- operator has precedence p (is /in/ precedence level p) and the
-    -- associativity assoc.
-
-    data Expr-in (p : Precedence) : Associativity → Set where
-      _⟨_⟩_  : Expr (↑ p) → Inner (ops p -) → Expr (↑ p) → Expr-in p -
-      _⟨_⟩⇾_ : Expr (↑ p) → Inner (ops p ⇾) → Outer p ⇾  → Expr-in p ⇾
-      _⟨_⟩⇽_ : Outer p ⇽  → Inner (ops p ⇽) → Expr (↑ p) → Expr-in p ⇽
-
-    -- Outer p assoc contains expressions where the head operator
-    --   ⑴ has precedence p and associativity assoc, or
-    --   ⑵ binds strictly tighter than p.
-
-    data Outer (p : Precedence) (assoc : Associativity) : Set where
-      similar : Expr-in p assoc → Outer p assoc
-      tighter : Expr (↑ p)      → Outer p assoc
-
-    -- Operators. The operators have to be members of the list.
-
-    Inner : ∀ {assoc} → List (Operator assoc) → Set
-    Inner ops = ∃ λ op → op ∈ ops
-
-  -- Weakening.
-
-  weaken : ∀ {p ps} → Expr ps → Expr (p ∷ ps)
-  weaken (p∈ps ∙ e) = there p∈ps ∙ e
-  weaken (paren e)  = paren e
-  weaken (var x)    = var x
-
-  mutual
-
-    -- Conversion of parse trees to simple expressions.
-
-    forget : ∀ {ps} → Expr ps → E
-    forget (_ ∙ e)   = forget-in e
-    forget (paren e) = forget e
-    forget (var x)   = var x
-
-    forget-in : ∀ {p assoc} → Expr-in p assoc → E
-    forget-in (e₁ ⟨ op ⟩  e₂) = app (forget     e₁) op (forget     e₂)
-    forget-in (e₁ ⟨ op ⟩⇾ e₂) = app (forget     e₁) op (forget-out e₂)
-    forget-in (e₁ ⟨ op ⟩⇽ e₂) = app (forget-out e₁) op (forget     e₂)
-
-    forget-out : ∀ {p assoc} → Outer p assoc → E
-    forget-out (similar e) = forget-in e
-    forget-out (tighter e) = forget e
-
-  mutual
-
-    -- Conversion of simple expressions to parse trees.
-
-    recall : ∀ {ps} → E → Expr ps
-    recall (var x)        = var x
-    recall (app e₁ op e₂) = recall-app e₁ op e₂
-
-    recall-app : ∀ {p ps assoc} →
-                 E → (∃ λ op → op ∈ ops p assoc) → E → Expr ps
-    recall-app {p} {ps} e₁ op e₂ with p ∈? ps
-    ... | yes p∈ps = p∈ps ∙ recall-in _ e₁ op e₂
-    ... | no  p∉ps = paren (∈⇒List-∈ (∈-allFin p) ∙
-                            recall-in _ e₁ op e₂)
-
-    recall-in : ∀ {p} assoc →
-                E → (∃ λ op → op ∈ ops p assoc) → E → Expr-in p assoc
-    recall-in - e₁ op e₂ = recall     e₁ ⟨ op ⟩  recall     e₂
-    recall-in ⇾ e₁ op e₂ = recall     e₁ ⟨ op ⟩⇾ recall-out e₂
-    recall-in ⇽ e₁ op e₂ = recall-out e₁ ⟨ op ⟩⇽ recall     e₂
-
-    recall-out : ∀ {p assoc} → E → Outer p assoc
-    recall-out {p₁} {a₁} (app {assoc = a₂} {p = p₂} e₁ op e₂) with p₁ ≟F p₂ | a₁ ≟A a₂
-    recall-out (app e₁ op e₂) | yes P.refl | yes P.refl = similar (recall-in _ e₁ op e₂)
-    recall-out (app e₁ op e₂) | _          | _          = tighter (recall-app  e₁ op e₂)
-    recall-out e = tighter (recall e)
-
-  mutual
-
-    -- forget is a left inverse of recall.
-
-    forget-recall : ∀ {ps} (e : E) → forget (recall {ps = ps} e) ≡ e
-    forget-recall      (var x)        = P.refl
-    forget-recall {ps} (app e₁ op e₂) = forget-recall-app ps e₁ op e₂
-
-    forget-recall-app :
-      ∀ {p} ps {assoc} e₁ (op : ∃ λ op → op ∈ ops p assoc) e₂ →
-      forget (recall-app {ps = ps} e₁ op e₂) ≡ app e₁ op e₂
-    forget-recall-app {p} ps e₁ op e₂ with p ∈? ps
-    ... | yes _ = forget-recall-in _ e₁ op e₂
-    ... | no  _ = forget-recall-in _ e₁ op e₂
-
-    forget-recall-in :
-      ∀ {p} assoc e₁ (op : ∃ λ op → op ∈ ops p assoc) e₂ →
-      forget-in (recall-in assoc e₁ op e₂) ≡ app e₁ op e₂
-    forget-recall-in - e₁ op e₂ = P.cong₂ (λ e₁ e₂ → app e₁ op e₂)
-                                          (forget-recall e₁)
-                                          (forget-recall e₂)
-    forget-recall-in ⇾ e₁ op e₂ = P.cong₂ (λ e₁ e₂ → app e₁ op e₂)
-                                          (forget-recall     e₁)
-                                          (forget-recall-out e₂)
-    forget-recall-in ⇽ e₁ op e₂ = P.cong₂ (λ e₁ e₂ → app e₁ op e₂)
-                                          (forget-recall-out e₁)
-                                          (forget-recall     e₂)
-
-    forget-recall-out :
-      ∀ {p assoc} e →
-      forget-out {p = p} {assoc = assoc} (recall-out e) ≡ e
-    forget-recall-out {p₁} {a₁} (app {assoc = a₂} {p = p₂} e₁ op e₂) with p₁ ≟F p₂ | a₁ ≟A a₂
-    forget-recall-out {p₁} (app e₁ op e₂) | yes P.refl | yes P.refl = forget-recall-in _ e₁ op e₂
-    forget-recall-out {p₁} (app e₁ op e₂) | yes P.refl | no _       = forget-recall-app (↑ p₁) e₁ op e₂
-    forget-recall-out {p₁} (app e₁ op e₂) | no _       | _          = forget-recall-app (↑ p₁) e₁ op e₂
-    forget-recall-out (var x) = P.refl
+    Expr → Expr
+  app′ e₁ op {member} e₂ =
+    app (_ , e₁ , (op , proj₂ (toWitness member)) , e₂)
 
   module _ where
 
@@ -316,63 +202,58 @@ module Expr (g : Precedence-graph) where
 
       -- Expression grammar.
 
-      expr : Grammar (Expr any-precedence)
-      expr = whitespace ⋆ ⊛> precs any-precedence <⊛ whitespace ⋆
+      expr : Grammar Expr
+      expr = whitespace ⋆ ⊛> precs all-precedences <⊛ whitespace ⋆
 
       -- Grammar for a given list of precedence levels.
 
-      precs : (ps : List Precedence) → Grammar (Expr ps)
-      precs ps = paren <$ string′ "(" ⊛ ♯ expr <⊛ string′ ")"
+      precs : List Precedence → Grammar Expr
+      precs ps = string′ "(" ⊛> ♯ expr <⊛ string′ ")"
                ∣ var <$> identifier
                ∣ precs′ ps
 
-      precs′ : (ps : List Precedence) → Grammar (Expr ps)
+      precs′ : List Precedence → Grammar Expr
       precs′ []       = fail
-      precs′ (p ∷ ps) =
-          (λ { (_ , e) → here P.refl ∙ e }) <$> ♯ prec p
-        ∣ weaken                            <$> precs′ ps
+      precs′ (p ∷ ps) = app <$> ♯ prec p
+                      ∣ precs′ ps
 
       -- Grammar for a given precedence level.
 
-      prec : (p : Precedence) → Grammar (∃ (Expr-in p))
+      prec : (p : Precedence) → Grammar (∃ (App p))
       prec p = ,_ <$> non-assoc p
              ∣ ,_ <$> right⁺ p
              ∣ ,_ <$> left⁺ p
 
-      -- Operators of higher precedence (including parenthesised
-      -- expressions and variables).
+      -- Grammar for higher precedence levels.
 
-      higher : (p : Precedence) → Grammar (Expr (↑ p))
+      higher : Precedence → Grammar Expr
       higher p = precs (↑ p)
 
       -- Non-associative operators.
 
-      non-assoc : (p : Precedence) → Grammar (Expr-in p -)
-      non-assoc p = _⟨_⟩_ <$> precs (↑ p)
-                           ⊛  operators (ops p -)
-                           ⊛  precs (↑ p)
+      non-assoc : (p : Precedence) → Grammar (App p -)
+      non-assoc p = (λ e₁ op e₂ → e₁ , op , e₂) <$>
+        higher p ⊛ operators (ops p -) ⊛ higher p
 
       -- Right-associative operators.
 
-      right⁺ : (p : Precedence) → Grammar (Expr-in p ⇾)
-      right⁺ p = _⟨_⟩⇾_ <$> precs (↑ p)
-                         ⊛  operators (ops p ⇾)
-                         ⊛  right⁺↑ p
+      right⁺ : (p : Precedence) → Grammar (App p ⇾)
+      right⁺ p = (λ e₁ op e₂ → e₁ , op , e₂) <$>
+        higher p ⊛ operators (ops p ⇾) ⊛ right⁺↑ p
 
-      right⁺↑ : (p : Precedence) → Grammar (Outer p ⇾)
-      right⁺↑ p = similar <$> ♯ right⁺ p
-                ∣ tighter <$> precs (↑ p)
+      right⁺↑ : Precedence → Grammar Expr
+      right⁺↑ p = (app ∘ ,_) <$> ♯ right⁺ p
+                ∣ higher p
 
       -- Left-associative operators.
 
-      left⁺ : (p : Precedence) → Grammar (Expr-in p ⇽)
-      left⁺ p = _⟨_⟩⇽_ <$> left⁺↑ p
-                        ⊛  operators (ops p ⇽)
-                        ⊛  precs (↑ p)
+      left⁺ : (p : Precedence) → Grammar (App p ⇽)
+      left⁺ p = (λ e₁ op e₂ → e₁ , op , e₂) <$>
+        left⁺↑ p ⊛ operators (ops p ⇽) ⊛ higher p
 
-      left⁺↑ : (p : Precedence) → Grammar (Outer p ⇽)
-      left⁺↑ p = similar <$> ♯ left⁺ p
-               ∣ tighter <$> precs (↑ p)
+      left⁺↑ : Precedence → Grammar Expr
+      left⁺↑ p = (app ∘ ,_) <$> ♯ left⁺ p
+               ∣ higher p
 
       -- An operator from a given list of operators.
 
@@ -398,46 +279,60 @@ module Expr (g : Precedence-graph) where
     precs-printer e = group (precs-printer′ e)
       where
       precs-printer′ : ∀ {ps} → Pretty-printer (precs ps)
-      precs-printer′ (p∈ps ∙ e) = right (precs′-printer p∈ps e)
-      precs-printer′ (paren e)  = left (left
-                                    (<$ text ⊛ nest 1 (expr-printer e)
-                                            <⊛ text))
-      precs-printer′ (var x)    = left (right (<$> identifier-printer x))
+      precs-printer′ (var x) = left (right (<$> identifier-printer x))
+      precs-printer′ {ps} (app {p = p} e)
+        with p ∈? ps
+      ... | yes p∈ps = right (precs′-printer p∈ps e)
+      ... | no  _    =
+        -- Incorrect precedence level: insert parentheses.
+        left (left (text ⊛> nest 1 d <⊛ text))
+        where
+        d = nil-⋆                                       ⊛>
+            right (precs′-printer ∈-all-precedences e) <⊛
+            nil-⋆
 
     precs′-printer :
-       ∀ {assoc p ps}
-       (p∈ : p ∈ ps) (e : Expr-in p assoc) → Doc (precs′ ps) (p∈ ∙ e)
-    precs′-printer (here P.refl) e = left (<$> prec-printer _ e)
-    precs′-printer (there p∈ps)  e = right (<$> precs′-printer p∈ps e)
+      ∀ {p ps} → p ∈ ps → (e : ∃ (App p)) → Doc (precs′ ps) (app e)
+    precs′-printer (here P.refl) e = left  (<$> prec-printer e)
+    precs′-printer (there p∈ps)  e = right (precs′-printer p∈ps e)
 
-    prec-printer : ∀ {p} assoc (e : Expr-in p assoc) →
-                   Doc (prec p) (assoc , e)
-    prec-printer - e = left (left (<$> non-assoc-printer e))
-    prec-printer ⇾ e = left (right (<$> right⁺-printer e))
-    prec-printer ⇽ e = right (<$> left⁺-printer e)
+    prec-printer : ∀ {p} → Pretty-printer (prec p)
+    prec-printer (- , e) = left (left (<$> non-assoc-printer e))
+    prec-printer (⇾ , e) = left (right (<$> right⁺-printer e))
+    prec-printer (⇽ , e) = right (<$> left⁺-printer e)
 
     non-assoc-printer : ∀ {p} → Pretty-printer (non-assoc p)
-    non-assoc-printer (e₁ ⟨ op ⟩ e₂) =
-      <$> ↑-printer e₁ ⊛ operators-printer op ⊛ ↑-printer e₂
+    non-assoc-printer (e₁ , op , e₂) =
+      <$> higher-printer e₁ ⊛ operators-printer op ⊛ higher-printer e₂
 
     right⁺-printer : ∀ {p} → Pretty-printer (right⁺ p)
-    right⁺-printer (e₁ ⟨ op ⟩⇾ e₂) =
-      <$> ↑-printer e₁ ⊛ operators-printer op ⊛ right⁺↑-printer e₂
+    right⁺-printer (e₁ , op , e₂) =
+      <$> higher-printer e₁ ⊛ operators-printer op ⊛ right⁺↑-printer e₂
 
     right⁺↑-printer : ∀ {p} → Pretty-printer (right⁺↑ p)
-    right⁺↑-printer (similar e) = left  (<$> right⁺-printer e)
-    right⁺↑-printer (tighter e) = right (<$> ↑-printer e)
+    right⁺↑-printer {p₁} (app {p = p₂} (⇾ , e))
+      with p₁ ≟F p₂ | higher-printer (app (⇾ , e))
+    right⁺↑-printer (app (⇾ , e)) | yes P.refl | _ =
+      -- Matching precedence and associativity.
+      left (<$> right⁺-printer e)
+    right⁺↑-printer (app (⇾ , e)) | no _ | d = right d
+    right⁺↑-printer e = right (higher-printer e)
 
     left⁺-printer : ∀ {p} → Pretty-printer (left⁺ p)
-    left⁺-printer (e₁ ⟨ op ⟩⇽ e₂) =
-      <$> left⁺↑-printer e₁ ⊛ operators-printer op ⊛ ↑-printer e₂
+    left⁺-printer (e₁ , op , e₂) =
+      <$> left⁺↑-printer e₁ ⊛ operators-printer op ⊛ higher-printer e₂
 
     left⁺↑-printer : ∀ {p} → Pretty-printer (left⁺↑ p)
-    left⁺↑-printer (similar e) = left  (<$> left⁺-printer e)
-    left⁺↑-printer (tighter e) = right (<$> ↑-printer e)
+    left⁺↑-printer {p₁} (app {p = p₂} (⇽ , e))
+      with p₁ ≟F p₂ | higher-printer (app (⇽ , e))
+    left⁺↑-printer (app (⇽ , e)) | yes P.refl | _ =
+      -- Matching precedence and associativity.
+      left (<$> left⁺-printer e)
+    left⁺↑-printer (app (⇽ , e)) | no _ | d = right d
+    left⁺↑-printer e = right (higher-printer e)
 
-    ↑-printer : ∀ {p} → Pretty-printer (precs (↑ p))
-    ↑-printer e = nest 2 (precs-printer e)
+    higher-printer : ∀ {p} → Pretty-printer (higher p)
+    higher-printer e = nest 2 (precs-printer e)
 
     operators-printer : ∀ {assoc} {os : List (Operator assoc)} →
                         Pretty-printer (operators os)
@@ -492,27 +387,27 @@ open Expr g
 
 -- An expression.
 
-example : Expr any-precedence
-example = recall
-  (app′ (app′ (app′ (app′ (var (str⁺ "y")) add (var (str⁺ "k")))
-                    cons
-                    (app′ (app′ (app′ (var (str⁺ "i"))
-                                      add
-                                      (var (str⁺ "foo")))
-                                add
-                                (app′ (app′ (var (str⁺ "a"))
-                                            div
-                                            (app′ (var (str⁺ "b"))
-                                                  sub
-                                                  (var (str⁺ "c"))))
-                                      mul
-                                      (var (str⁺ "c"))))
-                          cons
-                          (var (str⁺ "xs"))))
-              snoc
-              (var (str⁺ "x")))
-        snoc
-        (app′ (var (str⁺ "z")) mul (var (str⁺ "z"))))
+example : Expr
+example =
+  app′ (app′ (app′ (app′ (var (str⁺ "y")) add (var (str⁺ "k")))
+                   cons
+                   (app′ (app′ (app′ (var (str⁺ "i"))
+                                     add
+                                     (var (str⁺ "foo")))
+                               add
+                               (app′ (app′ (var (str⁺ "a"))
+                                           div
+                                           (app′ (var (str⁺ "b"))
+                                                 sub
+                                                 (var (str⁺ "c"))))
+                                     mul
+                                     (var (str⁺ "c"))))
+                         cons
+                         (var (str⁺ "xs"))))
+             snoc
+             (var (str⁺ "x")))
+       snoc
+       (app′ (var (str⁺ "z")) mul (var (str⁺ "z")))
 
 -- Some unit tests.
 
