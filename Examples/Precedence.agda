@@ -271,6 +271,43 @@ module Expr (g : Precedence-graph) where
     recall-out (app e₁ op e₂) | _          | _          = tighter (recall-app  e₁ op e₂)
     recall-out e = tighter (recall e)
 
+  mutual
+
+    -- forget is a left inverse of recall.
+
+    forget-recall : ∀ {ps} (e : E) → forget (recall {ps = ps} e) ≡ e
+    forget-recall      (var x)        = P.refl
+    forget-recall {ps} (app e₁ op e₂) = forget-recall-app ps e₁ op e₂
+
+    forget-recall-app :
+      ∀ {p} ps {assoc} e₁ (op : ∃ λ op → op ∈ ops p assoc) e₂ →
+      forget (recall-app {ps = ps} e₁ op e₂) ≡ app e₁ op e₂
+    forget-recall-app {p} ps e₁ op e₂ with p ∈? ps
+    ... | yes _ = forget-recall-in _ e₁ op e₂
+    ... | no  _ = forget-recall-in _ e₁ op e₂
+
+    forget-recall-in :
+      ∀ {p} assoc e₁ (op : ∃ λ op → op ∈ ops p assoc) e₂ →
+      forget-in (recall-in assoc e₁ op e₂) ≡ app e₁ op e₂
+    forget-recall-in - e₁ op e₂ = P.cong₂ (λ e₁ e₂ → app e₁ op e₂)
+                                          (forget-recall e₁)
+                                          (forget-recall e₂)
+    forget-recall-in ⇾ e₁ op e₂ = P.cong₂ (λ e₁ e₂ → app e₁ op e₂)
+                                          (forget-recall     e₁)
+                                          (forget-recall-out e₂)
+    forget-recall-in ⇽ e₁ op e₂ = P.cong₂ (λ e₁ e₂ → app e₁ op e₂)
+                                          (forget-recall-out e₁)
+                                          (forget-recall     e₂)
+
+    forget-recall-out :
+      ∀ {p assoc} e →
+      forget-out {p = p} {assoc = assoc} (recall-out e) ≡ e
+    forget-recall-out {p₁} {a₁} (app {assoc = a₂} {p = p₂} e₁ op e₂) with p₁ ≟F p₂ | a₁ ≟A a₂
+    forget-recall-out {p₁} (app e₁ op e₂) | yes P.refl | yes P.refl = forget-recall-in _ e₁ op e₂
+    forget-recall-out {p₁} (app e₁ op e₂) | yes P.refl | no _       = forget-recall-app (↑ p₁) e₁ op e₂
+    forget-recall-out {p₁} (app e₁ op e₂) | no _       | _          = forget-recall-app (↑ p₁) e₁ op e₂
+    forget-recall-out (var x) = P.refl
+
   module _ where
 
     open Grammar
