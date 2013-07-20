@@ -186,12 +186,12 @@ module Expr (g : Precedence-graph) where
   -- The following function can be convenient to use when constructing
   -- examples.
 
-  app′ :
+  _⟨_⟩_ :
     ∀ {assoc} → Expr → (op : Operator assoc) →
     {member : True (Fin-dec.any? λ p →
                       Any.any (_≟O_ op) (ops p assoc))} →
     Expr → Expr
-  app′ e₁ op {member} e₂ =
+  _⟨_⟩_ e₁ op {member} e₂ =
     app (_ , e₁ , (op , proj₂ (toWitness member)) , e₂)
 
   module _ where
@@ -389,25 +389,21 @@ open Expr g
 
 example : Expr
 example =
-  app′ (app′ (app′ (app′ (var (str⁺ "y")) add (var (str⁺ "k")))
-                   cons
-                   (app′ (app′ (app′ (var (str⁺ "i"))
-                                     add
-                                     (var (str⁺ "foo")))
-                               add
-                               (app′ (app′ (var (str⁺ "a"))
-                                           div
-                                           (app′ (var (str⁺ "b"))
-                                                 sub
-                                                 (var (str⁺ "c"))))
-                                     mul
-                                     (var (str⁺ "c"))))
-                         cons
-                         (var (str⁺ "xs"))))
-             snoc
-             (var (str⁺ "x")))
-       snoc
-       (app′ (var (str⁺ "z")) mul (var (str⁺ "z")))
+  (((var (str⁺ "y") ⟨ add ⟩ var (str⁺ "k"))
+      ⟨ cons ⟩
+    (((var (str⁺ "i") ⟨ add ⟩ var (str⁺ "foo"))
+        ⟨ add ⟩
+      ((var (str⁺ "a")
+          ⟨ div ⟩
+        (var (str⁺ "b") ⟨ sub ⟩ var (str⁺ "c")))
+         ⟨ mul ⟩
+       var (str⁺ "c")))
+       ⟨ cons ⟩
+     (var (str⁺ "xs"))))
+     ⟨ snoc ⟩
+   (var (str⁺ "x")))
+    ⟨ snoc ⟩
+  (var (str⁺ "z") ⟨ mul ⟩ var (str⁺ "z"))
 
 -- Some unit tests.
 
