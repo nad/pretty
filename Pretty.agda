@@ -246,25 +246,25 @@ line⋆ = embed lemma line
 -- Combinators that add a final "line" to the document, nested i
 -- steps. (The grammars have to satisfy certain predicates.)
 
-final-line′ : ∀ {A} {g : Grammar A} {x} (i : ℕ) →
-              Trailing-whitespace g → Doc g x → Doc g x
-final-line′ i trailing d = embed trailing (d <⊛-tt nest i line⋆)
+final-line′ : ∀ {A} {g : Grammar A} {x} →
+              Trailing-whitespace g → Doc g x → (i : ℕ) → Doc g x
+final-line′ trailing d i = embed trailing (d <⊛-tt nest i line⋆)
 
-final-line : ∀ {A} {g : Grammar A} {x} (i n : ℕ)
+final-line : ∀ {A} {g : Grammar A} {x} (n : ℕ)
              {trailing : T (is-just (trailing-whitespace n g))} →
-             Doc g x → Doc g x
-final-line i n {trailing} d =
-  final-line′ i (to-witness-T (trailing-whitespace n _) trailing) d
+             Doc g x → (i : ℕ) → Doc g x
+final-line n {trailing} =
+  final-line′ (to-witness-T (trailing-whitespace n _) trailing)
 
 -- Trailing-whitespace never holds for grammars of the form g ⋆, but
 -- if the list to be pretty-printed has at least one element, then
 -- final-line may still work.
 
-final-line-+⋆ : ∀ {c A} {g : ∞Grammar c A} {x xs} (i n : ℕ)
+final-line-+⋆ : ∀ {c A} {g : ∞Grammar c A} {x xs} (n : ℕ)
                 {trailing : T (is-just (trailing-whitespace n (g +)))} →
-                Doc (g +) (x ∷ xs) → Doc (g ⋆) (x ∷ xs)
-final-line-+⋆ i n {trailing} d =
-  embed ⋆-+-sem (final-line i n {trailing} d)
+                Doc (g +) (x ∷ xs) → (i : ℕ) → Doc (g ⋆) (x ∷ xs)
+final-line-+⋆ n {trailing} d i =
+  embed ⋆-+-sem (final-line n {trailing} d i)
 
 -- A document for the given symbol (and no following whitespace).
 
@@ -274,7 +274,7 @@ symbol = text <⊛ nil-⋆
 -- A document for the given symbol plus a "line".
 
 symbol-line : ∀ {s} → Doc (G.symbol s) s
-symbol-line = final-line 0 1 symbol
+symbol-line = final-line 1 symbol 0
 
 -- A document for the given symbol plus a space character.
 
@@ -290,7 +290,7 @@ bracket : ∀ {c A x s₁ s₂} {g : ∞Grammar c A} (n : ℕ) →
 bracket n {trailing} d =
   group (nest 2 symbol-line
            ⊛>
-         final-line 0 n {trailing = trailing} (nest 2 d)
+         final-line n {trailing = trailing} (nest 2 d) 0
            <⊛
          symbol)
 

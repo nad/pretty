@@ -121,8 +121,8 @@ mutual
   attrs-printer (a ∷ as) =
     right (<$> group (nest 2 line
                         tt-⊛>
-                      final-line 0 4
-                        (nest 2 (map+-fill 2 attr-printer (a ∷ as)))))
+                      final-line 4
+                        (nest 2 (map+-fill 2 attr-printer (a ∷ as))) 0))
 
   attr-printer : Pretty-printer attr
   attr-printer (att n v) =
@@ -143,7 +143,7 @@ mutual
   xmls-printer (x ∷ xs) =
     group (nest 2 line⋆
              tt-⊛>
-           final-line-+⋆ 0 5 (nest 2 (fill+ 3 (to-docs x xs))))
+           final-line-+⋆ 5 (nest 2 (fill+ 3 (to-docs x xs))) 0)
     where
     to-docs : ∀ x xs → Docs xml (x ∷ xs)
     to-docs x []        = [ xml-printer x ]
