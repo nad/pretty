@@ -128,21 +128,19 @@ module Expression₂ where
         cast (P.sym $ LM.assoc s₁ _ _)
              (<⊛-sem p (proj₂ (tw′-whitespace q w)))
 
-      mutual
+      tw″-term : Trailing-whitespace″ term
+      tw″-term (left-sem (<$-sem p)) w =
+        left-sem (<$-sem (tw″-symbol p w))
+      tw″-term (right-sem (<⊛-sem {s₁ = s₁} p q)) w =
+        cast (P.sym $ LM.assoc s₁ _ _)
+             (right-sem (<⊛-sem p (tw″-symbol q w)))
 
-        tw″-expr : Trailing-whitespace″ expr
-        tw″-expr (left-sem p) w =
-          left-sem (tw″-term p w)
-        tw″-expr (right-sem (⊛-sem {s₁ = s₁} p q)) w =
-          cast (P.sym $ LM.assoc s₁ _ _)
-               (right-sem (⊛-sem p (tw″-term q w)))
-
-        tw″-term : Trailing-whitespace″ term
-        tw″-term (left-sem (<$-sem p)) w =
-          left-sem (<$-sem (tw″-symbol p w))
-        tw″-term (right-sem (<⊛-sem {s₁ = s₁} p q)) w =
-          cast (P.sym $ LM.assoc s₁ _ _)
-               (right-sem (<⊛-sem p (tw″-symbol q w)))
+      tw″-expr : Trailing-whitespace″ expr
+      tw″-expr (left-sem p) w =
+        left-sem (tw″-term p w)
+      tw″-expr (right-sem (⊛-sem {s₁ = s₁} p q)) w =
+        cast (P.sym $ LM.assoc s₁ _ _)
+             (right-sem (⊛-sem p (tw″-term q w)))
 
       tw-expr : Trailing-whitespace expr
       tw-expr (<⊛-sem p w) = tw″-expr p w
