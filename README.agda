@@ -13,7 +13,7 @@ module README where
 
 import Utilities
 
--- Infinite grammars.
+-- Grammars.
 
 import Grammar.Infinite.Basic
 import Grammar.Infinite
@@ -35,15 +35,6 @@ import Examples.Identifier-list
 import Examples.Precedence
 import Examples.Tree
 import Examples.XML
-
--- Abstract grammars. (Not used by the pretty-printer.)
-
-import Grammar.Abstract
-
--- Grammars defined as functions from non-terminals to productions.
--- (Not used by the pretty-printer.)
-
-import Grammar.Non-terminal
 
 -- A README directed towards readers of the paper
 -- "Correct-by-Construction Pretty-Printing".
