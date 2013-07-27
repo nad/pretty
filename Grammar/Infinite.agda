@@ -451,7 +451,7 @@ isomorphic {g = g} = record
   complete∘sound (<⊛-sem x∈ y∈) with sound x∈ | complete∘sound x∈
                                    | sound y∈ | complete∘sound y∈
   complete∘sound (<⊛-sem {g₁ = g₁} {g₂ = g₂} {s₁ = s₁} {s₂ = s₂}
-                        .(complete _ x∈′) .(complete _ y∈′))
+                         .(complete _ x∈′) .(complete _ y∈′))
     | x∈′ | refl | y∈′ | refl
     rewrite complete-cast (g₁ <⊛ g₂) (lemma₂ s₁ s₂)
                           (>>=-sem x∈′ (>>=-sem y∈′ return-sem))
