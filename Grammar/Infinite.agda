@@ -22,6 +22,7 @@ open import Category.Monad
 open import Coinduction
 open import Data.Bool
 open import Data.Char
+open import Data.Colist using (Colist; []; _∷_; _∈_; here; there)
 open import Data.Empty
 open import Data.List as List
 open import Data.List.NonEmpty as List⁺
@@ -694,19 +695,20 @@ string-sem = Inverse.from string-sem′ ⟨$⟩ (refl , refl)
 -- Every language that can be recursively enumerated in Agda can be
 -- represented by a (unit-valued) grammar.
 
-expressive : (enumeration : ℕ → Maybe (List Char)) →
+expressive : (enumeration : Colist (Maybe (List Char))) →
              ∃ λ (g : Grammar ⊤) →
-               ∀ {s} → tt ∈ g · s ↔ ∃ λ n → enumeration n ≡ just s
-expressive f = (g f , g-sem f)
+               ∀ {s} → tt ∈ g · s ↔ just s ∈ enumeration
+expressive ss = (g ss , g-sem ss)
   where
   maybe-string : Maybe (List Char) → Grammar ⊤
   maybe-string nothing  = fail
   maybe-string (just s) = tt <$ string s
 
-  g : (ℕ → Maybe (List Char)) → Grammar ⊤
-  g f = maybe-string (f 0) ∣ ♯ g (f ∘ suc)
+  g : Colist (Maybe (List Char)) → Grammar ⊤
+  g []       = fail
+  g (s ∷ ss) = maybe-string s ∣ ♯ g (♭ ss)
 
-  maybe-string-sem : ∀ {m s} → tt ∈ maybe-string m · s ↔ m ≡ just s
+  maybe-string-sem : ∀ {m s} → tt ∈ maybe-string m · s ↔ just s ≡ m
   maybe-string-sem {nothing} = record
     { to         = P.→-to-⟶ (λ ())
     ; from       = P.→-to-⟶ (λ ())
@@ -724,12 +726,13 @@ expressive f = (g f , g-sem f)
       }
     }
     where
-    to : ∀ {s′} → tt ∈ tt <$ string s · s′ → just s ≡ just s′
+    to : ∀ {s′} →
+         tt ∈ tt <$ string s · s′ → Maybe.Maybe.just s′ ≡ just s
     to (<$-sem s∈) =
-      P.cong just $ proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈)
+      P.sym $ P.cong just $ proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈)
 
     from : ∀ {s′} →
-           Maybe.Maybe.just s ≡ just s′ → tt ∈ tt <$ string s · s′
+           Maybe.Maybe.just s′ ≡ just s → tt ∈ tt <$ string s · s′
     from refl = <$-sem (Inverse.from string-sem′ ⟨$⟩ (refl , refl))
 
     from∘to : ∀ {s′} (tt∈ : tt ∈ tt <$ string s · s′) →
@@ -740,45 +743,44 @@ expressive f = (g f , g-sem f)
     from∘to (<$-sem .(Inverse.from string-sem′ ⟨$⟩ (refl , refl)))
       | (refl , refl) | refl = refl
 
-    to∘from : ∀ {s′} (eq : Maybe.Maybe.just s ≡ just s′) →
+    to∘from : ∀ {s′} (eq : Maybe.Maybe.just s′ ≡ just s) →
               to (from eq) ≡ eq
     to∘from refl
       rewrite Inverse.right-inverse-of
                 (string-sem′ {s = s}) (refl , refl)
       = refl
 
-  g-sem : ∀ f {s} → tt ∈ g f · s ↔ ∃ λ n → f n ≡ just s
-  g-sem f {s} = record
-    { to         = P.→-to-⟶ (to   f)
-    ; from       = P.→-to-⟶ (from f)
+  g-sem : ∀ ss {s} → tt ∈ g ss · s ↔ just s ∈ ss
+  g-sem ss = record
+    { to         = P.→-to-⟶ (to   ss)
+    ; from       = P.→-to-⟶ (from ss)
     ; inverse-of = record
-      { left-inverse-of  = from∘to f
-      ; right-inverse-of = to∘from f
+      { left-inverse-of  = from∘to ss
+      ; right-inverse-of = to∘from ss
       }
     }
     where
-    to : ∀ f {s} → tt ∈ g f · s → ∃ λ n → f n ≡ just s
-    to f (left-sem  tt∈) = (zero , Inverse.to maybe-string-sem ⟨$⟩
-                                     tt∈)
-    to f (right-sem tt∈) = Prod.map suc id $ to (f ∘ suc) tt∈
+    to : ∀ ss {s} → tt ∈ g ss · s → just s ∈ ss
+    to []       ()
+    to (s ∷ ss) (left-sem  tt∈) = here (Inverse.to maybe-string-sem ⟨$⟩ tt∈)
+    to (s ∷ ss) (right-sem tt∈) = there (to (♭ ss) tt∈)
 
-    from : ∀ f {s} → (∃ λ n → f n ≡ just s) → tt ∈ g f · s
-    from f (zero  , eq) = left-sem  (Inverse.from maybe-string-sem ⟨$⟩
-                                       eq)
-    from f (suc n , eq) = right-sem (from (f ∘ suc) (n , eq))
+    from : ∀ ss {s} → just s ∈ ss → tt ∈ g ss · s
+    from []       ()
+    from (s ∷ ss) (here eq) = left-sem (Inverse.from maybe-string-sem ⟨$⟩ eq)
+    from (s ∷ ss) (there p) = right-sem (from (♭ ss) p)
 
-    from∘to : ∀ f {s} (tt∈ : tt ∈ g f · s) → from f (to f tt∈) ≡ tt∈
-    from∘to f (right-sem tt∈) = P.cong right-sem $
-                                  from∘to (f ∘ suc) tt∈
-    from∘to f (left-sem  tt∈) =
+    from∘to : ∀ ss {s} (tt∈ : tt ∈ g ss · s) → from ss (to ss tt∈) ≡ tt∈
+    from∘to []       ()
+    from∘to (s ∷ ss) (right-sem tt∈) = P.cong right-sem (from∘to (♭ ss) tt∈)
+    from∘to (s ∷ ss) (left-sem  tt∈) =
       P.cong left-sem (Inverse.left-inverse-of maybe-string-sem tt∈)
 
-    to∘from : ∀ f {s} (eq : ∃ λ n → f n ≡ just s) →
-              to f (from f eq) ≡ eq
-    to∘from f (suc n , eq) = P.cong (Prod.map suc id) $
-                               to∘from (f ∘ suc) (n , eq)
-    to∘from f (zero  , eq) =
-      P.cong (_,_ 0) (Inverse.right-inverse-of maybe-string-sem eq)
+    to∘from : ∀ ss {s} (eq : just s ∈ ss) → to ss (from ss eq) ≡ eq
+    to∘from []       ()
+    to∘from (s ∷ ss) (there p) = P.cong there (to∘from (♭ ss) p)
+    to∘from (s ∷ ss) (here eq) =
+      P.cong here (Inverse.right-inverse-of maybe-string-sem eq)
 
 ------------------------------------------------------------------------
 -- Detecting the whitespace combinator
