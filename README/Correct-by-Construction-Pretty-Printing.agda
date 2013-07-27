@@ -20,8 +20,8 @@ import Grammar.Infinite.Basic
 -- The extended grammar data type mentioned in Section 4.3, along with
 -- a semantics and lots of derived combinators. This type is proved to
 -- be no more expressive than the previous one; but it is also proved
--- that every language that can be recursively enumerated in Agda can
--- be represented by a (unit-valued) grammar.
+-- that every language that can be recursively enumerated can be
+-- represented by a (unit-valued) grammar.
 
 import Grammar.Infinite
 

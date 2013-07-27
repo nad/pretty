@@ -431,8 +431,8 @@ test₆ : render 6 (expr-printer example) ≡
         "(y + k\n   <: i\n     + foo\n     + a\n       / (b\n          - c)\n       * c\n   <: xs)\n:> x\n:> z\n  * z"
 test₆ = P.refl
 
--- Note the strange rendering of "y + k" in the following test. If no
--- newline had been inserted before +, then the total width of this
+-- The rendering of "y + k" in the following test may seem strange: if
+-- no newline had been inserted before +, then the total width of this
 -- subexpression would have been smaller.
 --
 -- Wadler's pretty-printing algorithm is not always optimal for texts

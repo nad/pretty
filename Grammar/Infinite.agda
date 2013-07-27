@@ -6,12 +6,14 @@
 -- the one in Grammar.Infinite.Basic. There are two reasons for
 -- introducing this new language:
 --
--- ⑴ The function final-whitespace? below analyses the structure of
---   a grammar, and can in some cases automatically prove a certain
---   theorem. It is quite hard to analyse grammars defined using the
---   higher-order bind combinator.
+-- ⑴ The function final-whitespace? below analyses the structure of a
+--   grammar, and can in some cases automatically prove a certain
+--   theorem. It is quite hard to analyse grammars that contain
+--   unrestricted corecursion and/or the higher-order bind combinator,
+--   so the new language contains extra constructors intended to make
+--   the analysis easier (in some cases).
 --
--- ⑵ The new language can make it easier to convince Agda's
+-- ⑵ The extra constructors can also make it easier to convince Agda's
 --   termination checker that certain infinite grammars are
 --   productive.
 
@@ -692,8 +694,15 @@ string-sem = Inverse.from string-sem′ ⟨$⟩ (refl , refl)
 ------------------------------------------------------------------------
 -- Expressiveness
 
--- Every language that can be recursively enumerated in Agda can be
+-- Every language that can be recursively enumerated can be
 -- represented by a (unit-valued) grammar.
+--
+-- Note that, given a Turing machine that halts and accepts for
+-- certain strings, and runs forever for other strings, one can define
+-- a potentially infinite list of type Colist (Maybe (List Char)) that
+-- contains exactly the strings accepted by the Turing machine
+-- (assuming that there is some way to construct a stream containing
+-- all strings of type List Char).
 
 expressive : (enumeration : Colist (Maybe (List Char))) →
              ∃ λ (g : Grammar ⊤) →

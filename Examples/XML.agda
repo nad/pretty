@@ -108,8 +108,8 @@ mutual
           <⊛ symbol)
   xml-printer (txt t) =
     -- Wadler pretty-prints text items in a different way. (The
-    -- grammar that I use does not allow me to remove/modify
-    -- whitespace like Wadler does.)
+    -- grammar that I use does not allow me to modify the amount of
+    -- whitespace in the same way as Wadler.)
     right (<$> text-printer t <⊛ nil-⋆)
 
   start-of-element-printer : Pretty-printer start-of-element

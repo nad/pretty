@@ -100,7 +100,7 @@ record Renderer : Set₁ where
     render (emb f d) ≡ render d
 
   -- If the renderer ignores emb constructors then, for every valid
-  -- string, there is a document that renders to that string. (The
+  -- string, there is a document that renders as that string. (The
   -- renderers below ignore emb.)
 
   every-string-possible :
@@ -123,8 +123,8 @@ record Renderer : Set₁ where
 ------------------------------------------------------------------------
 -- An example renderer
 
--- This renderer replaces every occurrence of "line" with a single
--- space character.
+-- This renderer renders every occurrence of "line" as a single space
+-- character.
 
 ugly-renderer : Renderer
 ugly-renderer = record
@@ -359,8 +359,8 @@ module Wadler's-renderer where
     flatten/expand true  d = flatten d
     flatten/expand false d = expand d
 
-  -- Does the first line of the layout fit inside a row with the
-  -- given number of characters?
+  -- Does the first line of the layout fit on a line with the given
+  -- number of characters?
 
   fits : ℤ → Layout → Bool
   fits -[1+ w ] _            = false
@@ -370,10 +370,8 @@ module Wadler's-renderer where
 
   module _ (width : ℕ) where
 
-    -- Chooses the first layout if it fits, otherwise the second (which
-    -- is assumed to have a first line that is at most as long as the
-    -- first line of the first layout). The natural number is the
-    -- current column number.
+    -- Chooses the first layout if it fits, otherwise the second. The
+    -- natural number is the current column number.
 
     better : ℕ → Layout → Layout → Layout
     better c x y = if fits (width ⊖ c) x then x else y

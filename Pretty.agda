@@ -25,8 +25,8 @@ open import Grammar.Infinite as G
 
 mutual
 
-  -- Pretty-printer documents. If p : Doc g x, then p is a "flexible"
-  -- parse tree (with respect to the grammar g) for the value x.
+  -- Pretty-printer documents, indexed by grammars and corresponding
+  -- values.
   --
   -- For convenience I have chosen to parametrise Doc by "extended"
   -- grammars rather than basic ones.
@@ -42,9 +42,7 @@ mutual
             Doc (♭? g₁) x → Doc (♭? (g₂ x)) y → Doc (g₁ >>= g₂) y
 
     -- A string. Note that I do /not/ enforce Wadler's convention
-    -- that the string does not contain newline characters. The
-    -- correctness property proved below does not rely on this
-    -- convention.
+    -- that the string does not contain newline characters.
 
     text  : ∀ {s} → Doc (string s) s
 
