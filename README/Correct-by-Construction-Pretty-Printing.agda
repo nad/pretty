@@ -74,6 +74,10 @@ import Examples.Identifier-list
 import Examples.Tree
 import Examples.XML
 
+-- The fill combinator.
+
+import Pretty
+
 -- A general grammar and pretty-printer for binary operators of
 -- various (not necessarily linearly ordered) precedences.
 
@@ -87,7 +91,3 @@ import Renderer
 -- Unambiguous and Parser.
 
 import Grammar.Infinite
-
--- The fill combinator.
-
-import Pretty
