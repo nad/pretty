@@ -354,8 +354,8 @@ map+-fill : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
             {trailing : T (is-just (trailing-whitespace n (♭? g)))} →
             Pretty-printer (♭? g) →
             Pretty-printer (g +)
-map+-fill {g = g} n {trailing} p xs =
-  fill+ n {trailing = trailing} (uncurry to-docs xs)
+map+-fill {g = g} n {trailing} p (x ∷ xs) =
+  fill+ n {trailing = trailing} (to-docs x xs)
   where
   to-docs : ∀ x xs → Docs (♭? g) (x ∷ xs)
   to-docs x []        = [ p x ]

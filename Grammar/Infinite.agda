@@ -145,7 +145,7 @@ g + = _∷_ <$> g ⊛ g ⋆
 ⟦ g₁ ⊛ g₂   ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ f → ♯ ⟦ f <$> g₂ ⟧
 ⟦ g₁ <⊛ g₂  ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ x → ♯ ⟦ x <$  g₂ ⟧
 ⟦ g₁ ⊛> g₂  ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ _ → ♯ ⟦    ♭? g₂ ⟧
-⟦ g ⋆       ⟧ = ♯ Basic.return [] Basic.∣ ♯ ⟦ uncurry _∷_ <$> g + ⟧
+⟦ g ⋆       ⟧ = ♯ Basic.return [] Basic.∣ ♯ ⟦ List⁺.toList <$> g + ⟧
 
 ------------------------------------------------------------------------
 -- More grammar combinators

@@ -17,8 +17,8 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using () renaming (module Equivalence to Eq)
 open import Relation.Binary
-import Relation.Binary.Props.DecTotalOrder as DTO
-import Relation.Binary.Props.StrictTotalOrder as STO
+import Relation.Binary.Properties.DecTotalOrder as DTO
+import Relation.Binary.Properties.StrictTotalOrder as STO
 open import Relation.Nullary.Decidable
 
 ------------------------------------------------------------------------
