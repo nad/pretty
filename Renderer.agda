@@ -232,8 +232,8 @@ module Wadler's-renderer where
 
   -- Some derived combinators.
 
+  infix  21 <$>_
   infixl 20 _⊛_ _⊛>_
-  infix  20 <$>_
 
   embed : ∀ {i A B} {g₁ : Grammar A} {g₂ : Grammar B} {x y} →
           (∀ {s} → x ∈ g₁ · s → y ∈ g₂ · s) → DocN i g₁ x → DocN i g₂ y

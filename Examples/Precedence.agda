@@ -30,7 +30,7 @@ open import Relation.Binary
 import Relation.Binary.List.Pointwise as Pointwise
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
-open import Relation.Nullary.Decidable as Dec
+open import Relation.Nullary.Decidable as Decidable
 open import Relation.Nullary.Product
 
 open import Examples.Identifier
@@ -69,17 +69,17 @@ record Operator (assoc : Associativity) : Set where
 
 _≟O_ : ∀ {assoc} → Decidable (_≡_ {A = Operator assoc})
 ⟪ n₁ ∷ ns₁ ⟫ ≟O ⟪ n₂ ∷ ns₂ ⟫ =
-  Dec.map′
+  Decidable.map′
     (P.cong ⟪_⟫ ∘ uncurry (P.cong₂ _∷_))
     (< P.cong List⁺.head , P.cong List⁺.tail > ∘′ P.cong Operator.name)
     ((n₁ ≟OC n₂)
        ×-dec
-     Dec.map′ Pointwise.Rel≡⇒≡ Pointwise.≡⇒Rel≡
+     Decidable.map′ Pointwise.Rel≡⇒≡ Pointwise.≡⇒Rel≡
        (Pointwise.decidable _≟OC_ ns₁ ns₂))
   where
   _≟OC_ : Decidable (_≡_ {A = ∃ (T ∘ is-operator-char)})
   (c₁ , _) ≟OC (c₂ , _) =
-    Dec.map′ lemma (P.cong proj₁) (c₁ Char.≟ c₂)
+    Decidable.map′ lemma (P.cong proj₁) (c₁ Char.≟ c₂)
     where
     lemma : {p₁ p₂ : ∃ (T ∘ is-operator-char)} →
             proj₁ p₁ ≡ proj₁ p₂ → p₁ ≡ p₂

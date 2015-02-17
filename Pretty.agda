@@ -14,6 +14,8 @@ open import Data.Nat
 open import Data.Product
 open import Data.Unit
 open import Function
+open import Level using (lift)
+open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Grammar.Infinite as G
@@ -128,7 +130,7 @@ tok {t} = embed lemma token
 
 -- Some mapping combinators.
 
-infix 20 <$>_ <$_
+infix 21 <$>_ <$_
 
 <$>_ : ∀ {c A B} {f : A → B} {x} {g : ∞Grammar c A} →
        Doc (♭? g) x → Doc (f G.<$> g) (f x)
@@ -339,10 +341,15 @@ fill+ {g = g} n {trailing} ds = embed lemma (fill ds)
   lemma′ : ∀ {x xs s₁ s₂} →
            x ∈ ♭? g · s₁ → xs ∈ ♭? g prec-by whitespace + · s₂ →
            x ∷ xs ∈ g + · s₁ ++ s₂
-  lemma′           x∈ ⋆-[]-sem = +-sem x∈ ⋆-[]-sem
-  lemma′ {s₁ = s₁} x∈ (⋆-+-sem (⊛-sem (<$>-sem (⊛>-sem w+ x′∈)) xs∈)) =
-    cast (lemma″ s₁ _ _ _)
-         (+-∷-sem (trailing! (<⊛-sem x∈ (⋆-+-sem w+))) (lemma′ x′∈ xs∈))
+  lemma′ x∈ xs∈ =
+    ⋆-elim (λ xs s₂ (_ : xs ∈ ♭? g prec-by whitespace + · s₂) →
+              ∀ {s₁ x} → x ∈ ♭? g · s₁ → x ∷ xs ∈ g + · s₁ ++ s₂)
+           (λ x∈ → +-sem x∈ ⋆-[]-sem)
+           (λ { {_} {_} .{_} (⊛>-sem w+ x′∈) xs∈ rec {s₁} x∈ →
+                cast (lemma″ s₁ _ _ _)
+                     (+-∷-sem (trailing! (<⊛-sem x∈ (⋆-+-sem w+)))
+                              (rec x′∈)) })
+           xs∈ x∈
 
   lemma : ∀ {s xs} → xs ∈ ♭? g sep-by whitespace + · s → xs ∈ g + · s
   lemma (⊛-sem (<$>-sem x∈) xs∈) = lemma′ x∈ xs∈

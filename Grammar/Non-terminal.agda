@@ -18,7 +18,9 @@ open import Data.Product as Product
 open import Data.Unit
 open import Function
 open import Level using (Lift; lift)
-open import Relation.Binary.PropositionalEquality as P using (_≡_; _≢_)
+open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)
+open import Relation.Binary.PropositionalEquality as P
+  using (_≡_; _≢_; refl)
 open import Relation.Nullary
 
 private
@@ -66,6 +68,48 @@ Empty-NT _ = Lift ⊥
 
 empty-grammar : Grammar Empty-NT
 empty-grammar _ (lift ())
+
+-- No confusion for Prod, following McBride, Goguen and McKinna.
+
+No-confusion : ∀ {A₁ A₂ NT₁ NT₂} → Prod NT₁ A₁ → Prod NT₂ A₂ → Set₁
+No-confusion (! {A = A₁} nt₁)
+             (! {A = A₂} nt₂) = A₁ ≡ A₂ × nt₁ ≅ nt₂
+No-confusion (fail {A = A₁})
+             (fail {A = A₂}) = A₁ ≡ A₂
+No-confusion (return {A = A₁} x₁)
+             (return {A = A₂} x₂) = A₁ ≡ A₂ × x₁ ≅ x₂
+No-confusion token
+             token = Lift ⊤
+No-confusion (tok c₁)
+             (tok c₂) = Lift (c₁ ≡ c₂)
+No-confusion (_⊛_ {A = A₁} {B = B₁} p₁₁ p₂₁)
+             (_⊛_ {A = A₂} {B = B₂} p₁₂ p₂₂) =
+             A₁ ≡ A₂ × B₁ ≡ B₂ × p₁₁ ≅ p₁₂ × p₂₁ ≅ p₂₂
+No-confusion (_<⊛_ {A = A₁} {B = B₁} p₁₁ p₂₁)
+             (_<⊛_ {A = A₂} {B = B₂} p₁₂ p₂₂) =
+             A₁ ≡ A₂ × B₁ ≡ B₂ × p₁₁ ≅ p₁₂ × p₂₁ ≅ p₂₂
+No-confusion (_>>=_ {A = A₁} {B = B₁} p₁ f₁)
+             (_>>=_ {A = A₂} {B = B₂} p₂ f₂) =
+             A₁ ≡ A₂ × B₁ ≡ B₂ × p₁ ≅ p₂ × f₁ ≅ f₂
+No-confusion (_∣_ {A = A₁} p₁₁ p₂₁)
+             (_∣_ {A = A₂} p₁₂ p₂₂) = A₁ ≡ A₂ × p₁₁ ≅ p₁₂ × p₂₁ ≅ p₂₂
+No-confusion (_⋆ {A = A₁} p₁)
+             (_⋆ {A = A₂} p₂) = A₁ ≡ A₂ × p₁ ≅ p₂
+No-confusion _ _ = Lift ⊥
+
+no-confusion :
+  ∀ {A₁ A₂ NT₁ NT₂} {p₁ : Prod NT₁ A₁} {p₂ : Prod NT₂ A₂} →
+  A₁ ≡ A₂ → NT₁ ≡ NT₂ → p₁ ≅ p₂ → No-confusion p₁ p₂
+no-confusion {p₁ = ! _}      refl refl refl = refl , refl
+no-confusion {p₁ = fail}     refl refl refl = refl
+no-confusion {p₁ = return _} refl refl refl = refl , refl
+no-confusion {p₁ = token}    refl refl refl = lift tt
+no-confusion {p₁ = tok _}    refl refl refl = lift refl
+no-confusion {p₁ = _ ⊛ _}    refl refl refl = refl , refl , refl , refl
+no-confusion {p₁ = _ <⊛ _}   refl refl refl = refl , refl , refl , refl
+no-confusion {p₁ = _ >>= _}  refl refl refl = refl , refl , refl , refl
+no-confusion {p₁ = _ ∣ _}    refl refl refl = refl , refl , refl
+no-confusion {p₁ = _ ⋆}      refl refl refl = refl , refl
 
 ------------------------------------------------------------------------
 -- Production combinators
@@ -170,7 +214,7 @@ cast : ∀ {NT g A} {p : Prod NT A} {x s₁ s₂} →
 cast P.refl = id
 
 ------------------------------------------------------------------------
--- Semantics combinators
+-- Semantics combinators and eliminators
 
 <$>-sem : ∀ {NT} {g : Grammar NT} {A B} {f : A → B} {x p s} →
           [ g ] x ∈ p · s → [ g ] f x ∈ f <$> p · s
@@ -200,18 +244,76 @@ cast P.refl = id
           [ g ] x ∷ xs ∈ p ⋆ · s₁ ++ s₂
 ⋆-∷-sem x∈ xs∈ = ⋆-+-sem (+-sem x∈ xs∈)
 
+-- An eliminator for special cases that at least one unreleased
+-- variant of Agda has trouble handling.
+
+⋆-elim :
+  ∀ {ℓ NT A g} {p : Prod NT A}
+  (P : ∀ xs s → [ g ] xs ∈ p ⋆ · s → Set ℓ) →
+  P _ _ ⋆-[]-sem →
+  (∀ {x xs s₁ s₂} (x∈ : [ g ] x ∈ p · s₁) (xs∈ : [ g ] xs ∈ p ⋆ · s₂) →
+     P _ _ xs∈ → P _ _ (⋆-∷-sem x∈ xs∈)) →
+  ∀ {xs s} (xs∈ : [ g ] xs ∈ p ⋆ · s) → P _ _ xs∈
+⋆-elim {NT = NT} {A} {g} {p} P n c xs∈ = ⋆-elim′ xs∈ refl refl refl
+  where
+  cast′ :
+    ∀ {A A′ NT g} {p : Prod NT A} {p′ : Prod NT A′} {x x′ s} →
+    A ≡ A′ → x ≅ x′ → p ≅ p′ →
+    [ g ] x ∈ p · s → [ g ] x′ ∈ p′ · s
+  cast′ refl refl refl x∈ = x∈
+
+  ⋆-elim′ :
+    ∀ {A′} {p′ : Prod NT A′} {xs xs′ s}
+    (xs∈ : [ g ] xs′ ∈ p′ · s)
+    (A′≡ : A′ ≡ List A) (p′≅ : p′ ≅ p ⋆) (xs′≅ : xs′ ≅ xs) →
+    P _ _ (cast′ A′≡ xs′≅ p′≅ xs∈)
+  ⋆-elim′ xs∈                                         A′≡ p′≅ xs′≅ with no-confusion A′≡ refl p′≅
+  ⋆-elim′ ⋆-[]-sem                                    A′≡ p′≅ refl | refl , refl with A′≡ | p′≅
+  ⋆-elim′ ⋆-[]-sem                                    _   _   refl | refl , refl | refl | refl = n
+  ⋆-elim′ (⋆-+-sem (⊛-sem (⊛-sem return-sem x∈) xs∈)) A′≡ p′≅ refl | refl , refl with A′≡ | p′≅
+  ⋆-elim′ (⋆-+-sem (⊛-sem (⊛-sem return-sem x∈) xs∈)) _   _   refl | refl , refl | refl | refl = c _ _ (⋆-elim P n c xs∈)
+  ⋆-elim′ (!-sem _)                                   _   _   _    | lift ()
+  ⋆-elim′ return-sem                                  _   _   _    | lift ()
+  ⋆-elim′ token-sem                                   _   _   _    | lift ()
+  ⋆-elim′ tok-sem                                     _   _   _    | lift ()
+  ⋆-elim′ (⊛-sem _ _)                                 _   _   _    | lift ()
+  ⋆-elim′ (<⊛-sem _ _)                                _   _   _    | lift ()
+  ⋆-elim′ (>>=-sem _ _)                               _   _   _    | lift ()
+  ⋆-elim′ (left-sem _)                                _   _   _    | lift ()
+  ⋆-elim′ (right-sem _)                               _   _   _    | lift ()
+
 ⋆-⋆-sem : ∀ {NT g A} {p : Prod NT A} {xs₁ xs₂ s₁ s₂} →
           [ g ] xs₁ ∈ p ⋆ · s₁ → [ g ] xs₂ ∈ p ⋆ · s₂ →
           [ g ] xs₁ ++ xs₂ ∈ p ⋆ · s₁ ++ s₂
-⋆-⋆-sem ⋆-[]-sem xs₂∈ = xs₂∈
-⋆-⋆-sem (⋆-+-sem (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) xs₁∈)) xs₂∈ =
-  cast (P.sym $ LM.assoc s₁ _ _)
-       (⋆-∷-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
+⋆-⋆-sem {A = A} {p} {xs₁} {xs₂ = xs₂} {s₂ = s₂} xs₁∈ xs₂∈ =
+  ⋆-elim (λ xs₁ s₁ _ → [ _ ] xs₁ ++ xs₂ ∈ p ⋆ · s₁ ++ s₂)
+         xs₂∈
+         (λ {_ _ s₁} x∈ xs₁∈ rec →
+            cast (P.sym $ LM.assoc s₁ _ _)
+                 (⋆-∷-sem x∈ rec))
+         xs₁∈
 
 +-∷-sem : ∀ {NT g A} {p : Prod NT A} {x xs s₁ s₂} →
           [ g ] x ∈ p · s₁ → [ g ] xs ∈ p + · s₂ →
           [ g ] x ∷ xs ∈ p + · s₁ ++ s₂
 +-∷-sem x∈ xs∈ = +-sem x∈ (⋆-+-sem xs∈)
+
+-- Another eliminator for special cases.
+
++-elim :
+  ∀ {ℓ NT A g} {p : Prod NT A}
+  (P : ∀ xs s → [ g ] xs ∈ p + · s → Set ℓ) →
+  (∀ {x s} (x∈ : [ g ] x ∈ p · s) → P _ _ (+-sem x∈ ⋆-[]-sem)) →
+  (∀ {x xs s₁ s₂} (x∈ : [ g ] x ∈ p · s₁) (xs∈ : [ g ] xs ∈ p + · s₂) →
+     P _ _ xs∈ → P _ _ (+-∷-sem x∈ xs∈)) →
+  ∀ {xs s} (xs∈ : [ g ] xs ∈ p + · s) → P _ _ xs∈
++-elim {p = p} P s c (⊛-sem (⊛-sem return-sem x∈) xs∈) =
+  ⋆-elim (λ xs s₂ xs∈ →
+            ∀ {x s₁} {x∈ : [ _ ] x ∈ p · s₁} →
+            P (x ∷ xs) (s₁ ++ s₂) (+-sem x∈ xs∈))
+         (s _)
+         (λ _ _ rec → c _ _ rec)
+         xs∈
 
 +-⋆-sem : ∀ {NT g A} {p : Prod NT A} {xs₁ xs₂ s₁ s₂} →
           [ g ] xs₁ ∈ p + · s₁ → [ g ] xs₂ ∈ p ⋆ · s₂ →
@@ -285,18 +387,38 @@ replace-fail :
   ∀ {NT A g} (p : Prod NT A) {x s} →
   [ empty-grammar ] x ∈ replace (λ _ → fail) p · s →
   [ g             ] x ∈                      p · s
-replace-fail (! nt)      ()
-replace-fail fail        ()
-replace-fail (return x)  return-sem      = return-sem
-replace-fail token       token-sem       = token-sem
-replace-fail (tok t)     tok-sem         = tok-sem
-replace-fail (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   = ⊛-sem   (replace-fail p₁ f∈) (replace-fail p₂     x∈)
-replace-fail (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  = <⊛-sem  (replace-fail p₁ x∈) (replace-fail p₂     y∈)
-replace-fail (p₁ >>= p₂) (>>=-sem x∈ y∈) = >>=-sem (replace-fail p₁ x∈) (replace-fail (p₂ _) y∈)
-replace-fail (p₁ ∣ p₂)   (left-sem  x∈)  = left-sem  (replace-fail p₁ x∈)
-replace-fail (p₁ ∣ p₂)   (right-sem x∈)  = right-sem (replace-fail p₂ x∈)
-replace-fail (p ⋆)       ⋆-[]-sem        = ⋆-[]-sem
-replace-fail (p ⋆)       (⋆-+-sem xs∈)   = ⋆-+-sem (replace-fail (p +) xs∈)
+replace-fail p x∈ = replace-fail′ p x∈ refl refl refl
+  where
+  replace-fail′ :
+    ∀ {NT A A′ g} {p′ : Prod _ A′} {x x′ s} →
+    (p : Prod NT A) →
+    [ empty-grammar ] x′ ∈ p′ · s →
+    A′ ≡ A →
+    p′ ≅ replace (λ _ → fail) p →
+    x′ ≅ x →
+    [ g ] x ∈ p  · s
+  replace-fail′ (! nt)      ()              refl refl refl
+  replace-fail′ fail        ()              refl refl refl
+  replace-fail′ (return x)  return-sem      refl refl refl = return-sem
+  replace-fail′ token       token-sem       refl refl refl = token-sem
+  replace-fail′ (tok t)     tok-sem         refl refl refl = tok-sem
+  replace-fail′ (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   refl refl refl = ⊛-sem   (replace-fail p₁ f∈) (replace-fail p₂     x∈)
+  replace-fail′ (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  refl refl refl = <⊛-sem  (replace-fail p₁ x∈) (replace-fail p₂     y∈)
+  replace-fail′ (p₁ >>= p₂) (>>=-sem x∈ y∈) refl refl refl = >>=-sem (replace-fail p₁ x∈) (replace-fail (p₂ _) y∈)
+  replace-fail′ (p₁ ∣ p₂)   (left-sem  x∈)  refl refl refl = left-sem  (replace-fail p₁ x∈)
+  replace-fail′ (p₁ ∣ p₂)   (right-sem x∈)  refl refl refl = right-sem (replace-fail p₂ x∈)
+  replace-fail′ (p ⋆)       xs∈             A′≡  p′≅  x′≅  with no-confusion A′≡ refl p′≅
+  replace-fail′ (p ⋆)       ⋆-[]-sem        _    _    refl | refl , refl = ⋆-[]-sem
+  replace-fail′ (p ⋆)       (⋆-+-sem xs∈)   _    _    refl | refl , refl = ⋆-+-sem (replace-fail (p +) xs∈)
+  replace-fail′ (p ⋆)       (!-sem _)       _    _    _    | lift ()
+  replace-fail′ (p ⋆)       return-sem      _    _    _    | lift ()
+  replace-fail′ (p ⋆)       token-sem       _    _    _    | lift ()
+  replace-fail′ (p ⋆)       tok-sem         _    _    _    | lift ()
+  replace-fail′ (p ⋆)       (⊛-sem _ _)     _    _    _    | lift ()
+  replace-fail′ (p ⋆)       (<⊛-sem _ _)    _    _    _    | lift ()
+  replace-fail′ (p ⋆)       (>>=-sem _ _)   _    _    _    | lift ()
+  replace-fail′ (p ⋆)       (left-sem _)    _    _    _    | lift ()
+  replace-fail′ (p ⋆)       (right-sem _)   _    _    _    | lift ()
 
 -- Unfolds every non-terminal. At most n /nested/ unfoldings are
 -- performed.
@@ -318,41 +440,79 @@ unfold n       g (p ⋆)       = unfold n g p ⋆
 
 unfold-to : ∀ {NT A} {g : Grammar NT} {x s} n (p : Prod NT A) →
             [ g ] x ∈ p · s → [ g ] x ∈ unfold n g p · s
-unfold-to zero    p           x∈              = x∈
-unfold-to (suc n) (! nt)      (!-sem x∈)      = unfold-to n _ x∈
-unfold-to (suc n) fail        x∈              = x∈
-unfold-to (suc n) (return x)  x∈              = x∈
-unfold-to (suc n) token       x∈              = x∈
-unfold-to (suc n) (tok x)     x∈              = x∈
-unfold-to (suc n) (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   = ⊛-sem (unfold-to (suc n) p₁ f∈)
-                                                      (unfold-to (suc n) p₂ x∈)
-unfold-to (suc n) (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  = <⊛-sem (unfold-to (suc n) p₁ x∈)
-                                                       (unfold-to (suc n) p₂ y∈)
-unfold-to (suc n) (p₁ >>= p₂) (>>=-sem x∈ y∈) = >>=-sem (unfold-to (suc n) p₁ x∈)
-                                                        (unfold-to (suc n) (p₂ _) y∈)
-unfold-to (suc n) (p₁ ∣ p₂)   (left-sem x∈)   = left-sem  (unfold-to (suc n) p₁ x∈)
-unfold-to (suc n) (p₁ ∣ p₂)   (right-sem x∈)  = right-sem (unfold-to (suc n) p₂ x∈)
-unfold-to (suc n) (p ⋆)       ⋆-[]-sem        = ⋆-[]-sem
-unfold-to (suc n) (p ⋆)       (⋆-+-sem xs∈)   = ⋆-+-sem (unfold-to (suc n) (p +) xs∈)
+unfold-to zero    p x∈ = x∈
+unfold-to (suc n) p x∈ = unfold-to′ p x∈ refl refl refl
+  where
+  unfold-to′ : ∀ {NT A A′} {g : Grammar NT} {p′ : Prod NT A′} {x x′ s}
+               (p : Prod NT A) →
+               [ g ] x′ ∈ p′ · s →
+               A′ ≡ A →
+               p′ ≅ p →
+               x′ ≅ x →
+               [ g ] x ∈ unfold (suc n) g p · s
+  unfold-to′ (! nt)      (!-sem x∈)      refl refl refl = unfold-to n _ x∈
+  unfold-to′ fail        x∈              refl refl refl = x∈
+  unfold-to′ (return x)  x∈              refl refl refl = x∈
+  unfold-to′ token       x∈              refl refl refl = x∈
+  unfold-to′ (tok x)     x∈              refl refl refl = x∈
+  unfold-to′ (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   refl refl refl = ⊛-sem (unfold-to (suc n) p₁ f∈)
+                                                                (unfold-to (suc n) p₂ x∈)
+  unfold-to′ (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  refl refl refl = <⊛-sem (unfold-to (suc n) p₁ x∈)
+                                                                 (unfold-to (suc n) p₂ y∈)
+  unfold-to′ (p₁ >>= p₂) (>>=-sem x∈ y∈) refl refl refl = >>=-sem (unfold-to (suc n) p₁ x∈)
+                                                                  (unfold-to (suc n) (p₂ _) y∈)
+  unfold-to′ (p₁ ∣ p₂)   (left-sem x∈)   refl refl refl = left-sem  (unfold-to (suc n) p₁ x∈)
+  unfold-to′ (p₁ ∣ p₂)   (right-sem x∈)  refl refl refl = right-sem (unfold-to (suc n) p₂ x∈)
+  unfold-to′ (p ⋆)       xs∈             A′≡  p′≅  x′≅  with no-confusion A′≡ refl p′≅
+  unfold-to′ (p ⋆)       ⋆-[]-sem        _    _    refl | refl , refl = ⋆-[]-sem
+  unfold-to′ (p ⋆)       (⋆-+-sem xs∈)   _    _    refl | refl , refl = ⋆-+-sem (unfold-to (suc n) (p +) xs∈)
+  unfold-to′ (p ⋆)       (!-sem _)       _    _    _    | lift ()
+  unfold-to′ (p ⋆)       return-sem      _    _    _    | lift ()
+  unfold-to′ (p ⋆)       token-sem       _    _    _    | lift ()
+  unfold-to′ (p ⋆)       tok-sem         _    _    _    | lift ()
+  unfold-to′ (p ⋆)       (⊛-sem _ _)     _    _    _    | lift ()
+  unfold-to′ (p ⋆)       (<⊛-sem _ _)    _    _    _    | lift ()
+  unfold-to′ (p ⋆)       (>>=-sem _ _)   _    _    _    | lift ()
+  unfold-to′ (p ⋆)       (left-sem _)    _    _    _    | lift ()
+  unfold-to′ (p ⋆)       (right-sem _)   _    _    _    | lift ()
 
 unfold-from : ∀ {NT A} {g : Grammar NT} {x s} n (p : Prod NT A) →
               [ g ] x ∈ unfold n g p · s → [ g ] x ∈ p · s
-unfold-from zero    p           x∈              = x∈
-unfold-from (suc n) (! nt)      x∈              = !-sem (unfold-from n _ x∈)
-unfold-from (suc n) fail        x∈              = x∈
-unfold-from (suc n) (return x)  x∈              = x∈
-unfold-from (suc n) token       x∈              = x∈
-unfold-from (suc n) (tok x)     x∈              = x∈
-unfold-from (suc n) (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   = ⊛-sem (unfold-from (suc n) p₁ f∈)
-                                                        (unfold-from (suc n) p₂ x∈)
-unfold-from (suc n) (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  = <⊛-sem (unfold-from (suc n) p₁ x∈)
-                                                         (unfold-from (suc n) p₂ y∈)
-unfold-from (suc n) (p₁ >>= p₂) (>>=-sem x∈ y∈) = >>=-sem (unfold-from (suc n) p₁ x∈)
-                                                          (unfold-from (suc n) (p₂ _) y∈)
-unfold-from (suc n) (p₁ ∣ p₂)   (left-sem x∈)   = left-sem  (unfold-from (suc n) p₁ x∈)
-unfold-from (suc n) (p₁ ∣ p₂)   (right-sem x∈)  = right-sem (unfold-from (suc n) p₂ x∈)
-unfold-from (suc n) (p ⋆)       ⋆-[]-sem        = ⋆-[]-sem
-unfold-from (suc n) (p ⋆)       (⋆-+-sem xs∈)   = ⋆-+-sem (unfold-from (suc n) (p +) xs∈)
+unfold-from zero    p x∈ = x∈
+unfold-from (suc n) p x∈ = unfold-from′ p x∈ refl refl refl
+  where
+  unfold-from′ : ∀ {NT A A′} {g : Grammar NT} {p′ : Prod NT A′} {x x′ s}
+                 (p : Prod NT A) →
+                 [ g ] x′ ∈ p′ · s →
+                 A′ ≡ A →
+                 p′ ≅ unfold (suc n) g p →
+                 x′ ≅ x →
+                 [ g ] x ∈ p · s
+  unfold-from′ (! nt)      x∈              refl refl refl = !-sem (unfold-from n _ x∈)
+  unfold-from′ fail        x∈              refl refl refl = x∈
+  unfold-from′ (return x)  x∈              refl refl refl = x∈
+  unfold-from′ token       x∈              refl refl refl = x∈
+  unfold-from′ (tok x)     x∈              refl refl refl = x∈
+  unfold-from′ (p₁ ⊛ p₂)   (⊛-sem f∈ x∈)   refl refl refl = ⊛-sem (unfold-from (suc n) p₁ f∈)
+                                                                  (unfold-from (suc n) p₂ x∈)
+  unfold-from′ (p₁ <⊛ p₂)  (<⊛-sem x∈ y∈)  refl refl refl = <⊛-sem (unfold-from (suc n) p₁ x∈)
+                                                                   (unfold-from (suc n) p₂ y∈)
+  unfold-from′ (p₁ >>= p₂) (>>=-sem x∈ y∈) refl refl refl = >>=-sem (unfold-from (suc n) p₁ x∈)
+                                                                    (unfold-from (suc n) (p₂ _) y∈)
+  unfold-from′ (p₁ ∣ p₂)   (left-sem x∈)   refl refl refl = left-sem  (unfold-from (suc n) p₁ x∈)
+  unfold-from′ (p₁ ∣ p₂)   (right-sem x∈)  refl refl refl = right-sem (unfold-from (suc n) p₂ x∈)
+  unfold-from′ (p ⋆)       xs∈             A′≡  p′≅  x′≅  with no-confusion A′≡ refl p′≅
+  unfold-from′ (p ⋆)       ⋆-[]-sem        _    _    refl | refl , refl = ⋆-[]-sem
+  unfold-from′ (p ⋆)       (⋆-+-sem xs∈)   _    _    refl | refl , refl = ⋆-+-sem (unfold-from (suc n) (p +) xs∈)
+  unfold-from′ (p ⋆)       (!-sem _)       _    _    _    | lift ()
+  unfold-from′ (p ⋆)       return-sem      _    _    _    | lift ()
+  unfold-from′ (p ⋆)       token-sem       _    _    _    | lift ()
+  unfold-from′ (p ⋆)       tok-sem         _    _    _    | lift ()
+  unfold-from′ (p ⋆)       (⊛-sem _ _)     _    _    _    | lift ()
+  unfold-from′ (p ⋆)       (<⊛-sem _ _)    _    _    _    | lift ()
+  unfold-from′ (p ⋆)       (>>=-sem _ _)   _    _    _    | lift ()
+  unfold-from′ (p ⋆)       (left-sem _)    _    _    _    | lift ()
+  unfold-from′ (p ⋆)       (right-sem _)   _    _    _    | lift ()
 
 ------------------------------------------------------------------------
 -- Nullability
@@ -515,23 +675,30 @@ trailing-whitespace {NT} n g p =
     ∀ {A} {p : Prod NT A} →
     Trailing-whitespace′ g p →
     Trailing-whitespace′ g (p +)
-  +-lemma t (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) ⋆-[]-sem) white =
-    cast (++-lemma s₁ _) (+-sem (t x∈ white) ⋆-[]-sem)
-  +-lemma t (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) (⋆-+-sem xs∈))
-          white =
-    cast (P.sym $ LM.assoc s₁ _ _)
-         (+-∷-sem x∈ (+-lemma t xs∈ white))
+  +-lemma t xs∈ white =
+    +-elim (λ xs s₁ _ → [ _ ] xs ∈ _ · s₁ ++ _)
+           (λ {_ s₁} x∈ →
+              cast (++-lemma s₁ _)
+                   (+-sem (t x∈ white) ⋆-[]-sem))
+           (λ {_ _ s₁} x∈ _ rec →
+              cast (P.sym $ LM.assoc s₁ _ _)
+                   (+-∷-sem x∈ rec))
+           xs∈
 
   ⊛-⋆-lemma :
     ∀ {A B} {p₁ : Prod NT (List A → B)} {p₂ : Prod NT A} →
     Trailing-whitespace′ g p₁ →
     Trailing-whitespace′ g p₂ →
     Trailing-whitespace′ g (p₁ ⊛ p₂ ⋆)
-  ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) white =
-    cast (++-lemma s₁ _) (⊛-sem (t₁ f∈ white) ⋆-[]-sem)
-  ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) white =
-    cast (P.sym $ LM.assoc s₁ _ _)
-         (⊛-sem f∈ (⋆-+-sem (+-lemma t₂ xs∈ white)))
+  ⊛-⋆-lemma t₁ t₂ (⊛-sem {f = f} {s₁ = s₁} f∈ xs∈) white =
+    ⋆-elim (λ xs s₂ _ → [ _ ] f xs ∈ _ · (s₁ ++ s₂) ++ _)
+           (cast (++-lemma s₁ _)
+                 (⊛-sem (t₁ f∈ white) ⋆-[]-sem))
+           (λ x∈ xs∈ _ →
+              cast (P.sym $ LM.assoc s₁ _ _)
+                   (⊛-sem f∈ (⋆-+-sem
+                                (+-lemma t₂ (+-sem x∈ xs∈) white))))
+           xs∈
 
   ⊛-∣-lemma : ∀ {A B} {p₁ : Prod NT (A → B)} {p₂ p₃ : Prod NT A} →
               Trailing-whitespace′ g (p₁ ⊛ p₂) →

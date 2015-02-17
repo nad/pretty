@@ -38,6 +38,8 @@ open import Data.Unit
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
+open import Level using (Lift; lift)
+open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
 
@@ -146,6 +148,65 @@ g + = _∷_ <$> g ⊛ g ⋆
 ⟦ g₁ <⊛ g₂  ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ x → ♯ ⟦ x <$  g₂ ⟧
 ⟦ g₁ ⊛> g₂  ⟧ = ♯ ⟦ ♭? g₁ ⟧ Basic.>>= λ _ → ♯ ⟦    ♭? g₂ ⟧
 ⟦ g ⋆       ⟧ = ♯ Basic.return [] Basic.∣ ♯ ⟦ List⁺.toList <$> g + ⟧
+
+-- No confusion for Grammar, following McBride, Goguen and McKinna.
+
+No-confusion : {A₁ A₂ : Set} → Grammar A₁ → Grammar A₂ → Set₁
+No-confusion (return {A = A₁} x₁)
+             (return {A = A₂} x₂) = A₁ ≡ A₂ × x₁ ≅ x₂
+No-confusion token
+             token = Lift ⊤
+No-confusion (_>>=_ {c₁ = c₁₁} {c₂ = c₂₁} {A = A₁} {B = B₁} g₁₁ g₂₁)
+             (_>>=_ {c₁ = c₁₂} {c₂ = c₂₂} {A = A₂} {B = B₂} g₁₂ g₂₂) =
+  c₁₁ ≡ c₁₂ × c₂₁ ≡ c₂₂ × A₁ ≡ A₂ × B₁ ≡ B₂ × g₁₁ ≅ g₁₂ × g₂₁ ≅ g₂₂
+No-confusion (_∣_ {c₁ = c₁₁} {c₂ = c₂₁} {A = A₁} g₁₁ g₂₁)
+             (_∣_ {c₁ = c₁₂} {c₂ = c₂₂} {A = A₂} g₁₂ g₂₂) =
+  c₁₁ ≡ c₁₂ × c₂₁ ≡ c₂₂ × A₁ ≡ A₂ × g₁₁ ≅ g₁₂ × g₂₁ ≅ g₂₂
+No-confusion (fail {A = A₁})
+             (fail {A = A₂}) = A₁ ≡ A₂
+No-confusion (tok c₁)
+             (tok c₂) = Lift (c₁ ≡ c₂)
+No-confusion (_<$>_ {c = c₁} {A = A₁} {B = B₁} f₁ g₁)
+             (_<$>_ {c = c₂} {A = A₂} {B = B₂} f₂ g₂) =
+  c₁ ≡ c₂ × A₁ ≡ A₂ × B₁ ≡ B₂ × f₁ ≅ f₂ × g₁ ≅ g₂
+No-confusion (_<$_ {c = c₁} {A = A₁} {B = B₁} x₁ g₁)
+             (_<$_ {c = c₂} {A = A₂} {B = B₂} x₂ g₂) =
+  c₁ ≡ c₂ × A₁ ≡ A₂ × B₁ ≡ B₂ × x₁ ≅ x₂ × g₁ ≅ g₂
+No-confusion (_⊛_ {c₁ = c₁₁} {c₂ = c₂₁} {A = A₁} {B = B₁} g₁₁ g₂₁)
+             (_⊛_ {c₁ = c₁₂} {c₂ = c₂₂} {A = A₂} {B = B₂} g₁₂ g₂₂) =
+  c₁₁ ≡ c₁₂ × c₂₁ ≡ c₂₂ × A₁ ≡ A₂ × B₁ ≡ B₂ × g₁₁ ≅ g₁₂ × g₂₁ ≅ g₂₂
+No-confusion (_<⊛_ {c₁ = c₁₁} {c₂ = c₂₁} {A = A₁} {B = B₁} g₁₁ g₂₁)
+             (_<⊛_ {c₁ = c₁₂} {c₂ = c₂₂} {A = A₂} {B = B₂} g₁₂ g₂₂) =
+  c₁₁ ≡ c₁₂ × c₂₁ ≡ c₂₂ × A₁ ≡ A₂ × B₁ ≡ B₂ × g₁₁ ≅ g₁₂ × g₂₁ ≅ g₂₂
+No-confusion (_⊛>_ {c₁ = c₁₁} {c₂ = c₂₁} {A = A₁} {B = B₁} g₁₁ g₂₁)
+             (_⊛>_ {c₁ = c₁₂} {c₂ = c₂₂} {A = A₂} {B = B₂} g₁₂ g₂₂) =
+  c₁₁ ≡ c₁₂ × c₂₁ ≡ c₂₂ × A₁ ≡ A₂ × B₁ ≡ B₂ × g₁₁ ≅ g₁₂ × g₂₁ ≅ g₂₂
+No-confusion (_⋆ {c = c₁} {A = A₁} g₁)
+             (_⋆ {c = c₂} {A = A₂} g₂) = c₁ ≡ c₂ × A₁ ≡ A₂ × g₁ ≅ g₂
+No-confusion _ _ = Lift ⊥
+
+no-confusion :
+  {A₁ A₂ : Set} {g₁ : Grammar A₁} {g₂ : Grammar A₂} →
+  A₁ ≡ A₂ → g₁ ≅ g₂ → No-confusion g₁ g₂
+no-confusion {g₁ = return x} refl refl = refl , refl
+no-confusion {g₁ = token}    refl refl = _
+no-confusion {g₁ = _ >>= _}  refl refl = refl , refl , refl , refl ,
+                                         refl , refl
+no-confusion {g₁ = _ ∣ _}    refl refl = refl , refl , refl , refl ,
+                                         refl
+no-confusion {g₁ = fail}     refl refl = refl
+no-confusion {g₁ = tok _}    refl refl = lift refl
+no-confusion {g₁ = _ <$> _}  refl refl = refl , refl , refl , refl ,
+                                         refl
+no-confusion {g₁ = _ <$ _}   refl refl = refl , refl , refl , refl ,
+                                         refl
+no-confusion {g₁ = _ ⊛ _}    refl refl = refl , refl , refl , refl ,
+                                         refl , refl
+no-confusion {g₁ = _ <⊛ _}   refl refl = refl , refl , refl , refl ,
+                                         refl , refl
+no-confusion {g₁ = _ ⊛> _}   refl refl = refl , refl , refl , refl ,
+                                         refl , refl
+no-confusion {g₁ = _ ⋆}      refl refl = refl , refl , refl
 
 ------------------------------------------------------------------------
 -- More grammar combinators
@@ -582,7 +643,7 @@ isomorphic {g = g} = record
     lemma _ eq₁ eq₂ refl refl _ _ = cast-cast′ eq₁ eq₂
 
 ------------------------------------------------------------------------
--- Semantics combinators
+-- Semantics combinators and eliminators
 
 +-sem : ∀ {c A} {g : ∞Grammar c A} {x xs s₁ s₂} →
         x ∈ ♭? g · s₁ → xs ∈ g ⋆ · s₂ → (x ∷ xs) ∈ g + · s₁ ++ s₂
@@ -592,16 +653,75 @@ isomorphic {g = g} = record
           x ∈ ♭? g · s₁ → xs ∈ g ⋆ · s₂ → x ∷ xs ∈ g ⋆ · s₁ ++ s₂
 ⋆-∷-sem x∈ xs∈ = ⋆-+-sem (+-sem x∈ xs∈)
 
+-- An eliminator for special cases that at least one unreleased
+-- variant of Agda has trouble handling.
+
+⋆-elim :
+  ∀ {p c A} {g : ∞Grammar c A}
+  (P : ∀ xs s → xs ∈ g ⋆ · s → Set p) →
+  P _ _ ⋆-[]-sem →
+  (∀ {x xs s₁ s₂} (x∈ : x ∈ ♭? g · s₁) (xs∈ : xs ∈ g ⋆ · s₂) →
+     P _ _ xs∈ → P _ _ (⋆-∷-sem x∈ xs∈)) →
+  ∀ {xs s} (xs∈ : xs ∈ g ⋆ · s) → P _ _ xs∈
+⋆-elim {A = A} {g} P n c xs∈ = ⋆-elim′ xs∈ refl refl refl
+  where
+  cast′ :
+    ∀ {A A′} {g : Grammar A} {g′ : Grammar A′} {x x′ s} →
+    A ≡ A′ → x ≅ x′ → g ≅ g′ →
+    x ∈ g · s → x′ ∈ g′ · s
+  cast′ refl refl refl x∈ = x∈
+
+  ⋆-elim′ :
+    ∀ {A′} {g′ : Grammar A′} {xs xs′ s}
+    (xs∈ : xs′ ∈ g′ · s)
+    (A′≡ : A′ ≡ List A) (g′≅ : g′ ≅ g ⋆) (xs′≅ : xs′ ≅ xs) →
+    P _ _ (cast′ A′≡ xs′≅ g′≅ xs∈)
+  ⋆-elim′ xs∈                                A′≡ g′≅ xs′≅ with no-confusion A′≡ g′≅
+  ⋆-elim′ ⋆-[]-sem                           A′≡ g′≅ refl | refl , refl , refl with A′≡ | g′≅
+  ⋆-elim′ ⋆-[]-sem                           _   _   refl | refl , refl , refl | refl | refl = n
+  ⋆-elim′ (⋆-+-sem (⊛-sem (<$>-sem x∈) xs∈)) A′≡ g′≅ refl | refl , refl , refl with A′≡ | g′≅
+  ⋆-elim′ (⋆-+-sem (⊛-sem (<$>-sem x∈) xs∈)) _   _   refl | refl , refl , refl | refl | refl = c _ _ (⋆-elim P n c xs∈)
+  ⋆-elim′ return-sem                         _   _   _    | lift ()
+  ⋆-elim′ token-sem                          _   _   _    | lift ()
+  ⋆-elim′ (>>=-sem _ _)                      _   _   _    | lift ()
+  ⋆-elim′ (left-sem _)                       _   _   _    | lift ()
+  ⋆-elim′ (right-sem _)                      _   _   _    | lift ()
+  ⋆-elim′ tok-sem                            _   _   _    | lift ()
+  ⋆-elim′ (<$>-sem _)                        _   _   _    | lift ()
+  ⋆-elim′ (<$-sem _)                         _   _   _    | lift ()
+  ⋆-elim′ (⊛-sem _ _)                        _   _   _    | lift ()
+  ⋆-elim′ (<⊛-sem _ _)                       _   _   _    | lift ()
+  ⋆-elim′ (⊛>-sem _ _)                       _   _   _    | lift ()
+
 ⋆-⋆-sem : ∀ {c A} {g : ∞Grammar c A} {xs₁ xs₂ s₁ s₂} →
           xs₁ ∈ g ⋆ · s₁ → xs₂ ∈ g ⋆ · s₂ → xs₁ ++ xs₂ ∈ g ⋆ · s₁ ++ s₂
-⋆-⋆-sem ⋆-[]-sem xs₂∈ = xs₂∈
-⋆-⋆-sem (⋆-+-sem (⊛-sem (<$>-sem {s = s₁} x∈) xs₁∈)) xs₂∈ =
-  cast (P.sym $ LM.assoc s₁ _ _)
-       (⋆-∷-sem x∈ (⋆-⋆-sem xs₁∈ xs₂∈))
+⋆-⋆-sem {A = A} {g} {xs₁} {xs₂ = xs₂} {s₂ = s₂} xs₁∈ xs₂∈ =
+  ⋆-elim (λ xs₁ s₁ _ → xs₁ ++ xs₂ ∈ g ⋆ · s₁ ++ s₂)
+         xs₂∈
+         (λ {_ _ s₁} x∈ xs₁∈ rec →
+            cast (P.sym $ LM.assoc s₁ _ _) (⋆-∷-sem x∈ rec))
+         xs₁∈
 
 +-∷-sem : ∀ {c A} {g : ∞Grammar c A} {x xs s₁ s₂} →
           x ∈ ♭? g · s₁ → xs ∈ g + · s₂ → x ∷⁺ xs ∈ g + · s₁ ++ s₂
 +-∷-sem x∈ xs∈ = +-sem x∈ (⋆-+-sem xs∈)
+
+-- Another eliminator for special cases.
+
++-elim :
+  ∀ {p c A} {g : ∞Grammar c A}
+  (P : ∀ xs s → xs ∈ g + · s → Set p) →
+  (∀ {x s} (x∈ : x ∈ ♭? g · s) → P _ _ (+-sem x∈ ⋆-[]-sem)) →
+  (∀ {x xs s₁ s₂} (x∈ : x ∈ ♭? g · s₁) (xs∈ : xs ∈ g + · s₂) →
+     P _ _ xs∈ → P _ _ (+-∷-sem x∈ xs∈)) →
+  ∀ {xs s} (xs∈ : xs ∈ g + · s) → P _ _ xs∈
++-elim {g = g} P s c (⊛-sem (<$>-sem x∈) xs∈) =
+  ⋆-elim (λ xs s₂ xs∈ →
+            ∀ {x s₁} {x∈ : x ∈ ♭? g · s₁} →
+            P (x ∷ xs) (s₁ ++ s₂) (+-sem x∈ xs∈))
+         (s _)
+         (λ _ _ rec → c _ _ rec)
+         xs∈
 
 mutual
 
@@ -943,24 +1063,29 @@ trailing-whitespace n g = convert <$>M trailing? n g
     ∀ {c A} {g : ∞Grammar c A} →
     Trailing-whitespace″ (♭? g) →
     Trailing-whitespace″ (g +)
-  +-lemma t (⊛-sem {s₁ = s₁} (<$>-sem x∈) ⋆-[]-sem) w =
-    cast (++-lemma s₁ _)
-         (+-sem (t x∈ w) ⋆-[]-sem)
-  +-lemma t (⊛-sem {s₁ = s₁} (<$>-sem x∈) (⋆-+-sem xs∈)) w =
-    cast (P.sym $ LM.assoc s₁ _ _)
-         (+-∷-sem x∈ (+-lemma t xs∈ w))
+  +-lemma t xs∈ w =
+    +-elim (λ xs s₁ _ → xs ∈ _ · s₁ ++ _)
+           (λ {_ s₁} x∈ →
+              cast (++-lemma s₁ _)
+                   (+-sem (t x∈ w) ⋆-[]-sem))
+           (λ {_ _ s₁} x∈ _ rec →
+              cast (P.sym $ LM.assoc s₁ _ _)
+                   (+-∷-sem x∈ rec))
+           xs∈
 
   ⊛-⋆-lemma :
     ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ (List A → B)} {g₂ : ∞Grammar c₂ A} →
     Trailing-whitespace″ (♭? g₁) →
     Trailing-whitespace″ (♭? g₂) →
     Trailing-whitespace″ (g₁ ⊛ g₂ ⋆)
-  ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) w =
-    cast (++-lemma s₁ _)
-         (⊛-sem (t₁ f∈ w) ⋆-[]-sem)
-  ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) w =
-    cast (P.sym $ LM.assoc s₁ _ _)
-         (⊛-sem f∈ (⋆-+-sem (+-lemma t₂ xs∈ w)))
+  ⊛-⋆-lemma t₁ t₂ (⊛-sem {f = f} {s₁ = s₁} f∈ xs∈) w =
+    ⋆-elim (λ xs s₂ _ → f xs ∈ _ · (s₁ ++ s₂) ++ _)
+           (cast (++-lemma s₁ _)
+                 (⊛-sem (t₁ f∈ w) ⋆-[]-sem))
+           (λ x∈ xs∈ _ →
+              cast (P.sym $ LM.assoc s₁ _ _)
+                   (⊛-sem f∈ (⋆-+-sem (+-lemma t₂ (+-sem x∈ xs∈) w))))
+           xs∈
 
   ⊛-∣-lemma : ∀ {c₁ c₂₁ c₂₂ A B} {g₁ : ∞Grammar c₁ (A → B)}
                 {g₂₁ : ∞Grammar c₂₁ A} {g₂₂ : ∞Grammar c₂₂ A} →
