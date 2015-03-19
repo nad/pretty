@@ -74,6 +74,8 @@ mutual
 
   -- Sequences of documents, all based on the same grammar.
 
+  infixr 5 _∷_
+
   data Docs {A} (g : Grammar A) : List⁺ A → Set₁ where
     [_] : ∀ {x} → Doc g x → Docs g (x ∷ [])
     _∷_ : ∀ {x xs} → Doc g x → Docs g xs → Docs g (x ∷⁺ xs)
