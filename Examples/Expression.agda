@@ -117,13 +117,11 @@ module Expression₂ where
         x ∈ g · s₁ → s ∈ whitespace ⋆ · s₂ → x ∈ g · s₁ ++ s₂
 
       tw′-whitespace : Trailing-whitespace′ (whitespace ⋆)
-      tw′-whitespace p w =
-        ⋆-elim (λ xs s₁ _ → ∃ λ y → y ∈ _ · s₁ ++ _)
-               (_ , w)
-               (λ {_ _ s₁} p q rec →
-                  _ , cast (P.sym $ LM.assoc s₁ _ _)
-                           (⋆-+-sem (⊛-sem (<$>-sem p) (proj₂ rec))))
-               p
+      tw′-whitespace ⋆-[]-sem                                  w = _ , w
+      tw′-whitespace (⋆-+-sem (⊛-sem {s₁ = s₁} (<$>-sem p) q)) w
+        with tw′-whitespace q w
+      ... | _ , r = _ , cast (P.sym $ LM.assoc s₁ _ _)
+                             (⋆-+-sem (⊛-sem (<$>-sem p) r))
 
       tw″-symbol : ∀ {s} → Trailing-whitespace″ (symbol s)
       tw″-symbol (<⊛-sem {s₁ = s₁} p q) w =
