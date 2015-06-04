@@ -83,7 +83,8 @@ _≟O_ : ∀ {assoc} → Decidable (_≡_ {A = Operator assoc})
     where
     lemma : {p₁ p₂ : ∃ (T ∘ is-operator-char)} →
             proj₁ p₁ ≡ proj₁ p₂ → p₁ ≡ p₂
-    lemma P.refl = P.cong ,_ (Bool-prop.proof-irrelevance _ _)
+    lemma {p₁ = _ , _} {p₂ = ._ , _} P.refl =
+      P.cong ,_ (Bool-prop.proof-irrelevance _ _)
 
 -- A grammar for a given operator name.
 
