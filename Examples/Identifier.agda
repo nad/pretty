@@ -12,7 +12,8 @@ open import Data.Product
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 open import Relation.Nullary
 
-open import Grammar.Infinite as Grammar using (Grammar)
+open import Grammar.Infinite as Grammar
+  using (Grammar) hiding (module Grammar)
 open import Pretty using (Doc; Pretty-printer)
 open import Renderer
 open import Utilities

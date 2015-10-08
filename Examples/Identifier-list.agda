@@ -13,7 +13,8 @@ import Data.List.NonEmpty as List⁺
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Examples.Identifier
-open import Grammar.Infinite as Grammar using (Grammar)
+open import Grammar.Infinite as Grammar
+  using (Grammar) hiding (module Grammar)
 open import Pretty using (Pretty-printer)
 open import Renderer
 open import Utilities
