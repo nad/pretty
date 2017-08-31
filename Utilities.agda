@@ -9,7 +9,8 @@ open import Data.Bool.Properties using (T-∧)
 open import Data.Char as Char
 open import Data.List
 open import Data.List.NonEmpty as List⁺
-open import Data.Nat as Nat
+open import Data.Nat
+import Data.Nat.Properties as NP
 open import Data.Product
 open import Data.String as String using (String)
 open import Function
@@ -17,7 +18,6 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using () renaming (module Equivalence to Eq)
 open import Relation.Binary
-import Relation.Binary.Properties.DecTotalOrder as DTO
 import Relation.Binary.Properties.StrictTotalOrder as STO
 open import Relation.Nullary.Decidable
 
@@ -27,9 +27,7 @@ open import Relation.Nullary.Decidable
 -- Is one number strictly smaller than another?
 
 _<?ℕ_ : ℕ → ℕ → Bool
-n₁ <?ℕ n₂ = ⌊ StrictTotalOrder._<?_
-                (DTO.strictTotalOrder Nat.decTotalOrder)
-                n₁ n₂ ⌋
+n₁ <?ℕ n₂ = ⌊ n₁ NP.<? n₂ ⌋
 
 -- Is one character smaller than or equal to another?
 

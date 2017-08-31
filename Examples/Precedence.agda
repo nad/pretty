@@ -17,13 +17,14 @@ open import Data.Fin using (Fin; zero; suc; #_)
 import Data.Fin.Dec as Fin-dec
 open import Data.Fin.Properties using () renaming (_≟_ to _≟F_)
 open import Data.List as List
-open import Data.List.Any as Any; open Any.Membership-≡
+open import Data.List.Any as Any
+open import Data.List.Any.Membership.Propositional
 open import Data.List.NonEmpty as List⁺
 open import Data.Nat using (ℕ)
 open import Data.Product as Prod
 import Data.String as String
 open import Data.Unit
-open import Data.Vec as Vec using (allFin)
+import Data.Vec as Vec
 open import Data.Vec.Properties
 open import Function using (id; _∘_; _∘′_)
 open import Relation.Binary
@@ -144,7 +145,7 @@ record Precedence-graph : Set where
   -- All precedence levels.
 
   all-precedences : List Precedence
-  all-precedences = Vec.toList (allFin levels)
+  all-precedences = Vec.toList (Vec.allFin levels)
 
   -- Every precedence level is a member of all-precedences.
 

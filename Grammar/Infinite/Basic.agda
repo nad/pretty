@@ -15,7 +15,8 @@ open import Data.Char
 open import Data.Empty
 open import Data.List as List
 import Data.List.Any as Any
-import Data.List.Any.Membership as ∈
+open import Data.List.Any.Membership.Propositional
+import Data.List.Any.Membership.Propositional.Properties as ∈
 open import Data.List.Any.Properties
 open import Data.List.Properties
 open import Data.Nat
@@ -37,7 +38,6 @@ open import Relation.Nullary
 private module LMi {A : Set} = Monoid (List.monoid A)
 private module LMa = RawMonad (List.monad {ℓ = Level.zero})
 open Any.Any
-open Any.Membership-≡
 
 ------------------------------------------------------------------------
 -- Simple, potentially infinite grammars
