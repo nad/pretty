@@ -27,6 +27,8 @@ open import Data.Char
 open import Data.Colist using (Colist; []; _∷_; _∈_; here; there)
 open import Data.Empty
 open import Data.List as List
+open import Data.List.Categorical
+  renaming (module MonadProperties to List-monad)
 open import Data.List.NonEmpty as List⁺
   using (List⁺; _∷_; _∷⁺_; head; tail)
 open import Data.List.Properties as List-prop using (module List-solver)
@@ -42,7 +44,7 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
 
 private
-  module LM {A : Set} = Monoid (List.monoid A)
+  module LM {A : Set} = Monoid (List-prop.++-monoid A)
   open module MM {f} = RawMonadPlus (Maybe.monadPlus {f = f})
     using () renaming (_<$>_ to _<$>M_; _⊛_ to _⊛M_)
 
@@ -648,7 +650,7 @@ tok-sat-sem _ = <$-sem tok-sem
 
 list-sem-lemma : ∀ {A} {x : A} {g s} →
                  x ∈ g · concat (List.map [_] s) → x ∈ g · s
-list-sem-lemma = cast (List-prop.Monad.right-identity _)
+list-sem-lemma = cast (List-monad.right-identity _)
 
 single-space-sem : (' ' ∷ []) ∈ whitespace + · String.toList " "
 single-space-sem = +-sem (left-sem tok-sem) ⋆-[]-sem

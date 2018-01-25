@@ -10,7 +10,7 @@ open import Data.Bool
 open import Data.Bool.Properties
 open import Data.Char
 open import Data.Empty
-open import Data.List as List hiding (unfold)
+open import Data.List hiding (unfold)
 open import Data.List.Properties
 open import Data.Maybe as Maybe
 open import Data.Nat
@@ -22,7 +22,7 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≢_)
 open import Relation.Nullary
 
 private
-  module LM {A : Set} = Monoid (List.monoid A)
+  module LM {A : Set} = Monoid (++-monoid A)
   open module MM {f} = RawMonadPlus (Maybe.monadPlus {f = f})
     using ()
     renaming (_<$>_ to _<$>M_; _⊛_ to _⊛M_;

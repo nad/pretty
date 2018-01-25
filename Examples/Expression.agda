@@ -9,14 +9,15 @@ module Examples.Expression where
 
 open import Algebra
 open import Coinduction
-open import Data.List as List
+open import Data.List
+open import Data.List.Properties
 open import Data.Product
 open import Data.Unit
 open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 
 private
-  module LM {A : Set} = Monoid (List.monoid A)
+  module LM {A : Set} = Monoid (++-monoid A)
 
 open import Examples.Identifier
 import Grammar.Infinite as Grammar

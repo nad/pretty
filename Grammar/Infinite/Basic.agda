@@ -18,6 +18,7 @@ import Data.List.Any as Any
 open import Data.List.Any.Membership.Propositional
 import Data.List.Any.Membership.Propositional.Properties as ∈
 open import Data.List.Any.Properties
+import Data.List.Categorical
 open import Data.List.Properties
 open import Data.Nat
 open import Data.Nat.Properties as NatP
@@ -35,8 +36,9 @@ import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
 
-private module LMi {A : Set} = Monoid (List.monoid A)
-private module LMa = RawMonad (List.monad {ℓ = Level.zero})
+private
+  module LMi {A : Set} = Monoid (++-monoid A)
+  module LMa = RawMonad (Data.List.Categorical.monad {ℓ = Level.zero})
 open Any.Any
 
 ------------------------------------------------------------------------

@@ -22,7 +22,8 @@ open import Function.Inverse using (module Inverse)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 
-private module LM {A : Set} = Monoid (List.monoid A)
+private
+  module LM {A : Set} = Monoid (Data.List.Properties.++-monoid A)
 
 open import Grammar.Infinite as G hiding (_⊛_; _<⊛_; _⊛>_)
 open import Pretty using (Doc; Docs; Pretty-printer)
