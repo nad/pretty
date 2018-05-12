@@ -18,7 +18,7 @@ import Data.Fin.Dec as Fin-dec
 open import Data.Fin.Properties using () renaming (_≟_ to _≟F_)
 open import Data.List as List
 open import Data.List.Any as Any
-open import Data.List.Any.Membership.Propositional
+open import Data.List.Membership.Propositional
 open import Data.List.NonEmpty as List⁺
 open import Data.Nat using (ℕ)
 open import Data.Product as Prod

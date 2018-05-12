@@ -15,10 +15,10 @@ open import Data.Char
 open import Data.Empty
 open import Data.List as List
 import Data.List.Any as Any
-open import Data.List.Any.Membership.Propositional
-import Data.List.Any.Membership.Propositional.Properties as ∈
 open import Data.List.Any.Properties
 import Data.List.Categorical
+open import Data.List.Membership.Propositional
+import Data.List.Membership.Propositional.Properties as ∈
 open import Data.List.Properties
 open import Data.Nat
 open import Data.Nat.Properties as NatP
