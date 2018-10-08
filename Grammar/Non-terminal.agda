@@ -12,7 +12,9 @@ open import Data.Char
 open import Data.Empty
 open import Data.List hiding (unfold)
 open import Data.List.Properties
-open import Data.Maybe as Maybe
+open import Data.List.Solver
+open import Data.Maybe
+open import Data.Maybe.Categorical as MaybeC
 open import Data.Nat
 open import Data.Product as Product
 open import Data.Unit
@@ -23,7 +25,7 @@ open import Relation.Nullary
 
 private
   module LM {A : Set} = Monoid (++-monoid A)
-  open module MM {f} = RawMonadPlus (Maybe.monadPlus {f = f})
+  open module MM {f} = RawMonadPlus (MaybeC.monadPlus {f = f})
     using ()
     renaming (_<$>_ to _<$>M_; _⊛_ to _⊛M_;
               _>>=_ to _>>=M_; _∣_ to _∣M_)
@@ -60,7 +62,7 @@ Grammar NT = ∀ A → NT A → Prod NT A
 -- An empty non-terminal type.
 
 Empty-NT : Set → Set₁
-Empty-NT _ = Lift ⊥
+Empty-NT _ = Lift _ ⊥
 
 -- A corresponding grammar.
 
@@ -410,7 +412,7 @@ nullability-not-decidable dec f = goal
   goal : Dec (∀ n → f n ≡ false)
   goal with dec p
   ... | yes (_ , n∈) = no (no-lemma (true-lemma n∈))
-  ... | no ¬[]∈      = yes λ n → ¬-not (yes-lemma n (¬[]∈ ∘ ,_))
+  ... | no ¬[]∈      = yes λ n → ¬-not (yes-lemma n (¬[]∈ ∘ -,_))
 
 -- However, we can implement a procedure that either proves that a
 -- production is nullable, or returns "don't know" as the answer.
@@ -498,7 +500,7 @@ trailing-whitespace {NT} n g p =
   convert t (<⊛-sem x∈ w) = t x∈ w
 
   ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) P.refl
-    where open List-solver
+    where open ++-Solver
 
   unfold-lemma : Trailing-whitespace′ g (unfold n g p) →
                  Trailing-whitespace′ g p

@@ -9,10 +9,11 @@
 
 module Examples.Precedence where
 
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.Bool using (Bool; T)
 import Data.Bool.Properties as Bool-prop
-open import Data.Char as Char using (Char; _==_)
+open import Data.Char using (Char)
+open import Data.Char.Unsafe as Char using (_==_)
 open import Data.Fin using (Fin; zero; suc; #_)
 import Data.Fin.Dec as Fin-dec
 open import Data.Fin.Properties using () renaming (_≟_ to _≟F_)
@@ -20,15 +21,15 @@ open import Data.List as List
 open import Data.List.Any as Any
 open import Data.List.Membership.Propositional
 open import Data.List.NonEmpty as List⁺
+import Data.List.Relation.Pointwise as Pointwise
 open import Data.Nat using (ℕ)
 open import Data.Product as Prod
 import Data.String as String
 open import Data.Unit
 import Data.Vec as Vec
-open import Data.Vec.Properties
+open import Data.Vec.Membership.Propositional.Properties
 open import Function using (id; _∘_; _∘′_)
 open import Relation.Binary
-import Relation.Binary.List.Pointwise as Pointwise
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 open import Relation.Nullary.Decidable as Decidable
@@ -75,8 +76,7 @@ _≟O_ : ∀ {assoc} → Decidable (_≡_ {A = Operator assoc})
     (< P.cong List⁺.head , P.cong List⁺.tail > ∘′ P.cong Operator.name)
     ((n₁ ≟OC n₂)
        ×-dec
-     Decidable.map′ Pointwise.Rel≡⇒≡ Pointwise.≡⇒Rel≡
-       (Pointwise.decidable _≟OC_ ns₁ ns₂))
+     Pointwise.decidable-≡ _≟OC_ ns₁ ns₂)
   where
   _≟OC_ : Decidable (_≡_ {A = ∃ (T ∘ is-operator-char)})
   (c₁ , _) ≟OC (c₂ , _) =
@@ -85,7 +85,7 @@ _≟O_ : ∀ {assoc} → Decidable (_≡_ {A = Operator assoc})
     lemma : {p₁ p₂ : ∃ (T ∘ is-operator-char)} →
             proj₁ p₁ ≡ proj₁ p₂ → p₁ ≡ p₂
     lemma {p₁ = _ , _} {p₂ = ._ , _} P.refl =
-      P.cong ,_ (Bool-prop.proof-irrelevance _ _)
+      P.cong -,_ (Bool-prop.T-irrelevance _ _)
 
 -- A grammar for a given operator name.
 
@@ -150,7 +150,7 @@ record Precedence-graph : Set where
   -- Every precedence level is a member of all-precedences.
 
   ∈-all-precedences : ∀ {p} → p ∈ all-precedences
-  ∈-all-precedences {p} = ∈⇒List-∈ (∈-allFin p)
+  ∈-all-precedences {p} = ∈-toList⁺ (∈-allFin⁺ p)
 
   -- A membership test for precedences.
 
@@ -222,9 +222,9 @@ module Expr (g : Precedence-graph) where
       -- Grammar for a given precedence level.
 
       prec : (p : Precedence) → Grammar (∃ (App p))
-      prec p = ,_ <$> non-assoc p
-             ∣ ,_ <$> right⁺ p
-             ∣ ,_ <$> left⁺ p
+      prec p = -,_ <$> non-assoc p
+             ∣ -,_ <$> right⁺ p
+             ∣ -,_ <$> left⁺ p
 
       -- Grammar for higher precedence levels.
 
@@ -244,7 +244,7 @@ module Expr (g : Precedence-graph) where
         higher p ⊛ operators (ops p ⇾) ⊛ right⁺↑ p
 
       right⁺↑ : Precedence → Grammar Expr
-      right⁺↑ p = (app ∘ ,_) <$> ♯ right⁺ p
+      right⁺↑ p = (app ∘ -,_) <$> ♯ right⁺ p
                 ∣ higher p
 
       -- Left-associative operators.
@@ -254,7 +254,7 @@ module Expr (g : Precedence-graph) where
         left⁺↑ p ⊛ operators (ops p ⇽) ⊛ higher p
 
       left⁺↑ : Precedence → Grammar Expr
-      left⁺↑ p = (app ∘ ,_) <$> ♯ left⁺ p
+      left⁺↑ p = (app ∘ -,_) <$> ♯ left⁺ p
                ∣ higher p
 
       -- An operator from a given list of operators.

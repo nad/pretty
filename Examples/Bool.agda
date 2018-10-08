@@ -4,7 +4,7 @@
 
 module Examples.Bool where
 
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.Bool
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 

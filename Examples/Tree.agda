@@ -6,7 +6,7 @@
 
 module Examples.Tree where
 
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.List
 open import Data.List.NonEmpty as List⁺
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)

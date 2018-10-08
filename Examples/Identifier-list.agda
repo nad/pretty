@@ -7,7 +7,7 @@
 
 module Examples.Identifier-list where
 
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.List
 import Data.List.NonEmpty as List⁺
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)

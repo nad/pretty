@@ -8,7 +8,7 @@ open import Data.Bool
 open import Data.Char
 open import Data.List hiding ([_])
 open import Data.List.NonEmpty using (List⁺; _∷_; _∷⁺_)
-open import Data.List.Properties using (module List-solver)
+open import Data.List.Solver
 open import Data.Maybe
 open import Data.Nat
 open import Data.Product
@@ -332,7 +332,7 @@ fill+ : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
         ∀ {xs} → Docs (♭? g) xs → Doc (g +) xs
 fill+ {g = g} n {trailing} ds = embed lemma (fill ds)
   where
-  open List-solver
+  open ++-Solver
 
   trailing! = to-witness-T (trailing-whitespace n (♭? g)) trailing
 

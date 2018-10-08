@@ -21,18 +21,21 @@ module Grammar.Infinite where
 
 open import Algebra
 open import Category.Monad
-open import Coinduction
+open import Codata.Musical.Colist
+  using (Colist; []; _∷_; _∈_; here; there)
+open import Codata.Musical.Notation
 open import Data.Bool
 open import Data.Char
-open import Data.Colist using (Colist; []; _∷_; _∈_; here; there)
 open import Data.Empty
-open import Data.List as List
+open import Data.List as List using (List; []; _∷_; [_]; _++_; concat)
 open import Data.List.Categorical
   renaming (module MonadProperties to List-monad)
 open import Data.List.NonEmpty as List⁺
   using (List⁺; _∷_; _∷⁺_; head; tail)
-open import Data.List.Properties as List-prop using (module List-solver)
-open import Data.Maybe as Maybe
+open import Data.List.Properties
+open import Data.List.Solver
+open import Data.Maybe
+open import Data.Maybe.Categorical as MaybeC
 open import Data.Nat
 open import Data.Product as Prod
 open import Data.String as String using (String)
@@ -44,8 +47,8 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
 
 private
-  module LM {A : Set} = Monoid (List-prop.++-monoid A)
-  open module MM {f} = RawMonadPlus (Maybe.monadPlus {f = f})
+  module LM {A : Set} = Monoid (++-monoid A)
+  open module MM {f} = RawMonadPlus (MaybeC.monadPlus {f = f})
     using () renaming (_<$>_ to _<$>M_; _⊛_ to _⊛M_)
 
 import Grammar.Infinite.Basic as Basic; open Basic._∈_·_
@@ -738,12 +741,12 @@ expressive ss = (g ss , g-sem ss)
     }
     where
     to : ∀ {s′} →
-         tt ∈ tt <$ string s · s′ → Maybe.Maybe.just s′ ≡ just s
+         tt ∈ tt <$ string s · s′ → Maybe.just s′ ≡ just s
     to (<$-sem s∈) =
       P.sym $ P.cong just $ proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈)
 
     from : ∀ {s′} →
-           Maybe.Maybe.just s′ ≡ just s → tt ∈ tt <$ string s · s′
+           Maybe.just s′ ≡ just s → tt ∈ tt <$ string s · s′
     from refl = <$-sem (Inverse.from string-sem′ ⟨$⟩ (refl , refl))
 
     from∘to : ∀ {s′} (tt∈ : tt ∈ tt <$ string s · s′) →
@@ -754,7 +757,7 @@ expressive ss = (g ss , g-sem ss)
     from∘to (<$-sem .(Inverse.from string-sem′ ⟨$⟩ (refl , refl)))
       | (refl , refl) | refl = refl
 
-    to∘from : ∀ {s′} (eq : Maybe.Maybe.just s′ ≡ just s) →
+    to∘from : ∀ {s′} (eq : Maybe.just s′ ≡ just s) →
               to (from eq) ≡ eq
     to∘from refl
       rewrite Inverse.right-inverse-of
@@ -844,47 +847,47 @@ trailing-whitespace′ = trailing?
   <$>-lemma : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} →
               Trailing-whitespace′ (♭? g) →
               Trailing-whitespace′ (f <$> g)
-  <$>-lemma t (<$>-sem x∈) w = , <$>-sem (proj₂ $ t x∈ w)
+  <$>-lemma t (<$>-sem x∈) w = -, <$>-sem (proj₂ $ t x∈ w)
 
   <$-lemma : ∀ {c A B} {x : A} {g : ∞Grammar c B} →
              Trailing-whitespace′ (♭? g) →
              Trailing-whitespace′ (x <$ g)
-  <$-lemma t (<$-sem x∈) w = , <$-sem (proj₂ $ t x∈ w)
+  <$-lemma t (<$-sem x∈) w = -, <$-sem (proj₂ $ t x∈ w)
 
   ⊛-lemma : ∀ {c₁ c₂ A B}
               {g₁ : ∞Grammar c₁ (A → B)} {g₂ : ∞Grammar c₂ A} →
             Trailing-whitespace′ (♭? g₂) →
             Trailing-whitespace′ (g₁ ⊛ g₂)
   ⊛-lemma t₂ (⊛-sem {s₁ = s₁} f∈ x∈) w =
-    , cast (P.sym $ LM.assoc s₁ _ _)
-           (⊛-sem f∈ (proj₂ $ t₂ x∈ w))
+    -, cast (P.sym $ LM.assoc s₁ _ _)
+            (⊛-sem f∈ (proj₂ $ t₂ x∈ w))
 
   <⊛-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
              Trailing-whitespace′ (♭? g₂) →
              Trailing-whitespace′ (g₁ <⊛ g₂)
   <⊛-lemma t₂ (<⊛-sem {s₁ = s₁} x∈ y∈) w =
-    , cast (P.sym $ LM.assoc s₁ _ _)
-           (<⊛-sem x∈ (proj₂ $ t₂ y∈ w))
+    -, cast (P.sym $ LM.assoc s₁ _ _)
+            (<⊛-sem x∈ (proj₂ $ t₂ y∈ w))
 
   ⊛>-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →
              Trailing-whitespace′ (♭? g₂) →
              Trailing-whitespace′ (g₁ ⊛> g₂)
   ⊛>-lemma t₂ (⊛>-sem {s₁ = s₁} x∈ y∈) w =
-    , cast (P.sym $ LM.assoc s₁ _ _)
-           (⊛>-sem x∈ (proj₂ $ t₂ y∈ w))
+    -, cast (P.sym $ LM.assoc s₁ _ _)
+            (⊛>-sem x∈ (proj₂ $ t₂ y∈ w))
 
   ∣-lemma : ∀ {c₁ c₂ A} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ A} →
             Trailing-whitespace′ (♭? g₁) →
             Trailing-whitespace′ (♭? g₂) →
             Trailing-whitespace′ (g₁ ∣ g₂)
-  ∣-lemma t₁ t₂ (left-sem  x∈) w = , left-sem  (proj₂ $ t₁ x∈ w)
-  ∣-lemma t₁ t₂ (right-sem x∈) w = , right-sem (proj₂ $ t₂ x∈ w)
+  ∣-lemma t₁ t₂ (left-sem  x∈) w = -, left-sem  (proj₂ $ t₁ x∈ w)
+  ∣-lemma t₁ t₂ (right-sem x∈) w = -, right-sem (proj₂ $ t₂ x∈ w)
 
   whitespace⋆-lemma :
     ∀ {A} {g : Grammar A} →
     Is-whitespace g →
     Trailing-whitespace′ (g ⋆)
-  whitespace⋆-lemma is-whitespace xs∈ w = , ⋆-⋆-sem xs∈ w
+  whitespace⋆-lemma is-whitespace xs∈ w = -, ⋆-⋆-sem xs∈ w
 
   trailing? : ℕ → ∀ {A} (g : Grammar A) → Maybe (Trailing-whitespace′ g)
   trailing? (suc n) fail               = just (λ ())
@@ -921,7 +924,7 @@ trailing-whitespace n g = convert <$>M trailing? n g
   convert t (<⊛-sem x∈ w) = t x∈ w
 
   ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) refl
-    where open List-solver
+    where open ++-Solver
 
   <$>-lemma : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} →
               Trailing-whitespace″ (♭? g) →

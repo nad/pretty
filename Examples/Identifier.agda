@@ -4,7 +4,7 @@
 
 module Examples.Identifier where
 
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.Bool
 open import Data.Char
 open import Data.List.NonEmpty

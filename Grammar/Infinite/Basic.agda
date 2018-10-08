@@ -9,9 +9,10 @@ module Grammar.Infinite.Basic where
 
 open import Algebra
 open import Category.Monad
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.Bool
 open import Data.Char
+open import Data.Char.Unsafe using (_==_)
 open import Data.Empty
 open import Data.List as List
 import Data.List.Any as Any
@@ -265,7 +266,7 @@ abstract
     t′ ∈ tok t · s                                   ↔⟨ <$>-sem ⟩
     (∃ λ p → p ∈ sat (λ t′ → t == t′) · s × t′ ≡ t)  ↔⟨ Σ.cong Inv.id (sat-sem ×-cong Inv.id) ⟩
     (∃ λ p → s ≡ [ proj₁ p ] × t′ ≡ t)               ↔⟨ Σ-assoc ⟩
-    (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (True↔ _ P.proof-irrelevance ×-cong Inv.id) ⟩
+    (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (True↔ _ P.≡-irrelevance ×-cong Inv.id) ⟩
     (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t)          ↔⟨ lemma ⟩
     (t ≡ t′ × s ≡ [ t ])                             ∎
     where
@@ -470,7 +471,7 @@ module Aside (finite-number-of-tokens :
     n₁ + n₂ xs ,
     λ { .{s = _} (>>=-sem {s₁ = s₁} {s₂ = s₂} ∈g₁ ∈g₂) → begin
         length (s₁ ++ s₂)      ≡⟨ length-++ s₁ ⟩
-        length s₁ + length s₂  ≤⟨ b₁ ∈g₁ +-mono lemma xs (xs-ok (b₁ ∈g₁) ∈g₁) ∈g₂ ⟩
+        length s₁ + length s₂  ≤⟨ +-mono-≤ (b₁ ∈g₁) (lemma xs (xs-ok (b₁ ∈g₁) ∈g₁) ∈g₂) ⟩
         n₁        + n₂ xs      ∎ }
     where
     n₂ : List A → ℕ
@@ -486,4 +487,4 @@ module Aside (finite-number-of-tokens :
       n₂ xs                                  ≤⟨ m≤m⊔n _ _ ⟩
       n₂ xs ⊔ proj₁ (bounded-length (g₂ z))  ≡⟨ ∧-comm (n₂ xs) _ ⟩
       proj₁ (bounded-length (g₂ z)) ⊔ n₂ xs  ∎
-      where open DistributiveLattice NatP.distributiveLattice
+      where open DistributiveLattice NatP.⊓-⊔-distributiveLattice

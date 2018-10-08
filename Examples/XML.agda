@@ -7,9 +7,10 @@
 
 module Examples.XML where
 
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.Bool
 open import Data.Char
+open import Data.Char.Unsafe using (_==_)
 open import Data.List as List using (List; []; _∷_)
 open import Data.List.NonEmpty as List⁺ using (_∷_)
 open import Data.Product

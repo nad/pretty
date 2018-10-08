@@ -11,7 +11,8 @@ open import Data.Empty
 open import Data.Integer using (ℤ; +_; -[1+_]; _-_; _⊖_)
 open import Data.List as List hiding ([_])
 open import Data.List.NonEmpty using (_∷⁺_)
-open import Data.List.Properties using (module List-solver)
+open import Data.List.Properties
+open import Data.List.Solver
 open import Data.Nat
 open import Data.Product
 open import Data.String as String using (String)
@@ -23,7 +24,7 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 
 private
-  module LM {A : Set} = Monoid (Data.List.Properties.++-monoid A)
+  module LM {A : Set} = Monoid (++-monoid A)
 
 open import Grammar.Infinite as G hiding (_⊛_; _<⊛_; _⊛>_)
 open import Pretty using (Doc; Docs; Pretty-printer)
@@ -436,7 +437,7 @@ module Wadler's-renderer where
              cast (lemma s _ _ _)
                (hyp (>>=-sem f∈ x∈)))
       where
-      open List-solver
+      open ++-Solver
       lemma = solve 4 (λ a b c d → a ⊕ (b ⊕ c) ⊕ d ⊜ (a ⊕ b) ⊕ c ⊕ d)
                       P.refl
 
@@ -491,11 +492,11 @@ module Wadler's-renderer where
   text-++ []        (t₂ ∷ s₂) _ = P.refl
   text-++ (t₁ ∷ s₁) []        _ =
     solve 1 (λ s₁ → (s₁ ⊕ nl) ⊕ nl ⊜ s₁ ⊕ nl) P.refl (t₁ ∷ s₁)
-    where open List-solver renaming (nil to nl)
+    where open ++-Solver renaming (nil to nl)
   text-++ (t₁ ∷ s₁) (t₂ ∷ s₂) _ =
     solve 2 (λ s₁ s₂ → (s₁ ⊕ s₂) ⊕ nl ⊜ s₁ ⊕ s₂ ⊕ nl) P.refl
             (t₁ ∷ s₁) (t₂ ∷ s₂)
-    where open List-solver renaming (nil to nl)
+    where open ++-Solver renaming (nil to nl)
 
   nest-union : ∀ {A i j g} {x : A} {d₁ d₂ : DocN (j + i) g x} →
                nest j (union d₁ d₂) ≈ union (nest j d₁) (nest j d₂)

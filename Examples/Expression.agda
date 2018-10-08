@@ -8,7 +8,7 @@
 module Examples.Expression where
 
 open import Algebra
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.List
 open import Data.List.Properties
 open import Data.Product
