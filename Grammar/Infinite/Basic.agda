@@ -35,6 +35,7 @@ import Level
 open import Relation.Binary.Product.Pointwise
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
+import Relation.Binary.PropositionalEquality.WithK as P
 open import Relation.Nullary
 
 private
@@ -441,7 +442,7 @@ module Aside (finite-number-of-tokens :
       Inverse.to (++↔ {xs = all-strings n}) ⟨$⟩
         inj₂ (Inverse.to ∈.>>=-∈↔ ⟨$⟩
                 (_ , proj₂ finite-number-of-tokens t
-                   , Inverse.to ∈.map-∈↔ ⟨$⟩
+                   , Inverse.to (∈.map-∈↔ _) ⟨$⟩
                        (_ , all-strings-ok s n ≤n , refl)))
 
   -- No inductive grammar can generate strings of unbounded length.
