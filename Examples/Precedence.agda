@@ -7,6 +7,8 @@
 -- Ulf Norell and me in "Parsing Mixfix Operators". For simplicity the
 -- code only handles binary infix operators.
 
+{-# OPTIONS --guardedness #-}
+
 module Examples.Precedence where
 
 open import Codata.Musical.Notation

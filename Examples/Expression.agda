@@ -5,6 +5,8 @@
 -- Several examples based on Matsuda and Wang's "FliPpr: A Prettier
 -- Invertible Printing System".
 
+{-# OPTIONS --guardedness #-}
+
 module Examples.Expression where
 
 open import Algebra

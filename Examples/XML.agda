@@ -5,6 +5,8 @@
 -- This example is based on (but not identical to) one in Wadler's "A
 -- prettier printer".
 
+{-# OPTIONS --guardedness #-}
+
 module Examples.XML where
 
 open import Codata.Musical.Notation

@@ -5,6 +5,8 @@
 -- For a larger and possibly more convenient, but equivalent, grammar
 -- interface, see Grammar.Infinite.
 
+{-# OPTIONS --guardedness #-}
+
 module Grammar.Infinite.Basic where
 
 open import Algebra

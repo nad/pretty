@@ -17,6 +17,8 @@
 --   termination checker that certain infinite grammars are
 --   productive.
 
+{-# OPTIONS --guardedness #-}
+
 module Grammar.Infinite where
 
 open import Algebra

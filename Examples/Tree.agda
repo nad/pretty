@@ -4,6 +4,8 @@
 
 -- This example is based on one in Wadler's "A prettier printer".
 
+{-# OPTIONS --guardedness #-}
+
 module Examples.Tree where
 
 open import Codata.Musical.Notation
