@@ -26,6 +26,8 @@ open import Data.List.Properties
 open import Data.Nat
 open import Data.Nat.Properties as NatP
 open import Data.Product as Prod
+import Data.Product.Function.Dependent.Propositional as Σ
+open import Data.Product.Function.NonDependent.Propositional
 open import Data.Sum
 open import Data.Unit using (tt)
 open import Function
@@ -34,8 +36,6 @@ open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
 open import Function.Related.TypeIsomorphisms
 import Level
-open import Relation.Binary.Product.Pointwise
-import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 import Relation.Binary.PropositionalEquality.WithK as P
 open import Relation.Nullary
@@ -269,7 +269,7 @@ abstract
     t′ ∈ tok t · s                                   ↔⟨ <$>-sem ⟩
     (∃ λ p → p ∈ sat (λ t′ → t == t′) · s × t′ ≡ t)  ↔⟨ Σ.cong Inv.id (sat-sem ×-cong Inv.id) ⟩
     (∃ λ p → s ≡ [ proj₁ p ] × t′ ≡ t)               ↔⟨ Σ-assoc ⟩
-    (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (True↔ _ P.≡-irrelevance ×-cong Inv.id) ⟩
+    (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (True↔ _ P.≡-irrelevant ×-cong Inv.id) ⟩
     (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t)          ↔⟨ lemma ⟩
     (t ≡ t′ × s ≡ [ t ])                             ∎
     where

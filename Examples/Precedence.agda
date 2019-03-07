@@ -23,7 +23,7 @@ open import Data.List as List
 open import Data.List.Any as Any
 open import Data.List.Membership.Propositional
 open import Data.List.NonEmpty as List⁺
-import Data.List.Relation.Pointwise as Pointwise
+import Data.List.Properties as List
 open import Data.Nat using (ℕ)
 open import Data.Product as Prod
 import Data.String as String
@@ -78,7 +78,7 @@ _≟O_ : ∀ {assoc} → Decidable (_≡_ {A = Operator assoc})
     (< P.cong List⁺.head , P.cong List⁺.tail > ∘′ P.cong Operator.name)
     ((n₁ ≟OC n₂)
        ×-dec
-     Pointwise.decidable-≡ _≟OC_ ns₁ ns₂)
+     List.≡-dec _≟OC_ ns₁ ns₂)
   where
   _≟OC_ : Decidable (_≡_ {A = ∃ (T ∘ is-operator-char)})
   (c₁ , _) ≟OC (c₂ , _) =
@@ -87,7 +87,7 @@ _≟O_ : ∀ {assoc} → Decidable (_≡_ {A = Operator assoc})
     lemma : {p₁ p₂ : ∃ (T ∘ is-operator-char)} →
             proj₁ p₁ ≡ proj₁ p₂ → p₁ ≡ p₂
     lemma {p₁ = _ , _} {p₂ = ._ , _} P.refl =
-      P.cong -,_ (Bool-prop.T-irrelevance _ _)
+      P.cong -,_ (Bool-prop.T-irrelevant _ _)
 
 -- A grammar for a given operator name.
 
