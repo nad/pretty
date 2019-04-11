@@ -14,7 +14,6 @@ open import Category.Monad
 open import Codata.Musical.Notation
 open import Data.Bool
 open import Data.Char
-open import Data.Char.Unsafe using (_==_)
 open import Data.Empty
 open import Data.List as List
 import Data.List.Any as Any

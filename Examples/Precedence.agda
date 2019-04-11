@@ -14,8 +14,7 @@ module Examples.Precedence where
 open import Codata.Musical.Notation
 open import Data.Bool using (Bool; T)
 import Data.Bool.Properties as Bool-prop
-open import Data.Char using (Char)
-open import Data.Char.Unsafe as Char using (_==_)
+open import Data.Char as Char using (Char; _==_)
 open import Data.Fin using (Fin; zero; suc; #_)
 import Data.Fin.Dec as Fin-dec
 open import Data.Fin.Properties using () renaming (_≟_ to _≟F_)

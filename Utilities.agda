@@ -6,7 +6,8 @@ module Utilities where
 
 open import Data.Bool
 open import Data.Bool.Properties using (T-∧)
-open import Data.Char as Char
+open import Data.Char
+import Data.Char.Properties as Char
 open import Data.List
 open import Data.List.NonEmpty as List⁺
 open import Data.Nat
