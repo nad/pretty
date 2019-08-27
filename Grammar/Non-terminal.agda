@@ -13,7 +13,7 @@ open import Data.Empty
 open import Data.List hiding (unfold)
 open import Data.List.Properties
 open import Data.List.Solver
-open import Data.Maybe
+open import Data.Maybe hiding (_>>=_)
 open import Data.Maybe.Categorical as MaybeC
 open import Data.Nat
 open import Data.Product as Product

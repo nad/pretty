@@ -16,13 +16,12 @@ open import Data.Bool using (Bool; T)
 import Data.Bool.Properties as Bool-prop
 open import Data.Char as Char using (Char; _==_)
 open import Data.Fin using (Fin; zero; suc; #_)
-import Data.Fin.Dec as Fin-dec
-open import Data.Fin.Properties using () renaming (_≟_ to _≟F_)
+open import Data.Fin.Properties as Fin using () renaming (_≟_ to _≟F_)
 open import Data.List as List
-open import Data.List.Any as Any
 open import Data.List.Membership.Propositional
 open import Data.List.NonEmpty as List⁺
 import Data.List.Properties as List
+open import Data.List.Relation.Unary.Any as Any
 open import Data.Nat using (ℕ)
 open import Data.Product as Prod
 import Data.String as String
@@ -191,7 +190,7 @@ module Expr (g : Precedence-graph) where
 
   _⟨_⟩_ :
     ∀ {assoc} → Expr → (op : Operator assoc) →
-    {member : True (Fin-dec.any? λ p →
+    {member : True (Fin.any? λ p →
                       Any.any (_≟O_ op) (ops p assoc))} →
     Expr → Expr
   _⟨_⟩_ e₁ op {member} e₂ =

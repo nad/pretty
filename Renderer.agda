@@ -6,7 +6,7 @@ module Renderer where
 
 open import Algebra
 open import Data.Bool
-open import Data.Char hiding (show)
+open import Data.Char using (Char)
 open import Data.Empty
 open import Data.Integer using (ℤ; +_; -[1+_]; _-_; _⊖_)
 open import Data.List as List hiding ([_])

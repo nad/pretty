@@ -36,13 +36,13 @@ open import Data.List.NonEmpty as List⁺
   using (List⁺; _∷_; _∷⁺_; head; tail)
 open import Data.List.Properties
 open import Data.List.Solver
-open import Data.Maybe
+open import Data.Maybe hiding (_>>=_)
 open import Data.Maybe.Categorical as MaybeC
 open import Data.Nat
 open import Data.Product as Prod
 open import Data.String as String using (String)
 open import Data.Unit
-open import Function
+open import Function.Core
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)

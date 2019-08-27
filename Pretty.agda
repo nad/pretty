@@ -9,7 +9,7 @@ open import Data.Char
 open import Data.List hiding ([_])
 open import Data.List.NonEmpty using (List⁺; _∷_; _∷⁺_)
 open import Data.List.Solver
-open import Data.Maybe
+open import Data.Maybe hiding (_>>=_)
 open import Data.Nat
 open import Data.Product
 open import Data.Unit

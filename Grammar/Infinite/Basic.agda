@@ -12,16 +12,16 @@ module Grammar.Infinite.Basic where
 open import Algebra
 open import Category.Monad
 open import Codata.Musical.Notation
-open import Data.Bool
+open import Data.Bool hiding (_≤_)
 open import Data.Char
 open import Data.Empty
 open import Data.List as List
-import Data.List.Any as Any
-open import Data.List.Any.Properties
 import Data.List.Categorical
 open import Data.List.Membership.Propositional
 import Data.List.Membership.Propositional.Properties as ∈
 open import Data.List.Properties
+import Data.List.Relation.Unary.Any as Any
+open import Data.List.Relation.Unary.Any.Properties
 open import Data.Nat
 open import Data.Nat.Properties as NatP
 open import Data.Product as Prod
@@ -29,7 +29,7 @@ import Data.Product.Function.Dependent.Propositional as Σ
 open import Data.Product.Function.NonDependent.Propositional
 open import Data.Sum
 open import Data.Unit using (tt)
-open import Function
+open import Function.Core
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
@@ -462,7 +462,7 @@ module Aside (finite-number-of-tokens :
                   n₁ + n₂   ∎
                 ; {s = s} (right-sem ∈g₂) → begin
                   length s  ≤⟨ b₂ ∈g₂ ⟩
-                  n₂        ≤⟨ n≤m+n n₁ _ ⟩
+                  n₂        ≤⟨ m≤n+m _ n₁ ⟩
                   n₁ + n₂   ∎
                 })
              (bounded-length g₁)
