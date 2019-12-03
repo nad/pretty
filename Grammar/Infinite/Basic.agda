@@ -29,7 +29,7 @@ import Data.Product.Function.Dependent.Propositional as Σ
 open import Data.Product.Function.NonDependent.Propositional
 open import Data.Sum
 open import Data.Unit using (tt)
-open import Function.Core
+open import Function.Base
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related

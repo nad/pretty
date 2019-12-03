@@ -42,7 +42,7 @@ open import Data.Nat
 open import Data.Product as Prod
 open import Data.String as String using (String)
 open import Data.Unit
-open import Function.Core
+open import Function.Base
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
