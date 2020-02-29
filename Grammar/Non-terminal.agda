@@ -12,7 +12,6 @@ open import Data.Char
 open import Data.Empty
 open import Data.List hiding (unfold)
 open import Data.List.Properties
-open import Data.List.Solver
 open import Data.Maybe hiding (_>>=_)
 open import Data.Maybe.Categorical as MaybeC
 open import Data.Nat
@@ -22,6 +21,7 @@ open import Function
 open import Level using (Lift; lift)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≢_)
 open import Relation.Nullary
+open import Tactic.MonoidSolver
 
 private
   module LM {A : Set} = Monoid (++-monoid A)
@@ -499,8 +499,8 @@ trailing-whitespace {NT} n g p =
             Trailing-whitespace′ g p → Trailing-whitespace g p
   convert t (<⊛-sem x∈ w) = t x∈ w
 
-  ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) P.refl
-    where open ++-Solver
+  ++-lemma : ∀ s₁ {s₂} → (s₁ ++ s₂) ++ [] ≡ (s₁ ++ []) ++ s₂
+  ++-lemma _ = solve (++-monoid Char)
 
   unfold-lemma : Trailing-whitespace′ g (unfold n g p) →
                  Trailing-whitespace′ g p
@@ -511,14 +511,14 @@ trailing-whitespace {NT} n g p =
     Trailing-whitespace′ g p →
     Trailing-whitespace′ g (p ⊛ return x)
   ⊛-return-lemma t (⊛-sem {s₁ = s₁} f∈ return-sem) white =
-    cast (++-lemma s₁ _) (⊛-sem (t f∈ white) return-sem)
+    cast (++-lemma s₁) (⊛-sem (t f∈ white) return-sem)
 
   +-lemma :
     ∀ {A} {p : Prod NT A} →
     Trailing-whitespace′ g p →
     Trailing-whitespace′ g (p +)
   +-lemma t (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) ⋆-[]-sem) white =
-    cast (++-lemma s₁ _) (+-sem (t x∈ white) ⋆-[]-sem)
+    cast (++-lemma s₁) (+-sem (t x∈ white) ⋆-[]-sem)
   +-lemma t (⊛-sem (⊛-sem {s₂ = s₁} return-sem x∈) (⋆-+-sem xs∈))
           white =
     cast (P.sym $ LM.assoc s₁ _ _)
@@ -530,7 +530,7 @@ trailing-whitespace {NT} n g p =
     Trailing-whitespace′ g p₂ →
     Trailing-whitespace′ g (p₁ ⊛ p₂ ⋆)
   ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) white =
-    cast (++-lemma s₁ _) (⊛-sem (t₁ f∈ white) ⋆-[]-sem)
+    cast (++-lemma s₁) (⊛-sem (t₁ f∈ white) ⋆-[]-sem)
   ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) white =
     cast (P.sym $ LM.assoc s₁ _ _)
          (⊛-sem f∈ (⋆-+-sem (+-lemma t₂ xs∈ white)))
@@ -562,7 +562,7 @@ trailing-whitespace {NT} n g p =
     Trailing-whitespace′ g p →
     Trailing-whitespace′ g (p <⊛ return x)
   <⊛-return-lemma t (<⊛-sem {s₁ = s₁} f∈ return-sem) white =
-    cast (++-lemma s₁ _) (<⊛-sem (t f∈ white) return-sem)
+    cast (++-lemma s₁) (<⊛-sem (t f∈ white) return-sem)
 
   <⊛-⋆-lemma :
     ∀ {A B} {p₁ : Prod NT A} {p₂ : Prod NT B} →

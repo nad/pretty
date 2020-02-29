@@ -12,7 +12,6 @@ open import Data.Integer using (ℤ; +_; -[1+_]; _-_; _⊖_)
 open import Data.List as List hiding ([_])
 open import Data.List.NonEmpty using (_∷⁺_)
 open import Data.List.Properties
-open import Data.List.Solver
 open import Data.Nat
 open import Data.Product
 open import Data.String as String using (String)
@@ -22,6 +21,7 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (module Inverse)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
+open import Tactic.MonoidSolver
 
 private
   module LM {A : Set} = Monoid (++-monoid A)
@@ -434,12 +434,13 @@ module Wadler's-renderer where
       best-lemma s d₁ λ {s′} f∈ →
         cast (LM.assoc s _ _)
           (best-lemma (s ++ s′) d₂ λ x∈ →
-             cast (lemma s _ _ _)
+             cast lemma
                (hyp (>>=-sem f∈ x∈)))
       where
-      open ++-Solver
-      lemma = solve 4 (λ a b c d → a ⊕ (b ⊕ c) ⊕ d ⊜ (a ⊕ b) ⊕ c ⊕ d)
-                      P.refl
+      lemma :
+        ∀ {s′ s″ s‴} →
+        s ++ (s′ ++ s″) ++ s‴ ≡ (s ++ s′) ++ s″ ++ s‴
+      lemma = solve (++-monoid Char)
 
     -- A corollary.
 
@@ -490,13 +491,14 @@ module Wadler's-renderer where
         _⊛>_ {c₁ = false} {c₂ = false} (text {i = i₂} s₁) (text s₂)
   text-++ []        []        _ = P.refl
   text-++ []        (t₂ ∷ s₂) _ = P.refl
-  text-++ (t₁ ∷ s₁) []        _ =
-    solve 1 (λ s₁ → (s₁ ⊕ nl) ⊕ nl ⊜ s₁ ⊕ nl) P.refl (t₁ ∷ s₁)
-    where open ++-Solver renaming (nil to nl)
-  text-++ (t₁ ∷ s₁) (t₂ ∷ s₂) _ =
-    solve 2 (λ s₁ s₂ → (s₁ ⊕ s₂) ⊕ nl ⊜ s₁ ⊕ s₂ ⊕ nl) P.refl
-            (t₁ ∷ s₁) (t₂ ∷ s₂)
-    where open ++-Solver renaming (nil to nl)
+  text-++ (t₁ ∷ s₁) []        _ = lemma
+    where
+    lemma : ∀ {s₁} → (s₁ ++ []) ++ [] ≡ s₁ ++ []
+    lemma = solve (++-monoid Char)
+  text-++ (t₁ ∷ s₁) (t₂ ∷ s₂) _ = lemma (_ ∷ s₁)
+    where
+    lemma : ∀ s₁ {s₂} → (s₁ ++ s₂) ++ [] ≡ s₁ ++ s₂ ++ []
+    lemma _ = solve (++-monoid Char)
 
   nest-union : ∀ {A i j g} {x : A} {d₁ d₂ : DocN (j + i) g x} →
                nest j (union d₁ d₂) ≈ union (nest j d₁) (nest j d₂)

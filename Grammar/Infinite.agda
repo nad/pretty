@@ -35,7 +35,6 @@ open import Data.List.Categorical
 open import Data.List.NonEmpty as List⁺
   using (List⁺; _∷_; _∷⁺_; head; tail)
 open import Data.List.Properties
-open import Data.List.Solver
 open import Data.Maybe hiding (_>>=_)
 open import Data.Maybe.Categorical as MaybeC
 open import Data.Nat
@@ -47,6 +46,7 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
+open import Tactic.MonoidSolver
 
 private
   module LM {A : Set} = Monoid (++-monoid A)
@@ -925,8 +925,8 @@ trailing-whitespace n g = convert <$>M trailing? n g
             Trailing-whitespace″ g → Trailing-whitespace g
   convert t (<⊛-sem x∈ w) = t x∈ w
 
-  ++-lemma = solve 2 (λ a b → (a ⊕ b) ⊕ nil ⊜ (a ⊕ nil) ⊕ b) refl
-    where open ++-Solver
+  ++-lemma : ∀ s₁ {s₂} → (s₁ ++ s₂) ++ [] ≡ (s₁ ++ []) ++ s₂
+  ++-lemma _ = solve (++-monoid Char)
 
   <$>-lemma : ∀ {c A B} {f : A → B} {g : ∞Grammar c A} →
               Trailing-whitespace″ (♭? g) →
@@ -943,7 +943,7 @@ trailing-whitespace n g = convert <$>M trailing? n g
     Trailing-whitespace″ (♭? g) →
     Trailing-whitespace″ (g ⊛ return x)
   ⊛-return-lemma t (⊛-sem {s₁ = s₁} f∈ return-sem) w =
-    cast (++-lemma s₁ _)
+    cast (++-lemma s₁)
          (⊛-sem (t f∈ w) return-sem)
 
   +-lemma :
@@ -951,7 +951,7 @@ trailing-whitespace n g = convert <$>M trailing? n g
     Trailing-whitespace″ (♭? g) →
     Trailing-whitespace″ (g +)
   +-lemma t (⊛-sem {s₁ = s₁} (<$>-sem x∈) ⋆-[]-sem) w =
-    cast (++-lemma s₁ _)
+    cast (++-lemma s₁)
          (+-sem (t x∈ w) ⋆-[]-sem)
   +-lemma t (⊛-sem {s₁ = s₁} (<$>-sem x∈) (⋆-+-sem xs∈)) w =
     cast (P.sym $ LM.assoc s₁ _ _)
@@ -963,7 +963,7 @@ trailing-whitespace n g = convert <$>M trailing? n g
     Trailing-whitespace″ (♭? g₂) →
     Trailing-whitespace″ (g₁ ⊛ g₂ ⋆)
   ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ ⋆-[]-sem) w =
-    cast (++-lemma s₁ _)
+    cast (++-lemma s₁)
          (⊛-sem (t₁ f∈ w) ⋆-[]-sem)
   ⊛-⋆-lemma t₁ t₂ (⊛-sem {s₁ = s₁} f∈ (⋆-+-sem xs∈)) w =
     cast (P.sym $ LM.assoc s₁ _ _)
@@ -998,7 +998,7 @@ trailing-whitespace n g = convert <$>M trailing? n g
     Trailing-whitespace″ (♭? g) →
     Trailing-whitespace″ (g <⊛ return x)
   <⊛-return-lemma t (<⊛-sem {s₁ = s₁} f∈ return-sem) w =
-    cast (++-lemma s₁ _)
+    cast (++-lemma s₁)
          (<⊛-sem (t f∈ w) return-sem)
 
   <⊛-lemma : ∀ {c₁ c₂ A B} {g₁ : ∞Grammar c₁ A} {g₂ : ∞Grammar c₂ B} →

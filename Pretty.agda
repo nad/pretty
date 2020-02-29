@@ -8,13 +8,14 @@ open import Data.Bool
 open import Data.Char
 open import Data.List hiding ([_])
 open import Data.List.NonEmpty using (List⁺; _∷_; _∷⁺_)
-open import Data.List.Solver
+open import Data.List.Properties
 open import Data.Maybe hiding (_>>=_)
 open import Data.Nat
 open import Data.Product
 open import Data.Unit
 open import Function
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Tactic.MonoidSolver
 
 open import Grammar.Infinite as G
   hiding (_<$>_; _<$_; _⊛_; _<⊛_; _⊛>_; token; tok; if-true; sat;
@@ -332,19 +333,19 @@ fill+ : ∀ {c A} {g : ∞Grammar c A} (n : ℕ)
         ∀ {xs} → Docs (♭? g) xs → Doc (g +) xs
 fill+ {g = g} n {trailing} ds = embed lemma (fill ds)
   where
-  open ++-Solver
-
   trailing! = to-witness-T (trailing-whitespace n (♭? g)) trailing
-
-  lemma″ = solve 4 (λ a b c d → (a ⊕ b) ⊕ c ⊕ d ⊜ a ⊕ (b ⊕ c) ⊕ d) refl
 
   lemma′ : ∀ {x xs s₁ s₂} →
            x ∈ ♭? g · s₁ → xs ∈ ♭? g prec-by whitespace + · s₂ →
            x ∷ xs ∈ g + · s₁ ++ s₂
   lemma′           x∈ ⋆-[]-sem = +-sem x∈ ⋆-[]-sem
   lemma′ {s₁ = s₁} x∈ (⋆-+-sem (⊛-sem (<$>-sem (⊛>-sem w+ x′∈)) xs∈)) =
-    cast (lemma″ s₁ _ _ _)
+    cast lemma″
          (+-∷-sem (trailing! (<⊛-sem x∈ (⋆-+-sem w+))) (lemma′ x′∈ xs∈))
+    where
+    lemma″ :
+      ∀ {s₂ s₃ s₄} → (s₁ ++ s₂) ++ s₃ ++ s₄ ≡ s₁ ++ (s₂ ++ s₃) ++ s₄
+    lemma″ = solve (++-monoid Char)
 
   lemma : ∀ {s xs} → xs ∈ ♭? g sep-by whitespace + · s → xs ∈ g + · s
   lemma (⊛-sem (<$>-sem x∈) xs∈) = lemma′ x∈ xs∈
