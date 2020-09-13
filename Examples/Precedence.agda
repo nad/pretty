@@ -155,7 +155,7 @@ record Precedence-graph : Set where
   -- A membership test for precedences.
 
   _∈?_ : ∀ (p : Precedence) ps → Dec (p ∈ ps)
-  p ∈? ps = Any.any (_≟F_ p) ps
+  p ∈? ps = Any.any? (_≟F_ p) ps
 
 ------------------------------------------------------------------------
 -- Expressions
@@ -191,7 +191,7 @@ module Expr (g : Precedence-graph) where
   _⟨_⟩_ :
     ∀ {assoc} → Expr → (op : Operator assoc) →
     {member : True (Fin.any? λ p →
-                      Any.any (_≟O_ op) (ops p assoc))} →
+                      Any.any? (_≟O_ op) (ops p assoc))} →
     Expr → Expr
   _⟨_⟩_ e₁ op {member} e₂ =
     app (_ , e₁ , (op , proj₂ (toWitness member)) , e₂)
