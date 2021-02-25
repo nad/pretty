@@ -13,7 +13,7 @@ open import Algebra
 open import Category.Monad
 open import Codata.Musical.Notation
 open import Data.Bool hiding (_≤_)
-open import Data.Char
+open import Data.Char hiding (_≤_)
 open import Data.Empty
 open import Data.List as List
 import Data.List.Categorical

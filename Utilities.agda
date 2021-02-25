@@ -34,7 +34,7 @@ n₁ <?ℕ n₂ = ⌊ n₁ NP.<? n₂ ⌋
 
 _≤?C_ : Char → Char → Bool
 c₁ ≤?C c₂ = ⌊ DecTotalOrder._≤?_
-                (STO.decTotalOrder Char.<-strictTotalOrder-≈)
+                (STO.decTotalOrder Char.<-strictTotalOrder)
                 c₁ c₂ ⌋
 
 ------------------------------------------------------------------------
