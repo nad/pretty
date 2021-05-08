@@ -2,6 +2,8 @@
 -- Grammars defined as functions from non-terminals to productions
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module Grammar.Non-terminal where
 
 open import Algebra

@@ -2,6 +2,8 @@
 -- Abstract grammars
 ------------------------------------------------------------------------
 
+{-# OPTIONS --without-K --safe #-}
+
 module Grammar.Abstract where
 
 open import Data.Bool

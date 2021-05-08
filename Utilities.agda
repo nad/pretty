@@ -2,6 +2,8 @@
 -- Various utility functions
 ------------------------------------------------------------------------
 
+{-# OPTIONS --without-K --safe #-}
+
 module Utilities where
 
 open import Data.Bool
