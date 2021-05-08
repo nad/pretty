@@ -5,6 +5,8 @@
 -- This example is based on one in Swierstra and Chitil's "Linear,
 -- bounded, functional pretty-printing".
 
+{-# OPTIONS --guardedness #-}
+
 module Examples.Identifier-list where
 
 open import Codata.Musical.Notation

@@ -2,6 +2,8 @@
 -- Pretty-printing (documents and document combinators)
 ------------------------------------------------------------------------
 
+{-# OPTIONS --guardedness #-}
+
 module Pretty where
 
 open import Data.Bool

@@ -2,6 +2,8 @@
 -- Identifiers
 ------------------------------------------------------------------------
 
+{-# OPTIONS --guardedness #-}
+
 module Examples.Identifier where
 
 open import Codata.Musical.Notation

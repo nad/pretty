@@ -7,6 +7,8 @@
 -- A pretty-printing library that guarantees that pretty-printers are
 -- correct (on the assumption that grammars are unambiguous).
 
+{-# OPTIONS --guardedness #-}
+
 module README where
 
 -- Various utility functions.

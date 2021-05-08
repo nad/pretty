@@ -2,6 +2,8 @@
 -- Document renderers
 ------------------------------------------------------------------------
 
+{-# OPTIONS --guardedness #-}
+
 module Renderer where
 
 open import Algebra

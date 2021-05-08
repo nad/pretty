@@ -2,6 +2,8 @@
 -- Booleans
 ------------------------------------------------------------------------
 
+{-# OPTIONS --guardedness #-}
+
 module Examples.Bool where
 
 open import Codata.Musical.Notation

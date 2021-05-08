@@ -5,6 +5,8 @@
 -- Nils Anders Danielsson
 ------------------------------------------------------------------------
 
+{-# OPTIONS --guardedness #-}
+
 module README.Correct-by-Construction-Pretty-Printing where
 
 ------------------------------------------------------------------------
