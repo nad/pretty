@@ -7,7 +7,6 @@
 module Grammar.Non-terminal where
 
 open import Algebra
-open import Category.Monad
 open import Data.Bool
 open import Data.Bool.Properties
 open import Data.Char
@@ -15,10 +14,11 @@ open import Data.Empty
 open import Data.List hiding (unfold)
 open import Data.List.Properties
 open import Data.Maybe hiding (_>>=_)
-open import Data.Maybe.Categorical as MaybeC
+open import Data.Maybe.Effectful as MaybeC
 open import Data.Nat
 open import Data.Product as Product
 open import Data.Unit
+open import Effect.Monad
 open import Function
 open import Level using (Lift; lift)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≢_)

@@ -10,13 +10,13 @@
 module Grammar.Infinite.Basic where
 
 open import Algebra
-open import Category.Monad
+open import Algebra.Lattice
 open import Codata.Musical.Notation
 open import Data.Bool hiding (_≤_)
 open import Data.Char hiding (_≤_)
 open import Data.Empty
 open import Data.List as List
-import Data.List.Categorical
+import Data.List.Effectful
 open import Data.List.Membership.Propositional
 import Data.List.Membership.Propositional.Properties as ∈
 open import Data.List.Properties
@@ -29,6 +29,7 @@ import Data.Product.Function.Dependent.Propositional as Σ
 open import Data.Product.Function.NonDependent.Propositional
 open import Data.Sum
 open import Data.Unit using (tt)
+open import Effect.Monad
 open import Function.Base
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
@@ -41,7 +42,7 @@ open import Relation.Nullary
 
 private
   module LMi {A : Set} = Monoid (++-monoid A)
-  module LMa = RawMonad (Data.List.Categorical.monad {ℓ = Level.zero})
+  module LMa = RawMonad (Data.List.Effectful.monad {ℓ = Level.zero})
 open Any.Any
 
 ------------------------------------------------------------------------

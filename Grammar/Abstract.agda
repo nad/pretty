@@ -12,7 +12,7 @@ open import Data.Empty
 open import Data.List
 open import Data.Product
 open import Data.Sum
-open import Function
+open import Function.Base
 open import Relation.Binary.PropositionalEquality using (_≡_)
 
 ------------------------------------------------------------------------

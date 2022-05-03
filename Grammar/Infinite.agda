@@ -22,7 +22,6 @@
 module Grammar.Infinite where
 
 open import Algebra
-open import Category.Monad
 open import Codata.Musical.Colist
   using (Colist; []; _∷_; _∈_; here; there)
 open import Codata.Musical.Notation
@@ -30,17 +29,18 @@ open import Data.Bool
 open import Data.Char
 open import Data.Empty
 open import Data.List as List using (List; []; _∷_; [_]; _++_; concat)
-open import Data.List.Categorical
+open import Data.List.Effectful
   renaming (module MonadProperties to List-monad)
 open import Data.List.NonEmpty as List⁺
   using (List⁺; _∷_; _∷⁺_; head; tail)
 open import Data.List.Properties
 open import Data.Maybe hiding (_>>=_)
-open import Data.Maybe.Categorical as MaybeC
+open import Data.Maybe.Effectful as MaybeC
 open import Data.Nat
 open import Data.Product as Prod
 open import Data.String as String using (String)
 open import Data.Unit
+open import Effect.Monad
 open import Function.Base
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
