@@ -2,7 +2,7 @@
 -- Various utility functions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --without-K --safe #-}
+{-# OPTIONS --cubical-compatible --safe #-}
 
 module Utilities where
 

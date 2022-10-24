@@ -2,7 +2,7 @@
 -- Abstract grammars
 ------------------------------------------------------------------------
 
-{-# OPTIONS --without-K --safe #-}
+{-# OPTIONS --cubical-compatible --safe #-}
 
 module Grammar.Abstract where
 
