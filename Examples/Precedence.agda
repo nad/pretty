@@ -33,7 +33,6 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 open import Relation.Nullary.Decidable as Decidable
-open import Relation.Nullary.Product
 
 open import Examples.Identifier
 open import Grammar.Infinite as Grammar using (Grammar-for)
