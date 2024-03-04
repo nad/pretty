@@ -1,3 +1,5 @@
 name: pretty
 depend: standard-library
 include: .
+flags:
+  --hidden-argument-puns

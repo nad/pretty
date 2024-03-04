@@ -311,7 +311,7 @@ module Expr (g : Precedence-graph) where
       <$> higher-printer e₁ ⊛ operators-printer op ⊛ right⁺↑-printer e₂
 
     right⁺↑-printer : ∀ {p} → Pretty-printer (right⁺↑ p)
-    right⁺↑-printer {p₁} (app {p = p₂} (⇾ , e))
+    right⁺↑-printer {p = p₁} (app {p = p₂} (⇾ , e))
       with p₁ ≟F p₂ | higher-printer (app (⇾ , e))
     right⁺↑-printer (app (⇾ , e)) | yes P.refl | _ =
       -- Matching precedence and associativity.
@@ -324,7 +324,7 @@ module Expr (g : Precedence-graph) where
       <$> left⁺↑-printer e₁ ⊛ operators-printer op ⊛ higher-printer e₂
 
     left⁺↑-printer : ∀ {p} → Pretty-printer (left⁺↑ p)
-    left⁺↑-printer {p₁} (app {p = p₂} (⇽ , e))
+    left⁺↑-printer {p = p₁} (app {p = p₂} (⇽ , e))
       with p₁ ≟F p₂ | higher-printer (app (⇽ , e))
     left⁺↑-printer (app (⇽ , e)) | yes P.refl | _ =
       -- Matching precedence and associativity.

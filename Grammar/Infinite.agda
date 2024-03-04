@@ -127,8 +127,8 @@ Grammar-for A = (x : A) → Grammar (∃ λ x′ → x′ ≡ x)
 -- Forcing of a conditionally coinductive grammar.
 
 ♭? : ∀ {c A} → ∞Grammar c A → Grammar A
-♭? {true}  = ♭
-♭? {false} = id
+♭? {c = true}  = ♭
+♭? {c = false} = id
 
 -- A grammar combinator: Kleene plus.
 
@@ -725,7 +725,7 @@ expressive ss = (g ss , g-sem ss)
   g (s ∷ ss) = maybe-string s ∣ ♯ g (♭ ss)
 
   maybe-string-sem : ∀ {m s} → tt ∈ maybe-string m · s ↔ just s ≡ m
-  maybe-string-sem {nothing} = record
+  maybe-string-sem {m = nothing} = record
     { to         = P.→-to-⟶ (λ ())
     ; from       = P.→-to-⟶ (λ ())
     ; inverse-of = record
@@ -733,7 +733,7 @@ expressive ss = (g ss , g-sem ss)
       ; right-inverse-of = λ ()
       }
     }
-  maybe-string-sem {just s} = record
+  maybe-string-sem {m = just s} = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
     ; inverse-of = record
