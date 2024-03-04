@@ -19,8 +19,6 @@ open import Data.Product
 open import Data.String as String using (String)
 open import Data.Unit
 open import Function
-open import Function.Equality using (_⟨$⟩_)
-open import Function.Inverse using (module Inverse)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 open import Tactic.MonoidSolver
@@ -93,7 +91,7 @@ record Renderer : Set₁ where
 
   render-string : ∀ {s s′} (d : Doc (string s) s′) → render d ≡ s
   render-string = render-unique-string λ s′∈ →
-    P.sym $ proj₂ (Inverse.to string-sem′ ⟨$⟩ s′∈)
+    P.sym $ proj₂ (Inverse.to string-sem′ s′∈)
 
   -- The property of ignoring (top-level) emb constructors.
 
@@ -117,7 +115,7 @@ record Renderer : Set₁ where
     open P.≡-Reasoning
 
     lemma₁ : ∀ {s′} → s ∈ string s · s′ → x ∈ g · s′
-    lemma₁ s∈ = cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈)) x∈
+    lemma₁ s∈ = cast (proj₂ (Inverse.to string-sem′ s∈)) x∈
 
     lemma₂ = begin
       render (Pretty.embed lemma₁ text)  ≡⟨ ignores-emb ⟩
@@ -295,7 +293,7 @@ module Wadler's-renderer where
             String.toList " " ∈ string′ " " · s →
             tt ∈ tt <$ whitespace + · s
     lemma s∈ =
-      cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈))
+      cast (proj₂ (Inverse.to string-sem′ s∈))
            (<$-sem single-space-sem)
 
   -- A variant of line that has the same type as Pretty.line (except
@@ -314,7 +312,7 @@ module Wadler's-renderer where
             let s = show-element (line i) in
             s ∈ string s · s′ → tt ∈ tt <$ whitespace + · s′
     lemma s∈ =
-      cast (proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈))
+      cast (proj₂ (Inverse.to string-sem′ s∈))
            (<$-sem (+-sem (right-sem tok-sem) (replicate-lemma _)))
 
   mutual

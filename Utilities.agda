@@ -17,9 +17,6 @@ import Data.Nat.Properties as NP
 open import Data.Product
 open import Data.String as String using (String)
 open import Function
-open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence
-  using () renaming (module Equivalence to Eq)
 open import Relation.Binary
 import Relation.Binary.Properties.StrictTotalOrder as STO
 open import Relation.Nullary.Decidable
@@ -55,7 +52,7 @@ private
             (s : List⁺ Char) → T (all p (List⁺.toList s)) →
             List⁺ (∃ (T ∘ p))
     str⁺′ (t ∷ ts) ok =
-      let (ok₁ , ok₂) = Eq.to T-∧ ⟨$⟩ ok in
+      let (ok₁ , ok₂) = Equivalence.to T-∧ ok in
       (t , ok₁) ∷ str′ ts ok₂
 
 str : {p : Char → Bool}

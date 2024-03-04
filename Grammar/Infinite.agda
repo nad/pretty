@@ -41,9 +41,7 @@ open import Data.Product as Prod
 open import Data.String as String using (String)
 open import Data.Unit
 open import Effect.Monad
-open import Function.Base
-open import Function.Equality using (_⟨$⟩_)
-open import Function.Inverse using (_↔_; module Inverse)
+open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary
 open import Tactic.MonoidSolver
@@ -299,14 +297,11 @@ cast refl = id
 
 isomorphic : ∀ {A x s} {g : Grammar A} →
              x ∈ g · s ↔ x Basic.∈ ⟦ g ⟧ · s
-isomorphic {g = g} = record
-  { to         = P.→-to-⟶ sound
-  ; from       = P.→-to-⟶ (complete g)
-  ; inverse-of = record
-    { left-inverse-of  = complete∘sound
-    ; right-inverse-of = sound∘complete g
-    }
-  }
+isomorphic {g = g} =
+  mk↔ {from = complete g}
+    ( (λ { refl → sound∘complete _ _ })
+    , (λ { refl → complete∘sound _ })
+    )
   where
 
   -- Some short lemmas.
@@ -336,7 +331,7 @@ isomorphic {g = g} = record
   sound (left-sem x∈)            = left-sem (sound x∈)
   sound (right-sem x∈)           = right-sem (sound x∈)
   sound tok-sem                  = Inverse.from Basic.tok-sem
-                                     ⟨$⟩ (refl , refl)
+                                     (refl , refl)
   sound (<$>-sem x∈)             = Basic.cast (lemma₁ _)
                                      (>>=-sem (sound x∈) return-sem)
   sound (<$-sem x∈)              = Basic.cast (lemma₁ _)
@@ -365,7 +360,7 @@ isomorphic {g = g} = record
   complete (g₁ ∣ g₂)   (right-sem x∈)  = right-sem (complete _ x∈)
 
   complete fail    ∈fail = ⊥-elim (Basic.fail-sem⁻¹ ∈fail)
-  complete (tok t) t∈    = tok-lemma (Inverse.to Basic.tok-sem ⟨$⟩ t∈)
+  complete (tok t) t∈    = tok-lemma (Inverse.to Basic.tok-sem t∈)
 
   complete (f <$> g) (>>=-sem x∈ return-sem) =
     cast (P.sym $ lemma₁ _)
@@ -427,8 +422,8 @@ isomorphic {g = g} = record
   complete∘sound (right-sem x∈)  = P.cong right-sem (complete∘sound x∈)
 
   complete∘sound (tok-sem {t = t})
-    rewrite Inverse.right-inverse-of (Basic.tok-sem {t = t})
-                                     (refl , refl)
+    rewrite
+      Inverse.inverseˡ (Basic.tok-sem {t = t}) {x = refl , refl} refl
     = refl
 
   complete∘sound (<$>-sem {s = s} x∈) with sound x∈ | complete∘sound x∈
@@ -499,11 +494,11 @@ isomorphic {g = g} = record
 
   sound∘complete fail    ∈fail = ⊥-elim (Basic.fail-sem⁻¹ ∈fail)
   sound∘complete (tok t) t∈    =
-    helper _ (Inverse.left-inverse-of Basic.tok-sem t∈)
+    helper _ (Inverse.inverseʳ Basic.tok-sem {x = t∈} refl)
     where
     helper : ∀ {t t′ s} {t∈ : t′ Basic.∈ Basic.tok t · s}
              (eqs : t ≡ t′ × s ≡ [ t ]) →
-             Inverse.from Basic.tok-sem ⟨$⟩ eqs ≡ t∈ →
+             Inverse.from Basic.tok-sem eqs ≡ t∈ →
              sound (tok-lemma eqs) ≡ t∈
     helper (refl , refl) ≡t∈ = ≡t∈
 
@@ -661,14 +656,9 @@ single-space-sem : (' ' ∷ []) ∈ whitespace + · String.toList " "
 single-space-sem = +-sem (left-sem tok-sem) ⋆-[]-sem
 
 string-sem′ : ∀ {s s′ s″} → s ∈ string s′ · s″ ↔ (s ≡ s′ × s′ ≡ s″)
-string-sem′ = record
-  { to         = P.→-to-⟶ (to _)
-  ; from       = P.→-to-⟶ (from _)
-  ; inverse-of = record
-    { left-inverse-of  = from∘to _
-    ; right-inverse-of = to∘from _
-    }
-  }
+string-sem′ =
+  mk↔ {to = to _}
+    ((λ { refl → to∘from _ _ }) , (λ { refl → from∘to _ _ }))
   where
   to : ∀ {s} s′ {s″} → s ∈ string s′ · s″ → s ≡ s′ × s′ ≡ s″
   to []       return-sem                   = (refl , refl)
@@ -696,7 +686,7 @@ string-sem′ = record
     = refl
 
 string-sem : ∀ {s} → s ∈ string s · s
-string-sem = Inverse.from string-sem′ ⟨$⟩ (refl , refl)
+string-sem = Inverse.from string-sem′ (refl , refl)
 
 ------------------------------------------------------------------------
 -- Expressiveness
@@ -725,78 +715,63 @@ expressive ss = (g ss , g-sem ss)
   g (s ∷ ss) = maybe-string s ∣ ♯ g (♭ ss)
 
   maybe-string-sem : ∀ {m s} → tt ∈ maybe-string m · s ↔ just s ≡ m
-  maybe-string-sem {m = nothing} = record
-    { to         = P.→-to-⟶ (λ ())
-    ; from       = P.→-to-⟶ (λ ())
-    ; inverse-of = record
-      { left-inverse-of  = λ ()
-      ; right-inverse-of = λ ()
-      }
-    }
-  maybe-string-sem {m = just s} = record
-    { to         = P.→-to-⟶ to
-    ; from       = P.→-to-⟶ from
-    ; inverse-of = record
-      { left-inverse-of  = from∘to
-      ; right-inverse-of = to∘from
-      }
-    }
+  maybe-string-sem {m = nothing} =
+    mk↔ {to = λ ()} {from = λ ()} ((λ { {x = ()} }) , (λ { {y = ()} }))
+  maybe-string-sem {m = just s} =
+    mk↔ {from = from}
+      ((λ { refl → to∘from _ }) , (λ { refl → from∘to _ }))
     where
     to : ∀ {s′} →
          tt ∈ tt <$ string s · s′ → Maybe.just s′ ≡ just s
     to (<$-sem s∈) =
-      P.sym $ P.cong just $ proj₂ (Inverse.to string-sem′ ⟨$⟩ s∈)
+      P.sym $ P.cong just $ proj₂ (Inverse.to string-sem′ s∈)
 
     from : ∀ {s′} →
            Maybe.just s′ ≡ just s → tt ∈ tt <$ string s · s′
-    from refl = <$-sem (Inverse.from string-sem′ ⟨$⟩ (refl , refl))
+    from refl = <$-sem (Inverse.from string-sem′ (refl , refl))
 
     from∘to : ∀ {s′} (tt∈ : tt ∈ tt <$ string s · s′) →
               from (to tt∈) ≡ tt∈
     from∘to (<$-sem s∈)
-      with Inverse.to string-sem′ ⟨$⟩ s∈
-         | Inverse.left-inverse-of string-sem′ s∈
-    from∘to (<$-sem .(Inverse.from string-sem′ ⟨$⟩ (refl , refl)))
+      with Inverse.to string-sem′ s∈
+         | Inverse.inverseʳ string-sem′ {x = s∈} refl
+    from∘to (<$-sem .(Inverse.from string-sem′ (refl , refl)))
       | (refl , refl) | refl = refl
 
     to∘from : ∀ {s′} (eq : Maybe.just s′ ≡ just s) →
               to (from eq) ≡ eq
     to∘from refl
-      rewrite Inverse.right-inverse-of
-                (string-sem′ {s = s}) (refl , refl)
+      rewrite Inverse.inverseˡ
+                (string-sem′ {s = s}) {x = refl , refl} refl
       = refl
 
   g-sem : ∀ ss {s} → tt ∈ g ss · s ↔ just s ∈ ss
-  g-sem ss = record
-    { to         = P.→-to-⟶ (to   ss)
-    ; from       = P.→-to-⟶ (from ss)
-    ; inverse-of = record
-      { left-inverse-of  = from∘to ss
-      ; right-inverse-of = to∘from ss
-      }
-    }
+  g-sem ss =
+    mk↔ {to = to ss}
+      ((λ { refl → to∘from ss _ }) , (λ { refl → from∘to ss _ }))
     where
     to : ∀ ss {s} → tt ∈ g ss · s → just s ∈ ss
     to []       ()
-    to (s ∷ ss) (left-sem  tt∈) = here (Inverse.to maybe-string-sem ⟨$⟩ tt∈)
+    to (s ∷ ss) (left-sem  tt∈) = here (Inverse.to maybe-string-sem tt∈)
     to (s ∷ ss) (right-sem tt∈) = there (to (♭ ss) tt∈)
 
     from : ∀ ss {s} → just s ∈ ss → tt ∈ g ss · s
     from []       ()
-    from (s ∷ ss) (here eq) = left-sem (Inverse.from maybe-string-sem ⟨$⟩ eq)
+    from (s ∷ ss) (here eq) =
+      left-sem (Inverse.from maybe-string-sem eq)
     from (s ∷ ss) (there p) = right-sem (from (♭ ss) p)
 
     from∘to : ∀ ss {s} (tt∈ : tt ∈ g ss · s) → from ss (to ss tt∈) ≡ tt∈
     from∘to []       ()
     from∘to (s ∷ ss) (right-sem tt∈) = P.cong right-sem (from∘to (♭ ss) tt∈)
     from∘to (s ∷ ss) (left-sem  tt∈) =
-      P.cong left-sem (Inverse.left-inverse-of maybe-string-sem tt∈)
+      P.cong left-sem (Inverse.inverseʳ maybe-string-sem {x = tt∈} refl)
 
     to∘from : ∀ ss {s} (eq : just s ∈ ss) → to ss (from ss eq) ≡ eq
     to∘from []       ()
     to∘from (s ∷ ss) (there p) = P.cong there (to∘from (♭ ss) p)
     to∘from (s ∷ ss) (here eq) =
-      P.cong here (Inverse.right-inverse-of maybe-string-sem eq)
+      P.cong here (Inverse.inverseˡ maybe-string-sem {x = eq} refl)
 
 ------------------------------------------------------------------------
 -- Detecting the whitespace combinator

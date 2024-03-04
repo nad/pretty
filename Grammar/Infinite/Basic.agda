@@ -30,10 +30,9 @@ open import Data.Product.Function.NonDependent.Propositional
 open import Data.Sum
 open import Data.Unit using (tt)
 open import Effect.Monad
-open import Function.Base
-open import Function.Equality using (_⟨$⟩_)
-open import Function.Inverse as Inv using (_↔_; module Inverse)
-import Function.Related as Related
+open import Function
+import Function.Properties.Inverse as Inv
+import Function.Related.Propositional as Related
 open import Function.Related.TypeIsomorphisms
 import Level
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
@@ -142,14 +141,8 @@ fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
 
 <$>-sem : ∀ {A B} {f : A → B} {g : Grammar A} {y s} →
           y ∈ f <$> g · s ↔ ∃ λ x → x ∈ g · s × y ≡ f x
-<$>-sem {A} {B} {f} {g} = record
-  { to         = P.→-to-⟶ to
-  ; from       = P.→-to-⟶ from
-  ; inverse-of = record
-    { left-inverse-of  = from∘to
-    ; right-inverse-of = to∘from
-    }
-  }
+<$>-sem {A} {B} {f} {g} =
+  mk↔ {to = to} ((λ { refl → to∘from _ }) , (λ { refl → from∘to _ }))
   where
   lemma : ∀ s → s ++ [] ≡ s
   lemma s = proj₂ LMi.identity s
@@ -199,14 +192,9 @@ fail-sem⁻¹ (right-sem ∈fail) = fail-sem⁻¹ ∈fail
     = refl
 
 if-true-sem : ∀ {b} x {s} → x ∈ if-true b · s ↔ s ≡ []
-if-true-sem x = record
-  { to         = P.→-to-⟶ (to _)
-  ; from       = P.→-to-⟶ (from _ _)
-  ; inverse-of = record
-    { left-inverse-of  = from∘to _
-    ; right-inverse-of = to∘from _ x
-    }
-  }
+if-true-sem x =
+  mk↔ {to = to _}
+    ((λ { refl → to∘from _ x _ }) , (λ { refl → from∘to _ _ }))
   where
   to : ∀ b {x s} → x ∈ if-true b · s → s ≡ []
   to true  return-sem = refl
@@ -226,37 +214,32 @@ if-true-sem x = record
 
 sat-sem : ∀ {p : Char → Bool} {t pt s} →
           (t , pt) ∈ sat p · s ↔ s ≡ [ t ]
-sat-sem {p} {t} {pt} = record
-  { to         = P.→-to-⟶ to
-  ; from       = P.→-to-⟶ from
-  ; inverse-of = record
-    { left-inverse-of  = from∘to
-    ; right-inverse-of = to∘from
-    }
-  }
+sat-sem {p} {t} {pt} =
+  mk↔ {from = from}
+    ((λ { refl → to∘from _ }) , (λ { refl → from∘to _ }))
   where
   to : ∀ {s} → (t , pt) ∈ sat p · s → s ≡ [ t ]
   to (>>=-sem token-sem (>>=-sem tt∈ return-sem)) =
-    P.cong (λ s → t ∷ s ++ []) (Inverse.to (if-true-sem pt) ⟨$⟩ tt∈)
+    P.cong (λ s → t ∷ s ++ []) (Inverse.to (if-true-sem pt) tt∈)
 
   from : ∀ {s} → s ≡ [ t ] → (t , pt) ∈ sat p · s
   from refl =
     >>=-sem token-sem
-            (>>=-sem (Inverse.from (if-true-sem pt) ⟨$⟩ refl)
+            (>>=-sem (Inverse.from (if-true-sem pt) refl)
                      return-sem)
 
   from∘to : ∀ {s} (t∈ : (t , pt) ∈ sat p · s) → from (to t∈) ≡ t∈
   from∘to (>>=-sem token-sem (>>=-sem tt∈ return-sem))
-    with Inverse.to (if-true-sem pt) ⟨$⟩ tt∈
-       | Inverse.left-inverse-of (if-true-sem pt) tt∈
+    with Inverse.to (if-true-sem pt) tt∈
+       | Inverse.inverseʳ (if-true-sem pt) {x = tt∈} refl
   from∘to (>>=-sem token-sem
-             (>>=-sem .(Inverse.from (if-true-sem pt) ⟨$⟩ refl)
+             (>>=-sem .(Inverse.from (if-true-sem pt) refl)
                       return-sem))
     | refl | refl = refl
 
   to∘from : ∀ {s} (eq : s ≡ [ t ]) → to (from eq) ≡ eq
   to∘from refl
-    rewrite Inverse.right-inverse-of (if-true-sem pt) refl
+    rewrite Inverse.inverseˡ (if-true-sem pt) {x = refl} refl
     = refl
 
 abstract
@@ -267,9 +250,9 @@ abstract
   tok-sem : ∀ {t′ t s} → t′ ∈ tok t · s ↔ (t ≡ t′ × s ≡ [ t ])
   tok-sem {t′} {t} {s} =
     t′ ∈ tok t · s                                   ↔⟨ <$>-sem ⟩
-    (∃ λ p → p ∈ sat (λ t′ → t == t′) · s × t′ ≡ t)  ↔⟨ Σ.cong Inv.id (sat-sem ×-cong Inv.id) ⟩
+    (∃ λ p → p ∈ sat (λ t′ → t == t′) · s × t′ ≡ t)  ↔⟨ Σ.cong Inv.↔-refl (sat-sem ×-cong Inv.↔-refl) ⟩
     (∃ λ p → s ≡ [ proj₁ p ] × t′ ≡ t)               ↔⟨ Σ-assoc ⟩
-    (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.id (True↔ _ P.≡-irrelevant ×-cong Inv.id) ⟩
+    (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.↔-refl (True↔ _ P.≡-irrelevant ×-cong Inv.↔-refl) ⟩
     (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t)          ↔⟨ lemma ⟩
     (t ≡ t′ × s ≡ [ t ])                             ∎
     where
@@ -277,14 +260,9 @@ abstract
 
     lemma : (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t) ↔
             (t ≡ t′ × s ≡ [ t ])
-    lemma = record
-      { to         = P.→-to-⟶ to
-      ; from       = P.→-to-⟶ from
-      ; inverse-of = record
-        { left-inverse-of  = from∘to
-        ; right-inverse-of = to∘from
-        }
-      }
+    lemma =
+      mk↔ {to = to}
+        ((λ { refl → to∘from _ }) , (λ { refl → from∘to _ }))
       where
       to : ∀ {t′ t : Char} {s} →
            (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t) → t ≡ t′ × s ≡ [ t ]
@@ -360,8 +338,8 @@ module Aside (finite-number-of-tokens :
     Prod.zip
       _++_
       (λ {xs} i₁ i₂ →
-       λ { (left-sem  ∈g₁) → Inverse.to ++↔             ⟨$⟩ inj₁ (i₁ ∈g₁)
-         ; (right-sem ∈g₂) → Inverse.to (++↔ {xs = xs}) ⟨$⟩ inj₂ (i₂ ∈g₂)
+       λ { (left-sem  ∈g₁) → Inverse.to ++↔             (inj₁ (i₁ ∈g₁))
+         ; (right-sem ∈g₂) → Inverse.to (++↔ {xs = xs}) (inj₂ (i₂ ∈g₂))
          })
       (initial-bag g₁)
       (initial-bag g₂)
@@ -373,10 +351,10 @@ module Aside (finite-number-of-tokens :
 
     lemma₂ : ∀ {x y} xs → x ∈ xs → y ∈I g₂ x · [] → y ∈ ys xs
     lemma₂ (x ∷ xs) (here refl) ∈g₂ =
-      Inverse.to ++↔ ⟨$⟩ inj₁ (proj₂ (initial-bag (g₂ x)) ∈g₂)
+      Inverse.to ++↔ (inj₁ (proj₂ (initial-bag (g₂ x)) ∈g₂))
     lemma₂ (z ∷ xs) (there x∈) ∈g₂ =
-      Inverse.to (++↔ {xs = proj₁ (initial-bag (g₂ z))}) ⟨$⟩
-        inj₂ (lemma₂ xs x∈ ∈g₂)
+      Inverse.to (++↔ {xs = proj₁ (initial-bag (g₂ z))})
+        (inj₂ (lemma₂ xs x∈ ∈g₂))
 
     lemma₁ : ∀ {x s} → x ∈I g₁ >>= g₂ · s → s ≡ [] → x ∈ ys xs
     lemma₁ (>>=-sem {s₁ = []}    ∈g₁ ∈g₂) refl = lemma₂ xs (xs-ok ∈g₁) ∈g₂
@@ -427,7 +405,7 @@ module Aside (finite-number-of-tokens :
   finite-number-of-results g n =
     (all-strings n LMa.>>= proj₁ ∘ parse g) ,
     λ {_} {s} ≤n ∈g →
-      Inverse.to ∈.>>=-∈↔ ⟨$⟩
+      Inverse.to ∈.>>=-∈↔
         (_ , all-strings-ok s n ≤n , proj₂ (parse g s) ∈g)
     where
     all-strings : ℕ → List (List Char)
@@ -438,13 +416,13 @@ module Aside (finite-number-of-tokens :
 
     all-strings-ok : ∀ s n → length s ≤ n → s ∈ all-strings n
     all-strings-ok []      zero    z≤n      = here refl
-    all-strings-ok []      (suc n) z≤n      = Inverse.to ++↔ ⟨$⟩
+    all-strings-ok []      (suc n) z≤n      = Inverse.to ++↔ $
                                                 inj₁ (all-strings-ok [] n z≤n)
     all-strings-ok (t ∷ s) (suc n) (s≤s ≤n) =
-      Inverse.to (++↔ {xs = all-strings n}) ⟨$⟩
-        inj₂ (Inverse.to ∈.>>=-∈↔ ⟨$⟩
+      Inverse.to (++↔ {xs = all-strings n}) $
+        inj₂ (Inverse.to ∈.>>=-∈↔
                 (_ , proj₂ finite-number-of-tokens t
-                   , Inverse.to (∈.map-∈↔ _) ⟨$⟩
+                   , Inverse.to (∈.map-∈↔ _)
                        (_ , all-strings-ok s n ≤n , refl)))
 
   -- No inductive grammar can generate strings of unbounded length.
