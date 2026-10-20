@@ -22,7 +22,7 @@ import Data.List.Membership.Propositional.Properties as ∈
 open import Data.List.Properties
 import Data.List.Relation.Unary.Any as Any
 open import Data.List.Relation.Unary.Any.Properties
-open import Data.Nat
+open import Data.Nat hiding (_≡ᵇ_)
 open import Data.Nat.Properties as NatP
 open import Data.Product as Prod
 import Data.Product.Function.Dependent.Propositional as Σ
@@ -124,7 +124,7 @@ sat p = ♯ token >>= λ t → ♯ (_,_ t <$> if-true (p t))
 -- A specific token.
 
 tok : Char → Grammar Char
-tok t = t <$ sat (λ t′ → t == t′)
+tok t = t <$ sat (λ t′ → t ≡ᵇ t′)
 
 ------------------------------------------------------------------------
 -- Some semantics combinators
@@ -250,9 +250,9 @@ abstract
   tok-sem : ∀ {t′ t s} → t′ ∈ tok t · s ↔ (t ≡ t′ × s ≡ [ t ])
   tok-sem {t′} {t} {s} =
     t′ ∈ tok t · s                                   ↔⟨ <$>-sem ⟩
-    (∃ λ p → p ∈ sat (λ t′ → t == t′) · s × t′ ≡ t)  ↔⟨ Σ.cong Inv.↔-refl (sat-sem ×-cong Inv.↔-refl) ⟩
+    (∃ λ p → p ∈ sat (λ t′ → t ≡ᵇ t′) · s × t′ ≡ t)  ↔⟨ Σ.cong Inv.↔-refl (sat-sem ×-cong Inv.↔-refl) ⟩
     (∃ λ p → s ≡ [ proj₁ p ] × t′ ≡ t)               ↔⟨ Σ-assoc ⟩
-    (∃ λ t″ → T (t == t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.↔-refl (True↔ _ P.≡-irrelevant ×-cong Inv.↔-refl) ⟩
+    (∃ λ t″ → T (t ≡ᵇ t″) × s ≡ [ t″ ] × t′ ≡ t)     ↔⟨ Σ.cong Inv.↔-refl (True↔ _ P.≡-irrelevant ×-cong Inv.↔-refl) ⟩
     (∃ λ t″ → t ≡ t″ × s ≡ [ t″ ] × t′ ≡ t)          ↔⟨ lemma ⟩
     (t ≡ t′ × s ≡ [ t ])                             ∎
     where

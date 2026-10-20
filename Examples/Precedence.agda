@@ -13,11 +13,12 @@ module Examples.Precedence where
 
 open import Codata.Musical.Notation
 open import Data.Bool using (Bool; T)
+import Data.Bool.ListAction as List
 import Data.Bool.Properties as Bool-prop
-open import Data.Char as Char using (Char; _==_)
+open import Data.Char as Char using (Char; _≡ᵇ_)
 open import Data.Fin using (Fin; zero; suc; #_)
-open import Data.Fin.Properties as Fin using () renaming (_≟_ to _≟F_)
-open import Data.List as List
+open import Data.Fin.Properties as Fin using () renaming (_≡?_ to _≡?F_)
+open import Data.List
 open import Data.List.Membership.Propositional
 open import Data.List.NonEmpty as List⁺
 import Data.List.Properties as List
@@ -55,7 +56,7 @@ data Associativity : Set where
 
 is-operator-char : Char → Bool
 is-operator-char t =
-  List.any (_==_ t) (String.toList "+-*/.:^<>=!&|")
+  List.any (_≡ᵇ_ t) (String.toList "+-*/.:^<>=!&|")
 
 Operator-name : Set
 Operator-name = List⁺ (∃ (T ∘ is-operator-char))
@@ -74,12 +75,12 @@ _≟O_ : ∀ {assoc} → Decidable (_≡_ {A = Operator assoc})
     (P.cong ⟪_⟫ ∘ uncurry (P.cong₂ _∷_))
     (< P.cong List⁺.head , P.cong List⁺.tail > ∘′ P.cong Operator.name)
     ((n₁ ≟OC n₂)
-       ×-dec
+       ×?
      List.≡-dec _≟OC_ ns₁ ns₂)
   where
   _≟OC_ : Decidable (_≡_ {A = ∃ (T ∘ is-operator-char)})
   (c₁ , _) ≟OC (c₂ , _) =
-    Decidable.map′ lemma (P.cong proj₁) (c₁ Char.≟ c₂)
+    Decidable.map′ lemma (P.cong proj₁) (c₁ Char.≡? c₂)
     where
     lemma : {p₁ p₂ : ∃ (T ∘ is-operator-char)} →
             proj₁ p₁ ≡ proj₁ p₂ → p₁ ≡ p₂
@@ -154,7 +155,7 @@ record Precedence-graph : Set where
   -- A membership test for precedences.
 
   _∈?_ : ∀ (p : Precedence) ps → Dec (p ∈ ps)
-  p ∈? ps = Any.any? (_≟F_ p) ps
+  p ∈? ps = Any.any? (_≡?F_ p) ps
 
 ------------------------------------------------------------------------
 -- Expressions
@@ -312,7 +313,7 @@ module Expr (g : Precedence-graph) where
 
     right⁺↑-printer : ∀ {p} → Pretty-printer (right⁺↑ p)
     right⁺↑-printer {p = p₁} (app {p = p₂} (⇾ , e))
-      with p₁ ≟F p₂ | higher-printer (app (⇾ , e))
+      with p₁ ≡?F p₂ | higher-printer (app (⇾ , e))
     right⁺↑-printer (app (⇾ , e)) | yes P.refl | _ =
       -- Matching precedence and associativity.
       left (<$> right⁺-printer e)
@@ -325,7 +326,7 @@ module Expr (g : Precedence-graph) where
 
     left⁺↑-printer : ∀ {p} → Pretty-printer (left⁺↑ p)
     left⁺↑-printer {p = p₁} (app {p = p₂} (⇽ , e))
-      with p₁ ≟F p₂ | higher-printer (app (⇽ , e))
+      with p₁ ≡?F p₂ | higher-printer (app (⇽ , e))
     left⁺↑-printer (app (⇽ , e)) | yes P.refl | _ =
       -- Matching precedence and associativity.
       left (<$> left⁺-printer e)

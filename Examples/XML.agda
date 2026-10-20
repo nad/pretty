@@ -11,6 +11,7 @@ module Examples.XML where
 
 open import Codata.Musical.Notation
 open import Data.Bool
+import Data.Bool.ListAction as ListA
 open import Data.Char
 open import Data.List as List using (List; []; _∷_)
 open import Data.List.NonEmpty as List⁺ using (_∷_)
@@ -36,7 +37,7 @@ is-text-char t =
     ∨
   ('0' ≤?C t) ∧ (t ≤?C '9')
     ∨
-  List.any (_==_ t) (String.toList ":./ \n")
+  ListA.any (_≡ᵇ_ t) (String.toList ":./ \n")
 
 Text : Set
 Text = List (∃ λ (t : Char) → T (is-text-char t))

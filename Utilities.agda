@@ -2,15 +2,16 @@
 -- Various utility functions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --cubical-compatible --safe #-}
+{-# OPTIONS --without-K --safe #-}
 
 module Utilities where
 
-open import Data.Bool
+open import Data.Bool using (Bool; T; not)
+open import Data.Bool.ListAction using (all)
 open import Data.Bool.Properties using (T-∧)
 open import Data.Char
 import Data.Char.Properties as Char
-open import Data.List
+open import Data.List using (List; []; _∷_; null)
 open import Data.List.NonEmpty as List⁺
 open import Data.Nat
 import Data.Nat.Properties as NP
